@@ -2,6 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { HealthController } from './health/health.controller';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { AdminModule } from './admin/admin.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -15,6 +19,14 @@ import { HealthController } from './health/health.controller';
         uri: configService.get<string>('MONGODB_URI'),
       }),
     }),
+
+    AuthModule,
+
+    UsersModule,
+
+    AdminModule,
+
+    RedisModule,
   ],
   controllers: [HealthController],
 })
