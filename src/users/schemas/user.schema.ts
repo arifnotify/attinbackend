@@ -1,9 +1,17 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import {
+  Prop,
+  Schema,
+  SchemaFactory,
+} from '@nestjs/mongoose';
+
 import { Document } from 'mongoose';
 
-export type UserDocument = User & Document;
+export type UserDocument =
+  User & Document;
 
-@Schema({ timestamps: true })
+@Schema({
+  timestamps: true,
+})
 export class User {
   @Prop({
     required: true,
@@ -11,17 +19,10 @@ export class User {
   })
   phone: string;
 
-  // Temporary OTP
-  @Prop()
-  otp?: string;
-
-  // OTP expire time
-  @Prop()
-  otpExpiresAt?: Date;
-
-  // User verified or not
-  @Prop({ default: false })
-  isVerified: boolean;
+  @Prop({
+    default: true,
+  })
+  isActive: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

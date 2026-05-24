@@ -2,60 +2,74 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
 
-import * as bcrypt from 'bcrypt';
+import { UsersService } from '../users/users.service';
+
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private usersService: UsersService,
 
-  // USER SEND OTP
+    private redisService: RedisService,
+
+    private jwtService: JwtService,
+  ) {}
+
+  // SEND OTP
   async sendOtp(phone: string) {
+    // testing OTP
     const otp = '1234';
 
-    // Store in Redis later
+    // store OTP in Redis
+    await this.redisService.set(`otp:${phone}`, otp, 300);
 
     return {
       success: true,
+      message: 'OTP sent successfully',
       otp,
     };
   }
 
-  // USER VERIFY OTP
+  // VERIFY OTP
   async verifyOtp(phone: string, otp: string) {
-    if (otp !== '1234') {
+    const storedOtp = await this.redisService.get(`otp:${phone}`);
+
+    if (!storedOtp) {
+      throw new UnauthorizedException('OTP expired');
+    }
+
+    if (storedOtp !== otp) {
       throw new UnauthorizedException('Invalid OTP');
     }
 
+    // find existing user
+    let user = await this.usersService.findByPhone(phone);
+
+    // if user does not exist
+    // create account automatically
+    if (!user) {
+      user = await this.usersService.create(phone);
+    }
+
+    // generate JWT token
     const token = this.jwtService.sign({
-      phone,
+      userId: user._id,
+      phone: user.phone,
       role: 'user',
     });
 
-    return {
-      success: true,
-      access_token: token,
-    };
-  }
-
-  // ADMIN LOGIN
-  async adminLogin(admin: any) {
-    const isPasswordMatched = await bcrypt.compare(
-      admin.password,
-      admin.hashedPassword,
-    );
-
-    if (!isPasswordMatched) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const token = this.jwtService.sign({
-      email: admin.email,
-      role: 'admin',
-    });
+    // delete OTP after verification
+    await this.redisService.delete(`otp:${phone}`);
 
     return {
       success: true,
+
+      message: 'User login successful',
+
       access_token: token,
+
+      user,
     };
   }
 }
