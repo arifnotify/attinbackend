@@ -6,6 +6,7 @@ export class VerifyOtpDto {
   phone: string;
 
   @IsNotEmpty()
+
   @Length(4, 4)
   otp: string;
 }

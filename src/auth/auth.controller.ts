@@ -10,6 +10,7 @@ import { VerifyOtpDto } from './dto/verify-otp.dto';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  // SEND OTP
   @Post('send-otp')
   sendOtp(
     @Body()
@@ -18,6 +19,7 @@ export class AuthController {
     return this.authService.sendOtp(sendOtpDto.phone);
   }
 
+  // VERIFY OTP
   @Post('verify-otp')
   verifyOtp(
     @Body()

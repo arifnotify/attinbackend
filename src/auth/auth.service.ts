@@ -18,10 +18,19 @@ export class AuthService {
 
   // SEND OTP
   async sendOtp(phone: string) {
-    // testing OTP
+    // CHECK USER BLOCKED
+    const user = await this.usersService.findByPhone(phone);
+
+    if (user?.isBlocked) {
+      throw new UnauthorizedException(
+        `This number is blocked. Reason: ${user.blockReason}`,
+      );
+    }
+
+    // TEST OTP
     const otp = '1234';
 
-    // store OTP in Redis
+    // STORE OTP IN REDIS
     await this.redisService.set(`otp:${phone}`, otp, 300);
 
     return {
@@ -43,23 +52,31 @@ export class AuthService {
       throw new UnauthorizedException('Invalid OTP');
     }
 
-    // find existing user
+    // FIND USER
     let user = await this.usersService.findByPhone(phone);
 
-    // if user does not exist
-    // create account automatically
+    // CHECK BLOCK
+    if (user?.isBlocked) {
+      throw new UnauthorizedException(
+        `This number is blocked. Reason: ${user.blockReason}`,
+      );
+    }
+
+    // AUTO CREATE USER
     if (!user) {
       user = await this.usersService.create(phone);
     }
 
-    // generate JWT token
+    // JWT TOKEN
     const token = this.jwtService.sign({
       userId: user._id,
+
       phone: user.phone,
+
       role: 'user',
     });
 
-    // delete OTP after verification
+    // DELETE OTP
     await this.redisService.delete(`otp:${phone}`);
 
     return {
