@@ -23,6 +23,18 @@ export class User {
     default: true,
   })
   isActive: boolean;
+
+  // BLOCK SYSTEM
+  @Prop({
+    default: false,
+  })
+  isBlocked: boolean;
+
+  @Prop({
+    default: '',
+  })
+  blockReason: string;
 }
 
-export const UserSchema = SchemaFactory.createForClass(User);
+export const UserSchema =
+  SchemaFactory.createForClass(User);
