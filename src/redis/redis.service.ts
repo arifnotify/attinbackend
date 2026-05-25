@@ -1,14 +1,9 @@
-import {
-  Injectable,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 
 import { createClient } from 'redis';
 
 @Injectable()
-export class RedisService
-  implements OnModuleInit
-{
+export class RedisService implements OnModuleInit {
   private client;
 
   async onModuleInit() {
