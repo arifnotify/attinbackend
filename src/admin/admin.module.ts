@@ -21,4 +21,3 @@ import { Admin, AdminSchema } from './schemas/admin.schema';
   providers: [AdminService],
 })
 export class AdminModule {}
-
