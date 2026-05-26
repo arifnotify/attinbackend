@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AdminModule } from './admin/admin.module';
 import { RedisModule } from './redis/redis.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -27,6 +28,8 @@ import { RedisModule } from './redis/redis.module';
     AdminModule,
 
     RedisModule,
+
+    UploadModule,
   ],
   controllers: [HealthController],
 })
