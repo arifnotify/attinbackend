@@ -9,6 +9,7 @@ import { FlashSale, FlashSaleDocument } from './schemas/flash-sale.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 
 import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
+import { Cron } from '@nestjs/schedule';
 
 @Injectable()
 export class FlashSaleService {
@@ -98,5 +99,12 @@ export class FlashSaleService {
       success: true,
       message: 'Expired flash sales restored',
     };
+  }
+  // RUN EVERY MINUTE
+  @Cron('* * * * *')
+  async handleFlashSaleRestore() {
+    console.log('Checking expired flash sales...');
+
+    await this.restoreExpiredFlashSales();
   }
 }

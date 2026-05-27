@@ -11,6 +11,7 @@ import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { BannersModule } from './banners/banners.module';
 import { FlashSaleModule } from './flash-sale/flash-sale.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -24,6 +25,9 @@ import { FlashSaleModule } from './flash-sale/flash-sale.module';
         uri: configService.get<string>('MONGODB_URI'),
       }),
     }),
+
+    // Schedule Module
+    ScheduleModule.forRoot(),
 
     AuthModule,
 
