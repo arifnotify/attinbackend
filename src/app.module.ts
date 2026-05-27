@@ -8,6 +8,7 @@ import { AdminModule } from './admin/admin.module';
 import { RedisModule } from './redis/redis.module';
 import { UploadModule } from './upload/upload.module';
 import { ProductsModule } from './products/products.module';
+import { CategoriesModule } from './categories/categories.module';
 
 @Module({
   imports: [
@@ -33,6 +34,8 @@ import { ProductsModule } from './products/products.module';
     UploadModule,
 
     ProductsModule,
+
+    CategoriesModule,
   ],
   controllers: [HealthController],
 })

@@ -82,4 +82,11 @@ export class ProductsService {
       message: 'Product deleted successfully',
     };
   }
+
+  async findByCategory(category: string) {
+    return this.productModel.find({
+      category,
+      isActive: true,
+    });
+  }
 }
