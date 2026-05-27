@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateBannerDto {
   @IsNotEmpty()
@@ -11,5 +11,9 @@ export class CreateBannerDto {
 
   @IsOptional()
   @IsString()
-  link: string;
+  link?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

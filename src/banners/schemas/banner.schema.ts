@@ -18,7 +18,9 @@ export class Banner {
   })
   image: string;
 
-  @Prop()
+  @Prop({
+    default: '',
+  })
   link: string;
 
   @Prop({
