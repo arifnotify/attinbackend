@@ -64,3 +64,9 @@ export class Product {
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
+
+// SEARCH INDEX
+ProductSchema.index({
+  title: 'text',
+  description: 'text',
+});

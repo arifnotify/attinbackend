@@ -17,6 +17,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SearchProductDto } from './dto/search-product.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -61,5 +62,13 @@ export class ProductsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
+  }
+  // SEARCH PRODUCTS
+  @Get('search')
+  searchProducts(
+    @Query()
+    searchDto: SearchProductDto,
+  ) {
+    return this.productsService.searchProducts(searchDto);
   }
 }

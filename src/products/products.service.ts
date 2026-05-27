@@ -9,6 +9,7 @@ import { Product, ProductDocument } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 
 import { UpdateProductDto } from './dto/update-product.dto';
+import { SearchProductDto } from './dto/search-product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -89,4 +90,102 @@ export class ProductsService {
       isActive: true,
     });
   }
+
+  // SEARCH PRODUCTS
+  async searchProducts(searchDto: SearchProductDto) {
+    const {
+      keyword,
+      category,
+      minPrice,
+      maxPrice,
+      sort,
+      page = '1',
+      limit = '10',
+    } = searchDto;
+
+    // FILTER OBJECT
+  const filter: any = {};
+
+    // SEARCH KEYWORD
+    if (keyword) {
+      filter.$text = {
+        $search: keyword,
+      };
+    }
+
+    // CATEGORY FILTER
+    if (category) {
+      filter.category = category;
+    }
+
+    // PRICE FILTER
+    if (minPrice || maxPrice) {
+      filter.price = {};
+
+      if (minPrice) {
+        filter.price.$gte = Number(minPrice);
+      }
+
+      if (maxPrice) {
+        filter.price.$lte = Number(maxPrice);
+      }
+    }
+
+    // PAGINATION
+    const currentPage = Number(page);
+
+    const perPage = Number(limit);
+
+    const skip = (currentPage - 1) * perPage;
+
+    // SORTING
+    let sortOption = {};
+
+    switch (sort) {
+      case 'lowToHigh':
+        sortOption = {
+          price: 1,
+        };
+        break;
+
+      case 'highToLow':
+        sortOption = {
+          price: -1,
+        };
+        break;
+
+      case 'newest':
+        sortOption = {
+          createdAt: -1,
+        };
+        break;
+
+      default:
+        sortOption = {
+          createdAt: -1,
+        };
+    }
+
+    // PRODUCTS
+    const products = await this.productModel
+      .find(filter)
+      .populate('category')
+      .sort(sortOption)
+      .skip(skip)
+      .limit(perPage);
+
+  // TOTAL PRODUCTS
+    const total = await this.productModel.countDocuments(filter);
+
+    return {
+      products,
+
+      pagination: {
+        total,
+        currentPage,
+        totalPages: Math.ceil(total / perPage),
+        perPage,
+      },
+    };
+}
 }
