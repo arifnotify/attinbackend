@@ -9,20 +9,23 @@ export type FlashSaleDocument = FlashSale & Document;
 })
 export class FlashSale {
   @Prop({
-    type: Types.ObjectId,
-    ref: 'Product',
-  })
-  product: Types.ObjectId;
-
-  @Prop({
     required: true,
   })
-  oldPrice: number;
+  title: string;
 
-  @Prop({
-    required: true,
-  })
-  flashPrice: number;
+  @Prop([
+    {
+      product: {
+        type: Types.ObjectId,
+        ref: 'Product',
+      },
+
+      oldPrice: Number,
+
+      salePrice: Number,
+    },
+  ])
+  products: any[];
 
   @Prop({
     required: true,

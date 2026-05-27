@@ -31,7 +31,7 @@ export class Product {
   @Prop({
     default: 0,
   })
-  flashDiscountPrice: number;
+  flashSalePrice: number;
 
   @Prop({
     default: 0,

@@ -1,15 +1,28 @@
-import { IsDateString, IsNotEmpty, IsNumber } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsNotEmpty,
+  IsString,
+} from 'class-validator';
 
 export class CreateFlashSaleDto {
   @IsNotEmpty()
-  product: string;
+  @IsString()
+  title: string;
 
-  @IsNumber()
-  flashPrice: number;
+  @IsArray()
+  products: {
+    product: string;
+    salePrice: number;
+  }[];
 
   @IsDateString()
   startTime: Date;
 
   @IsDateString()
   endTime: Date;
+
+  @IsBoolean()
+  isActive: boolean;
 }
