@@ -17,6 +17,7 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
 import { SearchProductDto } from './dto/search-product.dto';
 
 @Controller('products')
@@ -33,9 +34,23 @@ export class ProductsController {
     return this.productsService.create(createProductDto);
   }
 
+  // SEARCH PRODUCTS
+  // IMPORTANT:
+  // this route must be above :id
+  @Get('search')
+  searchProducts(
+    @Query()
+    searchDto: SearchProductDto,
+  ) {
+    return this.productsService.searchProducts(searchDto);
+  }
+
   // GET ALL PRODUCTS
   @Get()
-  findAll(@Query('search') search?: string) {
+  findAll(
+    @Query('search')
+    search?: string,
+  ) {
     return this.productsService.findAll(search);
   }
 
@@ -62,13 +77,5 @@ export class ProductsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
-  }
-  // SEARCH PRODUCTS
-  @Get('search')
-  searchProducts(
-    @Query()
-    searchDto: SearchProductDto,
-  ) {
-    return this.productsService.searchProducts(searchDto);
   }
 }
