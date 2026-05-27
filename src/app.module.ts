@@ -14,6 +14,7 @@ import { FlashSaleModule } from './flash-sale/flash-sale.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
+import { AddressModule } from './address/address.module';
 
 @Module({
   imports: [
@@ -52,6 +53,8 @@ import { OrdersModule } from './orders/orders.module';
     CartModule,
 
     OrdersModule,
+
+    AddressModule,
   ],
   controllers: [HealthController],
 })
