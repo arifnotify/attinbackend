@@ -22,7 +22,8 @@ export class FlashSaleService {
 
   // CREATE FLASH SALE
   async createFlashSale(createFlashSaleDto: CreateFlashSaleDto) {
-    const flashProducts = [];
+    // FIX: type issue solved here
+    const flashProducts: any[] = [];
 
     for (const item of createFlashSaleDto.products) {
       const product = await this.productModel.findById(item.product);
@@ -31,13 +32,13 @@ export class FlashSaleService {
         throw new NotFoundException('Product not found');
       }
 
-      // update product
+      // MARK PRODUCT AS FLASH SALE
       product.isFlashSale = true;
-
       product.flashSalePrice = item.salePrice;
 
       await product.save();
 
+      // PUSH TO FLASH ARRAY
       flashProducts.push({
         product: product._id,
 
@@ -47,7 +48,7 @@ export class FlashSaleService {
       });
     }
 
-    // create flash sale
+    // CREATE FLASH SALE DOCUMENT
     return this.flashSaleModel.create({
       title: createFlashSaleDto.title,
 
@@ -69,33 +70,27 @@ export class FlashSaleService {
       .find({
         isActive: true,
 
-        startTime: {
-          $lte: now,
-        },
+        startTime: { $lte: now },
 
-        endTime: {
-          $gte: now,
-        },
+        endTime: { $gte: now },
       })
       .populate('products.product');
   }
 
-  // GET ALL FLASH SALES
+  // GET ALL FLASH SALES (ADMIN)
   async getAllFlashSales() {
-    return this.flashSaleModel.find().populate('products.product').sort({
-      createdAt: -1,
-    });
+    return this.flashSaleModel
+      .find()
+      .populate('products.product')
+      .sort({ createdAt: -1 });
   }
 
-  // EXPIRE FLASH SALES
+  // EXPIRE FLASH SALES MANUALLY
   async expireFlashSales() {
     const now = new Date();
 
     const expiredSales = await this.flashSaleModel.find({
-      endTime: {
-        $lt: now,
-      },
-
+      endTime: { $lt: now },
       isActive: true,
     });
 
@@ -105,7 +100,6 @@ export class FlashSaleService {
 
         if (product) {
           product.isFlashSale = false;
-
           product.flashSalePrice = 0;
 
           await product.save();
@@ -113,12 +107,12 @@ export class FlashSaleService {
       }
 
       sale.isActive = false;
-
       await sale.save();
     }
 
     return {
       success: true,
+      message: 'Expired sales updated',
     };
   }
 
@@ -130,12 +124,12 @@ export class FlashSaleService {
       throw new NotFoundException('Flash sale not found');
     }
 
+    // REVERT PRODUCTS
     for (const item of flashSale.products) {
       const product = await this.productModel.findById(item.product);
 
       if (product) {
         product.isFlashSale = false;
-
         product.flashSalePrice = 0;
 
         await product.save();
@@ -146,7 +140,7 @@ export class FlashSaleService {
 
     return {
       success: true,
-      message: 'Flash sale deleted',
+      message: 'Flash sale deleted successfully',
     };
   }
 }
