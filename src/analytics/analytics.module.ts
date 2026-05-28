@@ -12,6 +12,9 @@ import { AnalyticsController } from './analytics.controller';
 
 import { AnalyticsService } from './analytics.service';
 
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -30,6 +33,9 @@ import { AnalyticsService } from './analytics.service';
         schema: ProductSchema,
       },
     ]),
+
+    // ✅ IMPORTANT FIX
+    RedisModule,
   ],
 
   controllers: [AnalyticsController],
