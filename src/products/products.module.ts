@@ -8,6 +8,9 @@ import { ProductsController } from './products.controller';
 
 import { ProductsService } from './products.service';
 
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -16,6 +19,9 @@ import { ProductsService } from './products.service';
         schema: ProductSchema,
       },
     ]),
+
+    // ✅ IMPORTANT FIX
+    RedisModule,
   ],
 
   controllers: [ProductsController],
