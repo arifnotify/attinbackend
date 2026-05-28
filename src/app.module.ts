@@ -15,6 +15,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
 import { AddressModule } from './address/address.module';
+import { CouponsModule } from './coupons/coupons.module';
 
 @Module({
   imports: [
@@ -55,6 +56,8 @@ import { AddressModule } from './address/address.module';
     OrdersModule,
 
     AddressModule,
+
+    CouponsModule,
   ],
   controllers: [HealthController],
 })
