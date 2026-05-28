@@ -9,27 +9,49 @@ import { Product, ProductDocument } from './schemas/product.schema';
 import { CreateProductDto } from './dto/create-product.dto';
 
 import { UpdateProductDto } from './dto/update-product.dto';
+
 import { SearchProductDto } from './dto/search-product.dto';
+
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
+
+    private redisService: RedisService,
   ) {}
 
+  // =========================
   // CREATE PRODUCT
+  // =========================
   async create(createProductDto: CreateProductDto) {
-    return this.productModel.create(createProductDto);
+    const product = await this.productModel.create(createProductDto);
+
+    // 🧠 CLEAR CACHE
+    await this.redisService.del('all_products');
+
+    return product;
   }
 
-  // GET ALL PRODUCTS
+  // =========================
+  // GET ALL PRODUCTS (WITH CACHE)
+  // =========================
   async findAll(search?: string) {
+    const cacheKey = 'all_products';
+
+    // 🔥 CHECK CACHE FIRST
+    const cached = await this.redisService.get(cacheKey);
+
+    if (cached) {
+      return JSON.parse(cached as string);
+    }
+
     const query: any = {
       isActive: true,
     };
 
-    // search
     if (search) {
       query.title = {
         $regex: search,
@@ -37,12 +59,19 @@ export class ProductsService {
       };
     }
 
-    return this.productModel.find(query).sort({
-      createdAt: -1,
-    });
+    const products = await this.productModel
+      .find(query)
+      .sort({ createdAt: -1 });
+
+    // 💾 SAVE TO CACHE (5 min)
+    await this.redisService.set(cacheKey, JSON.stringify(products), 300);
+
+    return products;
   }
 
+  // =========================
   // SINGLE PRODUCT
+  // =========================
   async findOne(id: string) {
     const product = await this.productModel.findById(id);
 
@@ -53,24 +82,29 @@ export class ProductsService {
     return product;
   }
 
+  // =========================
   // UPDATE PRODUCT
+  // =========================
   async update(id: string, updateProductDto: UpdateProductDto) {
     const product = await this.productModel.findByIdAndUpdate(
       id,
       updateProductDto,
-      {
-        new: true,
-      },
+      { new: true },
     );
 
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
+    // 🧠 CLEAR CACHE
+    await this.redisService.del('all_products');
+
     return product;
   }
 
+  // =========================
   // DELETE PRODUCT
+  // =========================
   async remove(id: string) {
     const product = await this.productModel.findByIdAndDelete(id);
 
@@ -78,12 +112,18 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
+    // 🧠 CLEAR CACHE
+    await this.redisService.del('all_products');
+
     return {
       success: true,
       message: 'Product deleted successfully',
     };
   }
 
+  // =========================
+  // CATEGORY PRODUCTS
+  // =========================
   async findByCategory(category: string) {
     return this.productModel.find({
       category,
@@ -91,7 +131,9 @@ export class ProductsService {
     });
   }
 
+  // =========================
   // SEARCH PRODUCTS
+  // =========================
   async searchProducts(searchDto: SearchProductDto) {
     const {
       keyword,
@@ -103,22 +145,16 @@ export class ProductsService {
       limit = '10',
     } = searchDto;
 
-    // FILTER OBJECT
-  const filter: any = {};
+    const filter: any = {};
 
-    // SEARCH KEYWORD
     if (keyword) {
-      filter.$text = {
-        $search: keyword,
-      };
+      filter.$text = { $search: keyword };
     }
 
-    // CATEGORY FILTER
     if (category) {
       filter.category = category;
     }
 
-    // PRICE FILTER
     if (minPrice || maxPrice) {
       filter.price = {};
 
@@ -131,42 +167,26 @@ export class ProductsService {
       }
     }
 
-    // PAGINATION
     const currentPage = Number(page);
-
     const perPage = Number(limit);
-
     const skip = (currentPage - 1) * perPage;
 
-    // SORTING
     let sortOption = {};
 
     switch (sort) {
       case 'lowToHigh':
-        sortOption = {
-          price: 1,
-        };
+        sortOption = { price: 1 };
         break;
 
       case 'highToLow':
-        sortOption = {
-          price: -1,
-        };
+        sortOption = { price: -1 };
         break;
 
       case 'newest':
-        sortOption = {
-          createdAt: -1,
-        };
-        break;
-
       default:
-        sortOption = {
-          createdAt: -1,
-        };
+        sortOption = { createdAt: -1 };
     }
 
-    // PRODUCTS
     const products = await this.productModel
       .find(filter)
       .populate('category')
@@ -174,12 +194,10 @@ export class ProductsService {
       .skip(skip)
       .limit(perPage);
 
-  // TOTAL PRODUCTS
     const total = await this.productModel.countDocuments(filter);
 
     return {
       products,
-
       pagination: {
         total,
         currentPage,
@@ -187,5 +205,5 @@ export class ProductsService {
         perPage,
       },
     };
-}
+  }
 }
