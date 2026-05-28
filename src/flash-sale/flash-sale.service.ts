@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model } from 'mongoose';
 
 import { FlashSale, FlashSaleDocument } from './schemas/flash-sale.schema';
@@ -9,6 +8,8 @@ import { FlashSale, FlashSaleDocument } from './schemas/flash-sale.schema';
 import { Product, ProductDocument } from '../products/schemas/product.schema';
 
 import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
+
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class FlashSaleService {
@@ -18,11 +19,14 @@ export class FlashSaleService {
 
     @InjectModel(Product.name)
     private productModel: Model<ProductDocument>,
+
+    private redisService: RedisService,
   ) {}
 
+  // =========================
   // CREATE FLASH SALE
+  // =========================
   async createFlashSale(createFlashSaleDto: CreateFlashSaleDto) {
-    // FIX: type issue solved here
     const flashProducts: any[] = [];
 
     for (const item of createFlashSaleDto.products) {
@@ -32,60 +36,94 @@ export class FlashSaleService {
         throw new NotFoundException('Product not found');
       }
 
-      // MARK PRODUCT AS FLASH SALE
+      // MARK FLASH SALE
       product.isFlashSale = true;
       product.flashSalePrice = item.salePrice;
 
       await product.save();
 
-      // PUSH TO FLASH ARRAY
       flashProducts.push({
         product: product._id,
-
         oldPrice: product.price,
-
         salePrice: item.salePrice,
       });
     }
 
-    // CREATE FLASH SALE DOCUMENT
-    return this.flashSaleModel.create({
+    const flashSale = await this.flashSaleModel.create({
       title: createFlashSaleDto.title,
-
       products: flashProducts,
-
       startTime: createFlashSaleDto.startTime,
-
       endTime: createFlashSaleDto.endTime,
-
       isActive: createFlashSaleDto.isActive,
     });
+
+    // 🧠 CLEAR CACHE
+    await this.redisService.del('flash_sales_active');
+    await this.redisService.del('flash_sales_all');
+
+    return flashSale;
   }
 
-  // GET ACTIVE FLASH SALES
+  // =========================
+  // GET ACTIVE FLASH SALES (CACHED)
+  // =========================
   async getActiveFlashSales() {
+    const cacheKey = 'flash_sales_active';
+
+    const cached = await this.redisService.get(cacheKey);
+
+    if (cached) {
+      console.log('🔥 ACTIVE FLASH SALES FROM REDIS');
+
+      return typeof cached === 'string' ? JSON.parse(cached) : cached;
+    }
+
+    console.log('🟢 ACTIVE FLASH SALES FROM DB');
+
     const now = new Date();
 
-    return this.flashSaleModel
+    const flashSales = await this.flashSaleModel
       .find({
         isActive: true,
-
         startTime: { $lte: now },
-
         endTime: { $gte: now },
       })
       .populate('products.product');
+
+    await this.redisService.set(
+      cacheKey,
+      JSON.stringify(flashSales),
+      60, // ⚡ short TTL because time-based
+    );
+
+    return flashSales;
   }
 
-  // GET ALL FLASH SALES (ADMIN)
+  // =========================
+  // GET ALL FLASH SALES (CACHED)
+  // =========================
   async getAllFlashSales() {
-    return this.flashSaleModel
+    const cacheKey = 'flash_sales_all';
+
+    const cached = await this.redisService.get(cacheKey);
+
+    if (cached) {
+      return typeof cached === 'string' ? JSON.parse(cached) : cached;
+    }
+
+    const flashSales = await this.flashSaleModel
       .find()
       .populate('products.product')
       .sort({ createdAt: -1 });
+
+    await this.redisService.set(cacheKey, JSON.stringify(flashSales), 300);
+
+    return flashSales;
   }
 
-  // EXPIRE FLASH SALES MANUALLY
+  // =========================
+  // EXPIRE FLASH SALES
+  // =========================
   async expireFlashSales() {
     const now = new Date();
 
@@ -101,7 +139,6 @@ export class FlashSaleService {
         if (product) {
           product.isFlashSale = false;
           product.flashSalePrice = 0;
-
           await product.save();
         }
       }
@@ -110,13 +147,19 @@ export class FlashSaleService {
       await sale.save();
     }
 
+    // 🧠 CLEAR CACHE
+    await this.redisService.del('flash_sales_active');
+    await this.redisService.del('flash_sales_all');
+
     return {
       success: true,
       message: 'Expired sales updated',
     };
   }
 
+  // =========================
   // DELETE FLASH SALE
+  // =========================
   async deleteFlashSale(id: string) {
     const flashSale = await this.flashSaleModel.findById(id);
 
@@ -124,19 +167,21 @@ export class FlashSaleService {
       throw new NotFoundException('Flash sale not found');
     }
 
-    // REVERT PRODUCTS
     for (const item of flashSale.products) {
       const product = await this.productModel.findById(item.product);
 
       if (product) {
         product.isFlashSale = false;
         product.flashSalePrice = 0;
-
         await product.save();
       }
     }
 
     await this.flashSaleModel.findByIdAndDelete(id);
+
+    // 🧠 CLEAR CACHE
+    await this.redisService.del('flash_sales_active');
+    await this.redisService.del('flash_sales_all');
 
     return {
       success: true,

@@ -9,6 +9,8 @@ import { Product, ProductSchema } from '../products/schemas/product.schema';
 import { FlashSaleController } from './flash-sale.controller';
 
 import { FlashSaleService } from './flash-sale.service';
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { FlashSaleService } from './flash-sale.service';
         schema: ProductSchema,
       },
     ]),
+    // ✅ IMPORTANT FIX
+    RedisModule,
   ],
 
   controllers: [FlashSaleController],
