@@ -7,6 +7,8 @@ import { Banner, BannerSchema } from './schemas/banner.schema';
 import { BannersController } from './banners.controller';
 
 import { BannersService } from './banners.service';
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { BannersService } from './banners.service';
         schema: BannerSchema,
       },
     ]),
+    // ✅ IMPORTANT FIX
+    RedisModule,
   ],
 
   controllers: [BannersController],
