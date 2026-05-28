@@ -12,6 +12,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
 import { UsersModule } from '../users/users.module';
 
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
+
 @Module({
   imports: [
     UsersModule,
@@ -25,6 +28,9 @@ import { UsersModule } from '../users/users.module';
         expiresIn: '7d',
       },
     }),
+
+    // ✅ IMPORTANT FIX
+    RedisModule,
   ],
 
   controllers: [AuthController],
