@@ -10,6 +10,9 @@ import { CartController } from './cart.controller';
 
 import { CartService } from './cart.service';
 
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -23,6 +26,9 @@ import { CartService } from './cart.service';
         schema: ProductSchema,
       },
     ]),
+
+    // ✅ IMPORTANT FIX
+    RedisModule,
   ],
 
   controllers: [CartController],
