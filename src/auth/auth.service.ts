@@ -16,7 +16,9 @@ export class AuthService {
     private jwtService: JwtService,
   ) {}
 
+  // =========================
   // SEND OTP
+  // =========================
   async sendOtp(phone: string) {
     // CHECK USER BLOCKED
     const user = await this.usersService.findByPhone(phone);
@@ -30,7 +32,10 @@ export class AuthService {
     // TEST OTP
     const otp = '1234';
 
-    // STORE OTP IN REDIS
+    // DEBUG LOG
+    console.log('Generated OTP:', otp);
+
+    // SAVE OTP IN REDIS (5 min)
     await this.redisService.set(`otp:${phone}`, otp, 300);
 
     return {
@@ -40,15 +45,24 @@ export class AuthService {
     };
   }
 
+  // =========================
   // VERIFY OTP
+  // =========================
   async verifyOtp(phone: string, otp: string) {
+    // GET OTP FROM REDIS
     const storedOtp = await this.redisService.get(`otp:${phone}`);
 
+    // DEBUG LOGS
+    console.log('Stored OTP:', storedOtp);
+    console.log('User OTP:', otp);
+
+    // CHECK OTP EXISTS
     if (!storedOtp) {
       throw new UnauthorizedException('OTP expired');
     }
 
-    if (storedOtp !== otp) {
+    // VERIFY OTP
+    if (String(storedOtp) !== String(otp)) {
       throw new UnauthorizedException('Invalid OTP');
     }
 
@@ -67,25 +81,20 @@ export class AuthService {
       user = await this.usersService.create(phone);
     }
 
-    // JWT TOKEN
+    // GENERATE JWT TOKEN
     const token = this.jwtService.sign({
       userId: user._id,
-
       phone: user.phone,
-
       role: 'user',
     });
 
-    // DELETE OTP
+    // DELETE OTP AFTER SUCCESS
     await this.redisService.del(`otp:${phone}`);
 
     return {
       success: true,
-
       message: 'User login successful',
-
       access_token: token,
-
       user,
     };
   }
