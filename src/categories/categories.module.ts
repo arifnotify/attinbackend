@@ -9,6 +9,8 @@ import { CategoriesController } from './categories.controller';
 import { CategoriesService } from './categories.service';
 
 import { ProductsModule } from '../products/products.module';
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { ProductsModule } from '../products/products.module';
         schema: CategorySchema,
       },
     ]),
+    // ✅ IMPORTANT FIX
+    RedisModule,
 
     ProductsModule,
   ],
