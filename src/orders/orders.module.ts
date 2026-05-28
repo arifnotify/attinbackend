@@ -9,6 +9,8 @@ import { Cart, CartSchema } from '../cart/schemas/cart.schema';
 import { OrdersController } from './orders.controller';
 
 import { OrdersService } from './orders.service';
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { OrdersService } from './orders.service';
         schema: CartSchema,
       },
     ]),
+    // ✅ FIX
+    RedisModule,
   ],
 
   controllers: [OrdersController],
