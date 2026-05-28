@@ -73,21 +73,26 @@ export class CartService {
 
   // GET USER CART
   async getUserCart(userId: string) {
-    // check redis cache
-    const cachedCart = await this.redisService.get(`cart:${userId}`);
+    const cacheKey = `cart:${userId}`;
+
+    // 🔥 CHECK REDIS CACHE
+    const cachedCart = await this.redisService.get(cacheKey);
 
     if (cachedCart) {
-      return JSON.parse(cachedCart);
+      return typeof cachedCart === 'string'
+        ? JSON.parse(cachedCart)
+        : cachedCart;
     }
 
+    // 🧠 GET FROM DB
     const cart = await this.cartModel
       .find({
         user: userId,
       })
       .populate('product');
 
-    // save cache
-    await this.redisService.set(`cart:${userId}`, JSON.stringify(cart), 300);
+    // 💾 SAVE CACHE (5 min)
+    await this.redisService.set(cacheKey, JSON.stringify(cart), 300);
 
     return cart;
   }

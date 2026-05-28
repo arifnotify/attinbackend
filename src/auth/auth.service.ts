@@ -77,7 +77,7 @@ export class AuthService {
     });
 
     // DELETE OTP
-    await this.redisService.delete(`otp:${phone}`);
+    await this.redisService.del(`otp:${phone}`);
 
     return {
       success: true,

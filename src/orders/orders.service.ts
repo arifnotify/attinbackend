@@ -75,7 +75,7 @@ export class OrdersService {
     });
 
     // clear redis cart cache
-    await this.redisService.delete(`cart:${userId}`);
+    await this.redisService.del(`cart:${userId}`);
 
     return {
       success: true,
