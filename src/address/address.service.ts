@@ -1,33 +1,33 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model } from 'mongoose';
 
 import { Address, AddressDocument } from './schemas/address.schema';
 
 import { CreateAddressDto } from './dto/create-address.dto';
-
 import { UpdateAddressDto } from './dto/update-address.dto';
+
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class AddressService {
   constructor(
     @InjectModel(Address.name)
     private addressModel: Model<AddressDocument>,
+
+    private redisService: RedisService,
   ) {}
 
+  // =========================
   // CREATE ADDRESS
+  // =========================
   async createAddress(userId: string, createAddressDto: CreateAddressDto) {
     // remove old default
     if (createAddressDto.isDefault) {
       await this.addressModel.updateMany(
-        {
-          user: userId,
-        },
-        {
-          isDefault: false,
-        },
+        { user: userId },
+        { isDefault: false },
       );
     }
 
@@ -36,22 +36,43 @@ export class AddressService {
       user: userId,
     });
 
+    // 🧠 CLEAR CACHE
+    await this.redisService.del(`addresses:${userId}`);
+
     return address;
   }
 
-  // USER ADDRESSES
+  // =========================
+  // GET USER ADDRESSES (CACHED)
+  // =========================
   async getUserAddresses(userId: string) {
-    return this.addressModel
-      .find({
-        user: userId,
-      })
-      .sort({
-        isDefault: -1,
-        createdAt: -1,
-      });
+    const cacheKey = `addresses:${userId}`;
+
+    // 🔥 CHECK CACHE FIRST
+    const cached = await this.redisService.get(cacheKey);
+
+    if (cached) {
+      console.log('🔥 FROM REDIS');
+
+      return typeof cached === 'string' ? JSON.parse(cached) : cached;
+    }
+
+    console.log('🟢 FROM MONGODB');
+
+    const addresses = await this.addressModel.find({ user: userId }).sort({
+      isDefault: -1,
+      createdAt: -1,
+    });
+
+    // 💾 SAVE CACHE (5 min)
+    await this.redisService.set(cacheKey, JSON.stringify(addresses), 300);
+
+    return addresses;
   }
 
+  // =========================
   // SINGLE ADDRESS
+  // =========================
   async getSingleAddress(id: string) {
     const address = await this.addressModel.findById(id);
 
@@ -62,7 +83,9 @@ export class AddressService {
     return address;
   }
 
+  // =========================
   // UPDATE ADDRESS
+  // =========================
   async updateAddress(id: string, updateAddressDto: UpdateAddressDto) {
     const address = await this.addressModel.findById(id);
 
@@ -73,27 +96,26 @@ export class AddressService {
     // update default
     if (updateAddressDto.isDefault) {
       await this.addressModel.updateMany(
-        {
-          user: address.user,
-        },
-        {
-          isDefault: false,
-        },
+        { user: address.user },
+        { isDefault: false },
       );
     }
 
     const updatedAddress = await this.addressModel.findByIdAndUpdate(
       id,
       updateAddressDto,
-      {
-        new: true,
-      },
+      { new: true },
     );
+
+    // 🧠 CLEAR CACHE
+    await this.redisService.del(`addresses:${address.user}`);
 
     return updatedAddress;
   }
 
+  // =========================
   // DELETE ADDRESS
+  // =========================
   async deleteAddress(id: string) {
     const address = await this.addressModel.findById(id);
 
@@ -102,6 +124,9 @@ export class AddressService {
     }
 
     await this.addressModel.findByIdAndDelete(id);
+
+    // 🧠 CLEAR CACHE
+    await this.redisService.del(`addresses:${address.user}`);
 
     return {
       success: true,

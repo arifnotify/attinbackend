@@ -7,6 +7,8 @@ import { Address, AddressSchema } from './schemas/address.schema';
 import { AddressController } from './address.controller';
 
 import { AddressService } from './address.service';
+// 🔥 ADD THIS
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { AddressService } from './address.service';
         schema: AddressSchema,
       },
     ]),
+    // ✅ IMPORTANT FIX
+    RedisModule,
   ],
 
   controllers: [AddressController],
