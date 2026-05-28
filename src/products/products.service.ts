@@ -1,15 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model } from 'mongoose';
 
 import { Product, ProductDocument } from './schemas/product.schema';
 
 import { CreateProductDto } from './dto/create-product.dto';
-
 import { UpdateProductDto } from './dto/update-product.dto';
-
 import { SearchProductDto } from './dto/search-product.dto';
 
 import { RedisService } from '../redis/redis.service';
@@ -29,24 +26,28 @@ export class ProductsService {
   async create(createProductDto: CreateProductDto) {
     const product = await this.productModel.create(createProductDto);
 
-    // 🧠 CLEAR CACHE
+    // CLEAR CACHE
     await this.redisService.del('all_products');
 
     return product;
   }
 
   // =========================
-  // GET ALL PRODUCTS (WITH CACHE)
+  // GET ALL PRODUCTS (CACHE FIXED)
   // =========================
   async findAll(search?: string) {
     const cacheKey = 'all_products';
 
-    // 🔥 CHECK CACHE FIRST
+    // GET CACHE
     const cached = await this.redisService.get(cacheKey);
 
     if (cached) {
-      return JSON.parse(cached as string);
+      console.log('🔥 FROM REDIS');
+
+      return typeof cached === 'string' ? JSON.parse(cached) : cached;
     }
+
+    console.log('🟢 FROM MONGODB');
 
     const query: any = {
       isActive: true,
@@ -63,7 +64,7 @@ export class ProductsService {
       .find(query)
       .sort({ createdAt: -1 });
 
-    // 💾 SAVE TO CACHE (5 min)
+    // SAVE CACHE (SAFE)
     await this.redisService.set(cacheKey, JSON.stringify(products), 300);
 
     return products;
@@ -96,7 +97,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    // 🧠 CLEAR CACHE
+    // CLEAR CACHE
     await this.redisService.del('all_products');
 
     return product;
@@ -112,7 +113,7 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    // 🧠 CLEAR CACHE
+    // CLEAR CACHE
     await this.redisService.del('all_products');
 
     return {
@@ -148,7 +149,9 @@ export class ProductsService {
     const filter: any = {};
 
     if (keyword) {
-      filter.$text = { $search: keyword };
+      filter.$text = {
+        $search: keyword,
+      };
     }
 
     if (category) {
@@ -184,7 +187,9 @@ export class ProductsService {
 
       case 'newest':
       default:
-        sortOption = { createdAt: -1 };
+        sortOption = {
+          createdAt: -1,
+        };
     }
 
     const products = await this.productModel
