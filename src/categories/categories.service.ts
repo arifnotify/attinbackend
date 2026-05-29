@@ -25,19 +25,17 @@ export class CategoriesService {
   async create(createCategoryDto: CreateCategoryDto) {
     const category = await this.categoryModel.create(createCategoryDto);
 
-    // 🧠 CLEAR CACHE
     await this.redisService.del('all_categories');
 
     return category;
   }
 
   // =========================
-  // GET ALL CATEGORIES (WITH CACHE)
+  // GET ALL CATEGORIES (CACHE)
   // =========================
   async findAll() {
     const cacheKey = 'all_categories';
 
-    // 🔥 CHECK REDIS FIRST
     const cached = await this.redisService.get(cacheKey);
 
     if (cached) {
@@ -53,10 +51,34 @@ export class CategoriesService {
       .populate('parentCategory')
       .sort({ createdAt: -1 });
 
-    // 💾 SAVE CACHE (5 min)
     await this.redisService.set(cacheKey, JSON.stringify(categories), 300);
 
     return categories;
+  }
+
+  // =========================
+  // GET MAIN CATEGORIES
+  // (parentCategory = null)
+  // =========================
+  async getMainCategories() {
+    return this.categoryModel
+      .find({
+        parentCategory: null,
+        isActive: true,
+      })
+      .sort({ createdAt: -1 });
+  }
+
+  // =========================
+  // GET SUBCATEGORIES
+  // =========================
+  async getSubCategories(parentId: string) {
+    return this.categoryModel
+      .find({
+        parentCategory: parentId,
+        isActive: true,
+      })
+      .sort({ createdAt: -1 });
   }
 
   // =========================
@@ -88,7 +110,6 @@ export class CategoriesService {
       throw new NotFoundException('Category not found');
     }
 
-    // 🧠 CLEAR CACHE
     await this.redisService.del('all_categories');
 
     return category;
@@ -104,7 +125,6 @@ export class CategoriesService {
       throw new NotFoundException('Category not found');
     }
 
-    // 🧠 CLEAR CACHE
     await this.redisService.del('all_categories');
 
     return {

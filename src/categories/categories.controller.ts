@@ -23,57 +23,76 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class CategoriesController {
   constructor(
     private categoriesService: CategoriesService,
-
     private productsService: ProductsService,
   ) {}
 
+  // =========================
   // CREATE CATEGORY
+  // =========================
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(
-    @Body()
-    createCategoryDto: CreateCategoryDto,
-  ) {
+  create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
   }
 
+  // =========================
   // GET ALL CATEGORIES
+  // =========================
   @Get()
   findAll() {
     return this.categoriesService.findAll();
   }
 
+  // =========================
+  // GET MAIN CATEGORIES (parentCategory = null)
+  // =========================
+  @Get('main')
+  getMainCategories() {
+    return this.categoriesService.getMainCategories();
+  }
+
+  // =========================
+  // GET SUBCATEGORIES BY PARENT ID
+  // =========================
+  @Get('subcategories/:parentId')
+  getSubCategories(@Param('parentId') parentId: string) {
+    return this.categoriesService.getSubCategories(parentId);
+  }
+
+  // =========================
   // GET SINGLE CATEGORY
+  // =========================
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.categoriesService.findOne(id);
   }
 
+  // =========================
   // UPDATE CATEGORY
+  // =========================
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   update(
     @Param('id') id: string,
-
-    @Body()
-    updateCategoryDto: UpdateCategoryDto,
+    @Body() updateCategoryDto: UpdateCategoryDto,
   ) {
     return this.categoriesService.update(id, updateCategoryDto);
   }
 
+  // =========================
   // DELETE CATEGORY
+  // =========================
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.categoriesService.remove(id);
   }
 
+  // =========================
   // CATEGORY PRODUCTS
+  // =========================
   @Get(':category/products')
-  getCategoryProducts(
-    @Param('category')
-    category: string,
-  ) {
+  getCategoryProducts(@Param('category') category: string) {
     return this.productsService.findByCategory(category);
   }
 }
