@@ -1,12 +1,15 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
+
 import { Model } from 'mongoose';
 
 import { Product, ProductDocument } from './schemas/product.schema';
 
 import { CreateProductDto } from './dto/create-product.dto';
+
 import { UpdateProductDto } from './dto/update-product.dto';
+
 import { SearchProductDto } from './dto/search-product.dto';
 
 import { RedisService } from '../redis/redis.service';
@@ -33,12 +36,12 @@ export class ProductsService {
   }
 
   // =========================
-  // GET ALL PRODUCTS (CACHE FIXED)
+  // GET ALL PRODUCTS
   // =========================
   async findAll(search?: string) {
     const cacheKey = 'all_products';
 
-    // GET CACHE
+    // CHECK CACHE
     const cached = await this.redisService.get(cacheKey);
 
     if (cached) {
@@ -53,6 +56,7 @@ export class ProductsService {
       isActive: true,
     };
 
+    // SEARCH
     if (search) {
       query.title = {
         $regex: search,
@@ -62,19 +66,22 @@ export class ProductsService {
 
     const products = await this.productModel
       .find(query)
-      .sort({ createdAt: -1 });
+      .populate('category')
+      .sort({
+        createdAt: -1,
+      });
 
-    // SAVE CACHE (SAFE)
+    // SAVE CACHE
     await this.redisService.set(cacheKey, JSON.stringify(products), 300);
 
     return products;
   }
 
   // =========================
-  // SINGLE PRODUCT
+  // GET SINGLE PRODUCT
   // =========================
   async findOne(id: string) {
-    const product = await this.productModel.findById(id);
+    const product = await this.productModel.findById(id).populate('category');
 
     if (!product) {
       throw new NotFoundException('Product not found');
@@ -90,7 +97,9 @@ export class ProductsService {
     const product = await this.productModel.findByIdAndUpdate(
       id,
       updateProductDto,
-      { new: true },
+      {
+        new: true,
+      },
     );
 
     if (!product) {
@@ -123,13 +132,18 @@ export class ProductsService {
   }
 
   // =========================
-  // CATEGORY PRODUCTS
+  // GET CATEGORY PRODUCTS
   // =========================
   async findByCategory(category: string) {
-    return this.productModel.find({
-      category,
-      isActive: true,
-    });
+    return this.productModel
+      .find({
+        category,
+        isActive: true,
+      })
+      .populate('category')
+      .sort({
+        createdAt: -1,
+      });
   }
 
   // =========================
@@ -146,18 +160,23 @@ export class ProductsService {
       limit = '10',
     } = searchDto;
 
-    const filter: any = {};
+    const filter: any = {
+      isActive: true,
+    };
 
+    // KEYWORD SEARCH
     if (keyword) {
       filter.$text = {
         $search: keyword,
       };
     }
 
+    // CATEGORY FILTER
     if (category) {
       filter.category = category;
     }
 
+    // PRICE FILTER
     if (minPrice || maxPrice) {
       filter.price = {};
 
@@ -170,19 +189,27 @@ export class ProductsService {
       }
     }
 
+    // PAGINATION
     const currentPage = Number(page);
+
     const perPage = Number(limit);
+
     const skip = (currentPage - 1) * perPage;
 
+    // SORT
     let sortOption = {};
 
     switch (sort) {
       case 'lowToHigh':
-        sortOption = { price: 1 };
+        sortOption = {
+          price: 1,
+        };
         break;
 
       case 'highToLow':
-        sortOption = { price: -1 };
+        sortOption = {
+          price: -1,
+        };
         break;
 
       case 'newest':
@@ -192,6 +219,7 @@ export class ProductsService {
         };
     }
 
+    // PRODUCTS
     const products = await this.productModel
       .find(filter)
       .populate('category')
@@ -199,14 +227,19 @@ export class ProductsService {
       .skip(skip)
       .limit(perPage);
 
+    // TOTAL
     const total = await this.productModel.countDocuments(filter);
 
     return {
       products,
+
       pagination: {
         total,
+
         currentPage,
+
         totalPages: Math.ceil(total / perPage),
+
         perPage,
       },
     };
