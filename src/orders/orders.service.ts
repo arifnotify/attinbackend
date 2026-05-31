@@ -1,14 +1,26 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
 
 import { Model } from 'mongoose';
 
-import { Order, OrderDocument } from './schemas/order.schema';
+import {
+  Order,
+  OrderDocument,
+  OrderStatus,
+} from './schemas/order.schema';
 
-import { Cart, CartDocument } from '../cart/schemas/cart.schema';
+import {
+  Cart,
+  CartDocument,
+} from '../cart/schemas/cart.schema';
 
-import { User } from '../users/schemas/user.schema';
+import {
+  User,
+} from '../users/schemas/user.schema';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 
@@ -32,7 +44,10 @@ export class OrdersService {
   ) {}
 
   // CREATE ORDER
-  async createOrder(userId: string, createOrderDto: CreateOrderDto) {
+  async createOrder(
+    userId: string,
+    createOrderDto: CreateOrderDto,
+  ) {
     const user =
       await this.userModel.findById(userId);
 
@@ -55,7 +70,6 @@ export class OrdersService {
       );
     }
 
-    // TOTAL
     const totalAmount =
       cartItems.reduce(
         (sum, item) =>
@@ -63,16 +77,17 @@ export class OrdersService {
         0,
       );
 
-    // ORDER ITEMS
     const items = cartItems.map(
       (item) => ({
-        product: (item.product as any)?._id,
+        product:
+          (item.product as any)?._id,
 
         productName:
-          (item.product as any)?.name,
+          (item.product as any)?.title,
 
         productImage:
-          (item.product as any)?.image,
+          (item.product as any)
+            ?.images?.[0] || '',
 
         quantity: item.quantity,
 
@@ -83,7 +98,6 @@ export class OrdersService {
       }),
     );
 
-    // CREATE ORDER
     const order =
       await this.orderModel.create({
         user: userId,
@@ -100,7 +114,8 @@ export class OrdersService {
 
         paymentMethod: 'COD',
 
-        orderStatus: 'Pending',
+        orderStatus:
+          OrderStatus.PENDING,
 
         isPaid: false,
       });
@@ -163,12 +178,13 @@ export class OrdersService {
       });
   }
 
-  // UPDATE STATUS
+  // UPDATE ORDER STATUS
   async updateOrderStatus(
     id: string,
     updateOrderStatusDto: UpdateOrderStatusDto,
   ) {
-    const order = await this.orderModel.findByIdAndUpdate(
+    const order =
+      await this.orderModel.findByIdAndUpdate(
         id,
         {
           orderStatus:
@@ -180,7 +196,9 @@ export class OrdersService {
       );
 
     if (!order) {
-      throw new NotFoundException('Order not found');
+      throw new NotFoundException(
+        'Order not found',
+      );
     }
 
     return order;
