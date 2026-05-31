@@ -10,59 +10,34 @@ import {
 } from '@nestjs/common';
 
 import { OrdersService } from './orders.service';
-
-import { CreateOrderDto } from './dto/create-order.dto';
-
-import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CreateOrderDto } from './dto/create-order.dto';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private ordersService: OrdersService) {}
+  constructor(private service: OrdersService) {}
 
-  // CREATE ORDER
   @UseGuards(JwtAuthGuard)
   @Post()
-  createOrder(
-    @Req() req: any,
-
-    @Body()
-    createOrderDto: CreateOrderDto,
-  ) {
-    return this.ordersService.createOrder(req.user.userId, createOrderDto);
+  create(@Req() req: any, @Body() dto: CreateOrderDto) {
+    return this.service.createOrder(req.user.userId, dto);
   }
 
-  // USER ORDERS
-  @UseGuards(JwtAuthGuard)
-  @Get('my-orders')
-  getUserOrders(@Req() req: any) {
-    return this.ordersService.getUserOrders(req.user.userId);
-  }
-
-  // SINGLE ORDER
-  @UseGuards(JwtAuthGuard)
-  @Get(':id')
-  getSingleOrder(@Param('id') id: string) {
-    return this.ordersService.getSingleOrder(id);
-  }
-
-  // ADMIN ALL ORDERS
   @UseGuards(JwtAuthGuard)
   @Get()
-  getAllOrders() {
-    return this.ordersService.getAllOrders();
+  getAll() {
+    return this.service.getAllOrders();
   }
 
-  // UPDATE STATUS
+  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  getOne(@Param('id') id: string) {
+    return this.service.getSingleOrder(id);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
-  updateOrderStatus(
-    @Param('id') id: string,
-
-    @Body()
-    updateOrderStatusDto: UpdateOrderStatusDto,
-  ) {
-    return this.ordersService.updateOrderStatus(id, updateOrderStatusDto);
+  update(@Param('id') id: string, @Body() dto: any) {
+    return this.service.updateOrderStatus(id, dto);
   }
 }
