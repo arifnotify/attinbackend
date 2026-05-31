@@ -14,10 +14,6 @@ export class Order {
   })
   user: Types.ObjectId;
 
-  // 👇 FRONTEND FRIENDLY
-  @Prop()
-  customerName: string;
-
   @Prop()
   customerPhone: string;
 
@@ -66,4 +62,5 @@ export class Order {
   isPaid: boolean;
 }
 
-export const OrderSchema = SchemaFactory.createForClass(Order);
+export const OrderSchema =
+  SchemaFactory.createForClass(Order);
