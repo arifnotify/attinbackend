@@ -6,11 +6,20 @@ import { OrdersController } from './orders.controller';
 
 import { OrdersService } from './orders.service';
 
-import { Order, OrderSchema } from './schemas/order.schema';
+import {
+  Order,
+  OrderSchema,
+} from './schemas/order.schema';
 
-import { Cart, CartSchema } from '../cart/schemas/cart.schema';
+import {
+  Cart,
+  CartSchema,
+} from '../cart/schemas/cart.schema';
 
-import { User, UserSchema } from '../users/schemas/user.schema';
+import {
+  User,
+  UserSchema,
+} from '../users/schemas/user.schema';
 
 import { RedisModule } from '../redis/redis.module';
 
@@ -21,13 +30,10 @@ import { RedisModule } from '../redis/redis.module';
         name: Order.name,
         schema: OrderSchema,
       },
-
       {
         name: Cart.name,
         schema: CartSchema,
       },
-
-      // ✅ ADD THIS
       {
         name: User.name,
         schema: UserSchema,
