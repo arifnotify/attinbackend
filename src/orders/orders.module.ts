@@ -2,14 +2,16 @@ import { Module } from '@nestjs/common';
 
 import { MongooseModule } from '@nestjs/mongoose';
 
+import { OrdersController } from './orders.controller';
+
+import { OrdersService } from './orders.service';
+
 import { Order, OrderSchema } from './schemas/order.schema';
 
 import { Cart, CartSchema } from '../cart/schemas/cart.schema';
 
-import { OrdersController } from './orders.controller';
+import { User, UserSchema } from '../users/schemas/user.schema';
 
-import { OrdersService } from './orders.service';
-// 🔥 ADD THIS
 import { RedisModule } from '../redis/redis.module';
 
 @Module({
@@ -24,8 +26,14 @@ import { RedisModule } from '../redis/redis.module';
         name: Cart.name,
         schema: CartSchema,
       },
+
+      // ✅ ADD THIS
+      {
+        name: User.name,
+        schema: UserSchema,
+      },
     ]),
-    // ✅ FIX
+
     RedisModule,
   ],
 
