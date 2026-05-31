@@ -1,18 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model } from 'mongoose';
 
 import { Order, OrderDocument } from './schemas/order.schema';
-
 import { Cart, CartDocument } from '../cart/schemas/cart.schema';
-
 import { CreateOrderDto } from './dto/create-order.dto';
-
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 import { RedisService } from '../redis/redis.service';
+import { User } from '../users/schemas/user.schema';
 
 @Injectable()
 export class OrdersService {
@@ -23,42 +19,52 @@ export class OrdersService {
     @InjectModel(Cart.name)
     private cartModel: Model<CartDocument>,
 
+    @InjectModel(User.name)
+    private userModel: Model<User>,
+
     private redisService: RedisService,
   ) {}
 
-  // CREATE ORDER
+  // 🚀 CREATE ORDER
   async createOrder(userId: string, createOrderDto: CreateOrderDto) {
-    // get user cart
+
+    // 1. GET USER
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // 2. GET CART
     const cartItems = await this.cartModel
-      .find({
-        user: userId,
-      })
+      .find({ user: userId })
       .populate('product');
 
     if (!cartItems.length) {
       throw new NotFoundException('Cart is empty');
     }
 
-    // calculate total
+    // 3. TOTAL CALCULATION
     const totalAmount = cartItems.reduce(
       (sum, item) => sum + item.totalPrice,
       0,
     );
 
-    // order items
+    // 4. FORMAT ITEMS
     const items = cartItems.map((item) => ({
       product: item.product,
-
+      productName: item.product?.name,
       quantity: item.quantity,
-
       price: item.price,
-
       totalPrice: item.totalPrice,
     }));
 
-    // create order
+    // 5. CREATE ORDER
     const order = await this.orderModel.create({
       user: userId,
+
+      customerName: user.name,
+      customerPhone: user.phone,
 
       items,
 
@@ -67,14 +73,16 @@ export class OrdersService {
       shippingAddress: createOrderDto.shippingAddress,
 
       paymentMethod: 'COD',
+
+      orderStatus: 'Pending',
+
+      isPaid: false,
     });
 
-    // clear cart
-    await this.cartModel.deleteMany({
-      user: userId,
-    });
+    // 6. CLEAR CART
+    await this.cartModel.deleteMany({ user: userId });
 
-    // clear redis cart cache
+    // 7. CLEAR REDIS CACHE
     await this.redisService.del(`cart:${userId}`);
 
     return {
@@ -84,21 +92,19 @@ export class OrdersService {
     };
   }
 
-  // USER ORDERS
+  // 👤 USER ORDERS
   async getUserOrders(userId: string) {
     return this.orderModel
-      .find({
-        user: userId,
-      })
+      .find({ user: userId })
       .populate('items.product')
-      .sort({
-        createdAt: -1,
-      });
+      .sort({ createdAt: -1 });
   }
 
-  // SINGLE ORDER
+  // 📦 SINGLE ORDER
   async getSingleOrder(id: string) {
-    const order = await this.orderModel.findById(id).populate('items.product');
+    const order = await this.orderModel
+      .findById(id)
+      .populate('items.product');
 
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -107,18 +113,16 @@ export class OrdersService {
     return order;
   }
 
-  // ADMIN ALL ORDERS
+  // 🧑‍💼 ADMIN ALL ORDERS
   async getAllOrders() {
     return this.orderModel
       .find()
       .populate('items.product')
-      .populate('user')
-      .sort({
-        createdAt: -1,
-      });
+      .populate('user', 'name phone')
+      .sort({ createdAt: -1 });
   }
 
-  // UPDATE ORDER STATUS
+  // 🔄 UPDATE STATUS
   async updateOrderStatus(
     id: string,
     updateOrderStatusDto: UpdateOrderStatusDto,

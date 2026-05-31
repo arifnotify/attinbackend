@@ -1,5 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
 import { Document, Types } from 'mongoose';
 
 export type OrderDocument = Order & Document;
@@ -11,8 +10,21 @@ export class Order {
   @Prop({
     type: Types.ObjectId,
     ref: 'User',
+    required: true,
   })
   user: Types.ObjectId;
+
+  // 👇 FRONTEND FRIENDLY
+  @Prop()
+  customerName: string;
+
+  @Prop()
+  customerPhone: string;
+
+  @Prop({
+    required: true,
+  })
+  shippingAddress: string;
 
   @Prop([
     {
@@ -20,6 +32,8 @@ export class Order {
         type: Types.ObjectId,
         ref: 'Product',
       },
+
+      productName: String,
 
       quantity: Number,
 
@@ -36,16 +50,12 @@ export class Order {
   totalAmount: number;
 
   @Prop({
-    required: true,
-  })
-  shippingAddress: string;
-
-  @Prop({
     default: 'COD',
   })
   paymentMethod: string;
 
   @Prop({
+    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
     default: 'Pending',
   })
   orderStatus: string;
