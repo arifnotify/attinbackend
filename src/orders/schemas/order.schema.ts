@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+
 import { Document, Types } from 'mongoose';
 
 export type OrderDocument = Order & Document;
@@ -14,14 +15,17 @@ export class Order {
   })
   user: Types.ObjectId;
 
+  // USER PHONE
   @Prop()
   customerPhone: string;
 
+  // SHIPPING ADDRESS
   @Prop({
     required: true,
   })
   shippingAddress: string;
 
+  // ORDER ITEMS
   @Prop([
     {
       product: {
@@ -30,6 +34,8 @@ export class Order {
       },
 
       productName: String,
+
+      productImage: String,
 
       quantity: Number,
 
@@ -62,5 +68,4 @@ export class Order {
   isPaid: boolean;
 }
 
-export const OrderSchema =
-  SchemaFactory.createForClass(Order);
+export const OrderSchema = SchemaFactory.createForClass(Order);
