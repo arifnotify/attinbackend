@@ -77,8 +77,4 @@ export class OrdersService {
       { new: true },
     );
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 39bad4f (update 3)
