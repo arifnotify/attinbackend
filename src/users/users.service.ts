@@ -61,4 +61,8 @@ export class UsersService {
       },
     );
   }
+
+  async getUserById(id: string) {
+    return this.userModel.findById(id);
+  }
 }
