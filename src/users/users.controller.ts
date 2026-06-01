@@ -1,4 +1,4 @@
-import { Controller, Patch, Body, Get } from '@nestjs/common';
+import { Controller, Get, Param, Patch, Body } from '@nestjs/common';
 
 import { UsersService } from './users.service';
 
@@ -6,19 +6,21 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
-  // GET ALL USERS
   @Get()
   getUsers() {
     return this.usersService.getUsers();
   }
 
-  // BLOCK USER
+  @Get(':id')
+  getUserById(@Param('id') id: string) {
+    return this.usersService.getUserById(id);
+  }
+
   @Patch('block')
   blockUser(@Body() body: any) {
     return this.usersService.blockUser(body.phone, body.reason);
   }
 
-  // UNBLOCK USER
   @Patch('unblock')
   unblockUser(@Body() body: any) {
     return this.usersService.unblockUser(body.phone);
