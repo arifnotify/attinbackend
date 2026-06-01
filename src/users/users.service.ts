@@ -13,6 +13,13 @@ export class UsersService {
     private userModel: Model<UserDocument>,
   ) {}
 
+  // GET ALL USERS
+  async getUsers() {
+    return this.userModel.find().sort({
+      createdAt: -1,
+    });
+  }
+
   // FIND USER
   async findByPhone(phone: string) {
     return this.userModel.findOne({
@@ -31,12 +38,10 @@ export class UsersService {
   async blockUser(phone: string, reason: string) {
     return this.userModel.findOneAndUpdate(
       { phone },
-
       {
         isBlocked: true,
         blockReason: reason,
       },
-
       {
         new: true,
       },
@@ -47,12 +52,10 @@ export class UsersService {
   async unblockUser(phone: string) {
     return this.userModel.findOneAndUpdate(
       { phone },
-
       {
         isBlocked: false,
         blockReason: '',
       },
-
       {
         new: true,
       },
