@@ -53,4 +53,9 @@ export class FlashSaleController {
   deleteFlashSale(@Param('id') id: string) {
     return this.flashSaleService.deleteFlashSale(id);
   }
+
+  @Get(':id')
+  getFlashSaleById(@Param('id') id: string) {
+    return this.flashSaleService.getFlashSaleById(id);
+  }
 }

@@ -188,4 +188,8 @@ export class FlashSaleService {
       message: 'Flash sale deleted successfully',
     };
   }
+
+  async getFlashSaleById(id: string) {
+    return this.flashSaleModel.findById(id).populate('products.product');
+  }
 }
