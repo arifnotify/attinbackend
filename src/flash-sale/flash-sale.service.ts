@@ -189,7 +189,15 @@ export class FlashSaleService {
     };
   }
 
+  //...................
   async getFlashSaleById(id: string) {
     return this.flashSaleModel.findById(id).populate('products.product');
+  }
+
+  // update flash sale
+  async updateFlashSale(id: string, dto: CreateFlashSaleDto) {
+    return this.flashSaleModel.findByIdAndUpdate(id, dto, {
+      new: true,
+    });
   }
 }

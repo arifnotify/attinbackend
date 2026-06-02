@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -57,5 +58,16 @@ export class FlashSaleController {
   @Get(':id')
   getFlashSaleById(@Param('id') id: string) {
     return this.flashSaleService.getFlashSaleById(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  updateFlashSale(
+    @Param('id') id: string,
+
+    @Body()
+    dto: CreateFlashSaleDto,
+  ) {
+    return this.flashSaleService.updateFlashSale(id, dto);
   }
 }
