@@ -10,6 +10,7 @@ import { Product, ProductDocument } from '../products/schemas/product.schema';
 import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
 
 import { RedisService } from '../redis/redis.service';
+import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
 
 @Injectable()
 export class FlashSaleService {
@@ -195,7 +196,7 @@ export class FlashSaleService {
   }
 
   // update flash sale
-  async updateFlashSale(id: string, dto: CreateFlashSaleDto) {
+  async updateFlashSale(id: string, dto: UpdateFlashSaleDto) {
     return this.flashSaleModel.findByIdAndUpdate(id, dto, {
       new: true,
     });

@@ -14,6 +14,7 @@ import { FlashSaleService } from './flash-sale.service';
 import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
 
 @Controller('flash-sale')
 export class FlashSaleController {
@@ -66,7 +67,7 @@ export class FlashSaleController {
     @Param('id') id: string,
 
     @Body()
-    dto: CreateFlashSaleDto,
+    dto: UpdateFlashSaleDto,
   ) {
     return this.flashSaleService.updateFlashSale(id, dto);
   }
