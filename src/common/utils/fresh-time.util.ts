@@ -12,12 +12,12 @@ export const getFreshTime = (createdAt: Date): string => {
   const mins = minutes % 60;
 
   if (days > 0) {
-    return `Fresh for ${days}d ${hours}h`;
+    return `Fresh ${days}d ${hours}h`;
   }
 
   if (hours > 0) {
-    return `Fresh for ${hours}h ${mins}m`;
+    return `Fresh ${hours}h ${mins}m`;
   }
 
-  return `Fresh for ${mins}m`;
+  return `Fresh ${mins}m`;
 };

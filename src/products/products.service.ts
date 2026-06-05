@@ -73,7 +73,7 @@ export class ProductsService {
       }
 
       if (data.productType === 'regular' && data.expiryDate) {
-        data.expiryText = `Expiry: ${formatExpiryDate(data.expiryDate)}`;
+        data.expiryText = `Exp: ${formatExpiryDate(data.expiryDate)}`;
       }
 
       return data;
