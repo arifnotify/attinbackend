@@ -39,6 +39,10 @@ export class CreateProductDto {
   @IsString()
   category: string;
 
+  @IsNotEmpty()
+  @IsString()
+  unit: string;
+
   @IsOptional()
   @IsString()
   brand: string;

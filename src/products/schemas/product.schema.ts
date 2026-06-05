@@ -52,6 +52,12 @@ export class Product {
   @Prop()
   location: string;
 
+  // NEW FIELD
+  @Prop({
+    default: 0,
+  })
+  unit: string;
+
   @Prop({
     default: false,
   })
