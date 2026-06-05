@@ -62,33 +62,19 @@ export class ProductsService {
       };
     }
 
-   const formattedProducts =
-  products.map((product) => {
-    const data =
-      product.toObject();
+    const formattedProducts = Product.map((product) => {
+      const data = product.toObject();
 
-    if (
-      data.productType === 'fresh'
-    ) {
-      data.freshText =
-        getFreshTime(
-          data.createdAt,
-        );
-    }
+      if (data.productType === 'fresh') {
+        data.freshText = getFreshTime(data.createdAt);
+      }
 
-    if (
-      data.productType ===
-        'regular' &&
-      data.expiryDate
-    ) {
-      data.expiryText =
-        `Expiry: ${formatExpiryDate(
-          data.expiryDate,
-        )}`;
-    }
+      if (data.productType === 'regular' && data.expiryDate) {
+        data.expiryText = `Expiry: ${formatExpiryDate(data.expiryDate)}`;
+      }
 
-    return data;
-  });
+      return data;
+    });
 
     // SAVE CACHE (SAFE)
 await this.redisService.set(
@@ -103,30 +89,24 @@ await this.redisService.set(
   // =========================
   // SINGLE PRODUCT
   // =========================
-async findOne(id: string) {
-  const product =
-    await this.productModel.findById(id);
+  async findOne(id: string) {
+    const product = await this.productModel.findById(id);
 
-  if (!product) {
-    throw new NotFoundException(
-      'Product not found',
-    );
-  }
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
 
-  const data =
-    product.toObject();
+    const data = product.toObject();
 
-  if (
-    data.productType === 'fresh'
-  ) {
+    if (data.productType === 'fresh') {
       data.freshText = getFreshTime(data.createdAt);
-  }
+    }
 
     if (data.productType === 'regular' && data.expiryDate) {
       data.expiryText = `Expiry: ${formatExpiryDate(data.expiryDate)}`;
     }
 
-  return data;
+    return data;
   }
 
   // =========================
