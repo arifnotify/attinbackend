@@ -1,6 +1,7 @@
 import {
   IsArray,
   IsBoolean,
+  IsDateString,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -54,4 +55,14 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   isFlashSale: boolean;
+
+  // NEW
+  @IsOptional()
+  @IsString()
+  productType: string; // fresh | regular
+
+  // NEW
+  @IsOptional()
+  @IsDateString()
+  expiryDate: Date;
 }

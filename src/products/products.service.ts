@@ -10,6 +10,8 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { SearchProductDto } from './dto/search-product.dto';
 
 import { RedisService } from '../redis/redis.service';
+import { formatExpiryDate } from 'src/common/utils/expiry.util';
+import { getFreshTime } from 'src/common/utils/fresh-time.util';
 
 @Injectable()
 export class ProductsService {
@@ -60,27 +62,71 @@ export class ProductsService {
       };
     }
 
-    const products = await this.productModel
-      .find(query)
-      .sort({ createdAt: -1 });
+   const formattedProducts =
+  products.map((product) => {
+    const data =
+      product.toObject();
+
+    if (
+      data.productType === 'fresh'
+    ) {
+      data.freshText =
+        getFreshTime(
+          data.createdAt,
+        );
+    }
+
+    if (
+      data.productType ===
+        'regular' &&
+      data.expiryDate
+    ) {
+      data.expiryText =
+        `Expiry: ${formatExpiryDate(
+          data.expiryDate,
+        )}`;
+    }
+
+    return data;
+  });
 
     // SAVE CACHE (SAFE)
-    await this.redisService.set(cacheKey, JSON.stringify(products), 300);
+await this.redisService.set(
+      cacheKey,
+      JSON.stringify(formattedProducts),
+      300,
+    );
 
-    return products;
+    return formattedProducts;
   }
 
   // =========================
   // SINGLE PRODUCT
   // =========================
-  async findOne(id: string) {
-    const product = await this.productModel.findById(id);
+async findOne(id: string) {
+  const product =
+    await this.productModel.findById(id);
 
-    if (!product) {
-      throw new NotFoundException('Product not found');
+  if (!product) {
+    throw new NotFoundException(
+      'Product not found',
+    );
+  }
+
+  const data =
+    product.toObject();
+
+  if (
+    data.productType === 'fresh'
+  ) {
+      data.freshText = getFreshTime(data.createdAt);
+  }
+
+    if (data.productType === 'regular' && data.expiryDate) {
+      data.expiryText = `Expiry: ${formatExpiryDate(data.expiryDate)}`;
     }
 
-    return product;
+  return data;
   }
 
   // =========================

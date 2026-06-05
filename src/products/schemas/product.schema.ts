@@ -72,6 +72,14 @@ export class Product {
     default: 0,
   })
   totalSales: number;
+
+  @Prop({
+  default: 'regular',
+  })
+  productType: string; // fresh | regular
+
+  @Prop()
+  expiryDate: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
