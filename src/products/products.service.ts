@@ -63,7 +63,7 @@ export class ProductsService {
     }
 
     const formattedProducts = Product.map((product) => {
-      const data = product.toObject();
+      const data: any = product.toObject();
 
       if (data.productType === 'fresh') {
         data.freshText = getFreshTime(data.createdAt);
@@ -96,7 +96,7 @@ await this.redisService.set(
       throw new NotFoundException('Product not found');
     }
 
-    const data = product.toObject();
+    const data: any = product.toObject();
 
     if (data.productType === 'fresh') {
       data.freshText = getFreshTime(data.createdAt);

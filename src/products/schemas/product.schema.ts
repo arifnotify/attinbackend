@@ -83,6 +83,10 @@ export class Product {
 
   @Prop()
   expiryDate: Date;
+
+  createdAt?: Date;
+
+  updatedAt?: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
