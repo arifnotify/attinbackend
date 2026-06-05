@@ -40,7 +40,6 @@ export class ProductsService {
   async findAll(search?: string) {
     const cacheKey = 'all_products';
 
-    // GET CACHE
     const cached = await this.redisService.get(cacheKey);
 
     if (cached) {
@@ -62,7 +61,11 @@ export class ProductsService {
       };
     }
 
-    const formattedProducts = Product.map((product) => {
+    const products = await this.productModel
+      .find(query)
+      .sort({ createdAt: -1 });
+
+    const formattedProducts = products.map((product) => {
       const data: any = product.toObject();
 
       if (data.productType === 'fresh') {
@@ -76,8 +79,7 @@ export class ProductsService {
       return data;
     });
 
-    // SAVE CACHE (SAFE)
-await this.redisService.set(
+    await this.redisService.set(
       cacheKey,
       JSON.stringify(formattedProducts),
       300,
