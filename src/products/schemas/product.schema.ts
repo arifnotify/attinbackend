@@ -8,6 +8,9 @@ export type ProductDocument = Product & Document;
   timestamps: true,
 })
 export class Product {
+  static map(arg0: (product: any) => any) {
+    throw new Error('Method not implemented.');
+  }
   @Prop({
     required: true,
   })
