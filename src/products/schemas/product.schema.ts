@@ -54,7 +54,7 @@ export class Product {
 
   // NEW FIELD
   @Prop({
-    default: 0,
+    default: 'pcs',
   })
   unit: string;
 
