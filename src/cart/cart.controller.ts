@@ -24,8 +24,8 @@ export class CartController {
 
   @Post('sync')
   @UseGuards(JwtAuthGuard)
-  syncCart(@Req() req: any, @Body() items: AddToCartDto[]) {
-    return this.cartService.syncCart(req.user.userId, items);
+  syncCart(@Req() req: any, @Body() body: any) {
+    return this.cartService.syncCart(req.user.userId, body.items);
   }
 
   // ADD TO CART

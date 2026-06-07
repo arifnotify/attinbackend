@@ -26,14 +26,18 @@ export class CartService {
     private redisService: RedisService,
   ) {}
 
-  async syncCart(userId: string, items: AddToCartDto[]) {
-    for (const item of items) {
-      await this.addToCart(userId, item);
-    }
+  async syncCart(userId: string, items: any[]) {
+    await this.cartModel.deleteMany({ user: userId });
 
-    return {
-      message: 'Cart synced successfully',
-    };
+    const newItems = items.map((item) => ({
+      user: userId,
+      product: item.productId,
+      quantity: item.quantity,
+      price: item.price,
+      totalPrice: item.price * item.quantity,
+    }));
+
+    return this.cartModel.insertMany(newItems);
   }
 
   // ADD TO CART
