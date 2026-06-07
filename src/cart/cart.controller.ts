@@ -22,6 +22,12 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class CartController {
   constructor(private cartService: CartService) {}
 
+  @Post('sync')
+  @UseGuards(JwtAuthGuard)
+  syncCart(@Req() req: any, @Body() items: AddToCartDto[]) {
+    return this.cartService.syncCart(req.user.userId, items);
+  }
+
   // ADD TO CART
   @UseGuards(JwtAuthGuard)
   @Post()

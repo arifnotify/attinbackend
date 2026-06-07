@@ -26,6 +26,16 @@ export class CartService {
     private redisService: RedisService,
   ) {}
 
+  async syncCart(userId: string, items: AddToCartDto[]) {
+    for (const item of items) {
+      await this.addToCart(userId, item);
+    }
+
+    return {
+      message: 'Cart synced successfully',
+    };
+  }
+
   // ADD TO CART
   async addToCart(userId: string, addToCartDto: AddToCartDto) {
     const product = await this.productModel.findById(addToCartDto.productId);
