@@ -86,30 +86,29 @@ export class CartService {
   }
 
   // GET USER CART
-  async getUserCart(userId: string) {
-    const cacheKey = `cart:${userId}`;
+async getUserCart(userId: string) {
+  const cacheKey = `cart:${userId}`;
 
-    // 🔥 CHECK REDIS CACHE
-    const cachedCart = await this.redisService.get(cacheKey);
+  const cached = await this.redisService.get(cacheKey);
 
-    if (cachedCart) {
-      return typeof cachedCart === 'string'
-        ? JSON.parse(cachedCart)
-        : cachedCart;
-    }
-
-    // 🧠 GET FROM DB
-    const cart = await this.cartModel
-      .find({
-        user: userId,
-      })
-      .populate('product');
-
-    // 💾 SAVE CACHE (5 min)
-    await this.redisService.set(cacheKey, JSON.stringify(cart), 300);
-
-    return cart;
+  if (cached) {
+    return typeof cached === 'string'
+      ? JSON.parse(cached)
+      : cached;
   }
+
+  const cart = await this.cartModel
+    .find({ user: userId })
+    .populate('product');
+
+  await this.redisService.set(
+    cacheKey,
+    JSON.stringify(cart),
+    300,
+  );
+
+  return cart;
+}
 
   // UPDATE CART QUANTITY
   async updateQuantity(cartId: string, updateCartDto: UpdateCartDto) {
@@ -151,13 +150,15 @@ export class CartService {
   }
 
   // CACHE USER CART
-  async cacheCart(userId: string) {
-    const cart = await this.cartModel
-      .find({
-        user: userId,
-      })
-      .populate('product');
+async cacheCart(userId: string) {
+  const cart = await this.cartModel
+    .find({ user: userId })
+    .populate('product');
 
-    await this.redisService.set(`cart:${userId}`, JSON.stringify(cart), 300);
-  }
+  await this.redisService.set(
+    `cart:${userId}`,
+    JSON.stringify(cart),
+    300,
+  );
+}
 }
