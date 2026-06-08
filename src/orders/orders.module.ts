@@ -8,6 +8,8 @@ import { Order, OrderSchema } from './schemas/order.schema';
 import { Cart, CartSchema } from '../cart/schemas/cart.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 
+import { RedisModule } from '../redis/redis.module'; // 🔥 ADD THIS
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -15,7 +17,10 @@ import { User, UserSchema } from '../users/schemas/user.schema';
       { name: Cart.name, schema: CartSchema },
       { name: User.name, schema: UserSchema },
     ]),
+
+    RedisModule, // 🔥 IMPORTANT FIX
   ],
+
   controllers: [OrdersController],
   providers: [OrdersService],
 })
