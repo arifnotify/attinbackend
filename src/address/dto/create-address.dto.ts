@@ -1,4 +1,10 @@
-import { IsBoolean, IsNotEmpty, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateAddressDto {
   @IsNotEmpty()
@@ -9,22 +15,35 @@ export class CreateAddressDto {
   @IsString()
   phoneNumber: string;
 
+  // গ্রামের নাম বা এলাকার নাম
   @IsNotEmpty()
   @IsString()
-  division: string;
+  areaOrVillage: string;
 
+  // মসজিদের পাশে, বাজারের সামনে ইত্যাদি
   @IsNotEmpty()
   @IsString()
-  district: string;
+  landmark: string;
+
+  // Optional অতিরিক্ত নির্দেশনা
+  @IsOptional()
+  @IsString()
+  directionNote?: string;
+
+  // Pin Drop Location
+  @IsNotEmpty()
+  @IsNumber()
+  latitude: number;
 
   @IsNotEmpty()
-  @IsString()
-  area: string;
+  @IsNumber()
+  longitude: number;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  addressLine: string;
+  label?: string; // Home, Office, Other
 
+  @IsOptional()
   @IsBoolean()
-  isDefault: boolean;
+  isDefault?: boolean;
 }
