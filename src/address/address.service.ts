@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
+
 import { Model } from 'mongoose';
 
 import { Address, AddressDocument } from './schemas/address.schema';
@@ -14,64 +15,72 @@ import { RedisService } from '../redis/redis.service';
 export class AddressService {
   constructor(
     @InjectModel(Address.name)
-    private addressModel: Model<AddressDocument>,
+    private readonly addressModel: Model<AddressDocument>,
 
-    private redisService: RedisService,
+    private readonly redisService: RedisService,
   ) {}
 
   // =========================
   // CREATE ADDRESS
   // =========================
   async createAddress(userId: string, createAddressDto: CreateAddressDto) {
-    // remove old default
-    if (createAddressDto.isDefault) {
+    const totalAddresses = await this.addressModel.countDocuments({
+        user: userId,
+      });
+
+    // First address => default
+    if (createAddressDto.isDefault || totalAddresses === 0) {
       await this.addressModel.updateMany(
-        { user: userId },
-        { isDefault: false },
+        {
+          user: userId,
+        },
+        {
+          isDefault: false,
+        },
       );
+
+      createAddressDto.isDefault = true;
     }
 
     const address = await this.addressModel.create({
-      ...createAddressDto,
-      user: userId,
-    });
+        ...createAddressDto,
+        user: userId,
+      });
 
-    // 🧠 CLEAR CACHE
+    // Clear Cache
     await this.redisService.del(`addresses:${userId}`);
 
     return address;
   }
 
   // =========================
-  // GET USER ADDRESSES (CACHED)
+  // GET USER ADDRESSES
   // =========================
   async getUserAddresses(userId: string) {
     const cacheKey = `addresses:${userId}`;
 
-    // 🔥 CHECK CACHE FIRST
     const cached = await this.redisService.get(cacheKey);
 
     if (cached) {
-      console.log('🔥 FROM REDIS');
-
       return typeof cached === 'string' ? JSON.parse(cached) : cached;
     }
 
-    console.log('🟢 FROM MONGODB');
+    const addresses = await this.addressModel
+        .find({
+          user: userId,
+        })
+        .sort({
+          isDefault: -1,
+          createdAt: -1,
+        });
 
-    const addresses = await this.addressModel.find({ user: userId }).sort({
-      isDefault: -1,
-      createdAt: -1,
-    });
-
-    // 💾 SAVE CACHE (5 min)
     await this.redisService.set(cacheKey, JSON.stringify(addresses), 300);
 
     return addresses;
   }
 
   // =========================
-  // SINGLE ADDRESS
+  // GET SINGLE ADDRESS
   // =========================
   async getSingleAddress(id: string) {
     const address = await this.addressModel.findById(id);
@@ -80,7 +89,13 @@ export class AddressService {
       throw new NotFoundException('Address not found');
     }
 
-    return address;
+    return {
+      ...address.toObject(),
+
+      googleMapUrl:
+        `https://www.google.com/maps/search/?api=1&query=` +
+        `${address.latitude},${address.longitude}`,
+    };
   }
 
   // =========================
@@ -93,24 +108,62 @@ export class AddressService {
       throw new NotFoundException('Address not found');
     }
 
-    // update default
     if (updateAddressDto.isDefault) {
       await this.addressModel.updateMany(
-        { user: address.user },
-        { isDefault: false },
+        {
+          user: address.user,
+        },
+        {
+          isDefault: false,
+        },
       );
     }
 
     const updatedAddress = await this.addressModel.findByIdAndUpdate(
       id,
       updateAddressDto,
-      { new: true },
+      {
+        new: true,
+      },
     );
 
-    // 🧠 CLEAR CACHE
     await this.redisService.del(`addresses:${address.user}`);
 
     return updatedAddress;
+  }
+
+  // =========================
+  // SET DEFAULT ADDRESS
+  // =========================
+  async setDefaultAddress(userId: string, addressId: string) {
+    const address = await this.addressModel.findOne({
+      _id: addressId,
+      user: userId,
+    });
+
+    if (!address) {
+      throw new NotFoundException('Address not found');
+    }
+
+    await this.addressModel.updateMany(
+      {
+        user: userId,
+      },
+      {
+        isDefault: false,
+      },
+    );
+
+    await this.addressModel.findByIdAndUpdate(addressId, {
+      isDefault: true,
+    });
+
+    await this.redisService.del(`addresses:${userId}`);
+
+    return {
+      success: true,
+      message: 'Default address updated successfully',
+    };
   }
 
   // =========================
@@ -125,12 +178,21 @@ export class AddressService {
 
     await this.addressModel.findByIdAndDelete(id);
 
-    // 🧠 CLEAR CACHE
     await this.redisService.del(`addresses:${address.user}`);
 
     return {
       success: true,
       message: 'Address deleted successfully',
     };
+  }
+
+  // =========================
+  // GET DEFAULT ADDRESS
+  // =========================
+  async getDefaultAddress(userId: string) {
+    return this.addressModel.findOne({
+      user: userId,
+      isDefault: true,
+    });
   }
 }

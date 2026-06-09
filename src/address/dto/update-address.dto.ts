@@ -1,4 +1,4 @@
-import { IsBoolean, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class UpdateAddressDto {
   @IsOptional()
@@ -9,21 +9,34 @@ export class UpdateAddressDto {
   @IsString()
   phoneNumber?: string;
 
+  // গ্রামের নাম / এলাকার নাম
   @IsOptional()
   @IsString()
-  division?: string;
+  areaOrVillage?: string;
+
+  // মসজিদ, বাজার, স্কুল ইত্যাদি
+  @IsOptional()
+  @IsString()
+  landmark?: string;
+
+  // অতিরিক্ত নির্দেশনা
+  @IsOptional()
+  @IsString()
+  directionNote?: string;
+
+  // GPS Location
+  @IsOptional()
+  @IsNumber()
+  latitude?: number;
 
   @IsOptional()
-  @IsString()
-  district?: string;
+  @IsNumber()
+  longitude?: number;
 
+  // Home / Office / Other
   @IsOptional()
   @IsString()
-  area?: string;
-
-  @IsOptional()
-  @IsString()
-  addressLine?: string;
+  label?: string;
 
   @IsOptional()
   @IsBoolean()
