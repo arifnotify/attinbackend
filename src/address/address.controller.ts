@@ -18,7 +18,7 @@ import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
 
 @UseGuards(JwtAuthGuard)
-@Controller('addresses')
+@Controller('address')
 export class AddressController {
   constructor(private readonly addressService: AddressService) {}
 
