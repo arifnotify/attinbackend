@@ -7,16 +7,29 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
 
-export class CreateProductDto {
+import { Type } from 'class-transformer';
+
+class TranslationDto {
   @IsNotEmpty()
   @IsString()
-  title: string;
+  en: string;
 
   @IsNotEmpty()
   @IsString()
-  description: string;
+  bn: string;
+}
+
+export class CreateProductDto {
+  @ValidateNested()
+  @Type(() => TranslationDto)
+  title: TranslationDto;
+
+  @ValidateNested()
+  @Type(() => TranslationDto)
+  description: TranslationDto;
 
   @IsNumber()
   price: number;
@@ -37,7 +50,6 @@ export class CreateProductDto {
   @IsArray()
   images: string[];
 
-  // ✅ Category ID
   @IsNotEmpty()
   @IsMongoId()
   category: string;
@@ -58,12 +70,10 @@ export class CreateProductDto {
   @IsBoolean()
   isFlashSale: boolean;
 
-  // NEW
   @IsOptional()
   @IsString()
-  productType: string; // fresh | regular
+  productType: string;
 
-  // NEW
   @IsOptional()
   @IsDateString()
   expiryDate: Date;

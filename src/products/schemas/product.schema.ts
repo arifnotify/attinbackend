@@ -1,5 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
 import { Document, Types } from 'mongoose';
 
 export type ProductDocument = Product & Document;
@@ -11,15 +10,30 @@ export class Product {
   static map(arg0: (product: any) => any) {
     throw new Error('Method not implemented.');
   }
-  @Prop({
-    required: true,
-  })
-  title: string;
 
   @Prop({
+    type: {
+      en: { type: String, required: true },
+      bn: { type: String, required: true },
+    },
     required: true,
   })
-  description: string;
+  title: {
+    en: string;
+    bn: string;
+  };
+
+  @Prop({
+    type: {
+      en: { type: String, required: true },
+      bn: { type: String, required: true },
+    },
+    required: true,
+  })
+  description: {
+    en: string;
+    bn: string;
+  };
 
   @Prop({
     required: true,
@@ -46,7 +60,6 @@ export class Product {
   })
   images: string[];
 
-  // ✅ NEW
   @Prop({
     type: Types.ObjectId,
     ref: 'Category',
@@ -60,7 +73,6 @@ export class Product {
   @Prop()
   location: string;
 
-  // NEW FIELD
   @Prop({
     default: 'pcs',
   })
@@ -82,22 +94,23 @@ export class Product {
   totalSales: number;
 
   @Prop({
-  default: 'regular',
+    default: 'regular',
   })
-  productType: string; // fresh | regular
+  productType: string;
 
   @Prop()
   expiryDate: Date;
 
   createdAt?: Date;
-
   updatedAt?: Date;
 }
 
 export const ProductSchema = SchemaFactory.createForClass(Product);
 
-// SEARCH INDEX
+// Search Index
 ProductSchema.index({
-  title: 'text',
-  description: 'text',
+  'title.en': 'text',
+  'title.bn': 'text',
+  'description.en': 'text',
+  'description.bn': 'text',
 });

@@ -40,60 +40,82 @@ export class ProductsService {
   // =========================
   // GET ALL PRODUCTS (CACHE)
   // =========================
-  async findAll(search?: string) {
-    const cacheKey = 'all_products';
+async findAll(search?: string) {
+  const cacheKey = 'all_products';
 
-    const cached = await this.redisService.get(cacheKey);
+  const cached = await this.redisService.get(cacheKey);
 
-    if (cached) {
-      return typeof cached === 'string'
-        ? JSON.parse(cached)
-        : cached;
-    }
-
-    const query: any = {
-      isActive: true,
-    };
-
-    if (search) {
-      query.title = {
-        $regex: search,
-        $options: 'i',
-      };
-    }
-
-    const products = await this.productModel
-      .find(query)
-      .populate('category')
-      .sort({ createdAt: -1 });
-
-    const formatted = products.map((product) => {
-      const data: any = product.toObject();
-
-      if (data.productType === 'fresh') {
-        data.freshText = getFreshTime(data.createdAt);
-      }
-
-      if (
-        data.productType === 'regular' &&
-        data.expiryDate
-      ) {
-        data.expiryText = `Exp: ${formatExpiryDate(
-          data.expiryDate,
-        )}`;
-      }
-
-      return data;
-    });
-
-    await this.redisService.set(
-      cacheKey,
-      JSON.stringify(formatted),
-      300,
-    );
-
-    return formatted;
+  if (cached) {
+    return typeof cached === 'string'
+      ? JSON.parse(cached)
+      : cached;
   }
+
+  const query: any = {
+    isActive: true,
+  };
+
+  if (search) {
+    query.$or = [
+      {
+        'title.en': {
+          $regex: search,
+          $options: 'i',
+        },
+      },
+      {
+        'title.bn': {
+          $regex: search,
+          $options: 'i',
+        },
+      },
+      {
+        'description.en': {
+          $regex: search,
+          $options: 'i',
+        },
+      },
+      {
+        'description.bn': {
+          $regex: search,
+          $options: 'i',
+        },
+      },
+    ];
+  }
+
+  const products = await this.productModel
+    .find(query)
+    .populate('category')
+    .sort({ createdAt: -1 });
+
+  const formatted = products.map((product) => {
+    const data: any = product.toObject();
+
+    if (data.productType === 'fresh') {
+      data.freshText = getFreshTime(data.createdAt);
+    }
+
+    if (
+      data.productType === 'regular' &&
+      data.expiryDate
+    ) {
+      data.expiryText = `Exp: ${formatExpiryDate(
+        data.expiryDate,
+      )}`;
+    }
+
+    return data;
+  });
+
+  await this.redisService.set(
+    cacheKey,
+    JSON.stringify(formatted),
+    300,
+  );
+
+  return formatted;
+}
 
   // =========================
   // SINGLE PRODUCT
