@@ -2,6 +2,7 @@ import {
   IsArray,
   IsBoolean,
   IsDateString,
+  IsMongoId,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -36,8 +37,9 @@ export class CreateProductDto {
   @IsArray()
   images: string[];
 
-  @IsOptional()
-  @IsString()
+  // ✅ Category ID
+  @IsNotEmpty()
+  @IsMongoId()
   category: string;
 
   @IsNotEmpty()
