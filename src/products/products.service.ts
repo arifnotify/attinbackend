@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 import { Product, ProductDocument } from './schemas/product.schema';
 
@@ -10,6 +10,7 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { SearchProductDto } from './dto/search-product.dto';
 
 import { RedisService } from '../redis/redis.service';
+
 import { formatExpiryDate } from 'src/common/utils/expiry.util';
 import { getFreshTime } from 'src/common/utils/fresh-time.util';
 
@@ -17,25 +18,27 @@ import { getFreshTime } from 'src/common/utils/fresh-time.util';
 export class ProductsService {
   constructor(
     @InjectModel(Product.name)
-    private productModel: Model<ProductDocument>,
+    private readonly productModel: Model<ProductDocument>,
 
-    private redisService: RedisService,
+    private readonly redisService: RedisService,
   ) {}
 
   // =========================
   // CREATE PRODUCT
   // =========================
   async create(createProductDto: CreateProductDto) {
-    const product = await this.productModel.create(createProductDto);
+    const product = await this.productModel.create({
+      ...createProductDto,
+      category: new Types.ObjectId(createProductDto.category),
+    });
 
-    // CLEAR CACHE
     await this.redisService.del('all_products');
 
-    return product;
+    return product.populate('category');
   }
 
   // =========================
-  // GET ALL PRODUCTS (CACHE FIXED)
+  // GET ALL PRODUCTS (CACHE)
   // =========================
   async findAll(search?: string) {
     const cacheKey = 'all_products';
@@ -43,12 +46,10 @@ export class ProductsService {
     const cached = await this.redisService.get(cacheKey);
 
     if (cached) {
-      console.log('🔥 FROM REDIS');
-
-      return typeof cached === 'string' ? JSON.parse(cached) : cached;
+      return typeof cached === 'string'
+        ? JSON.parse(cached)
+        : cached;
     }
-
-    console.log('🟢 FROM MONGODB');
 
     const query: any = {
       isActive: true,
@@ -63,17 +64,23 @@ export class ProductsService {
 
     const products = await this.productModel
       .find(query)
+      .populate('category')
       .sort({ createdAt: -1 });
 
-    const formattedProducts = products.map((product) => {
+    const formatted = products.map((product) => {
       const data: any = product.toObject();
 
       if (data.productType === 'fresh') {
         data.freshText = getFreshTime(data.createdAt);
       }
 
-      if (data.productType === 'regular' && data.expiryDate) {
-        data.expiryText = `Exp: ${formatExpiryDate(data.expiryDate)}`;
+      if (
+        data.productType === 'regular' &&
+        data.expiryDate
+      ) {
+        data.expiryText = `Exp: ${formatExpiryDate(
+          data.expiryDate,
+        )}`;
       }
 
       return data;
@@ -81,18 +88,20 @@ export class ProductsService {
 
     await this.redisService.set(
       cacheKey,
-      JSON.stringify(formattedProducts),
+      JSON.stringify(formatted),
       300,
     );
 
-    return formattedProducts;
+    return formatted;
   }
 
   // =========================
   // SINGLE PRODUCT
   // =========================
   async findOne(id: string) {
-    const product = await this.productModel.findById(id);
+    const product = await this.productModel
+      .findById(id)
+      .populate('category');
 
     if (!product) {
       throw new NotFoundException('Product not found');
@@ -104,8 +113,13 @@ export class ProductsService {
       data.freshText = getFreshTime(data.createdAt);
     }
 
-    if (data.productType === 'regular' && data.expiryDate) {
-      data.expiryText = `Expiry: ${formatExpiryDate(data.expiryDate)}`;
+    if (
+      data.productType === 'regular' &&
+      data.expiryDate
+    ) {
+      data.expiryText = `Expiry: ${formatExpiryDate(
+        data.expiryDate,
+      )}`;
     }
 
     return data;
@@ -114,18 +128,20 @@ export class ProductsService {
   // =========================
   // UPDATE PRODUCT
   // =========================
-  async update(id: string, updateProductDto: UpdateProductDto) {
-    const product = await this.productModel.findByIdAndUpdate(
-      id,
-      updateProductDto,
-      { new: true },
-    );
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+  ) {
+    const product = await this.productModel
+      .findByIdAndUpdate(id, updateProductDto, {
+        new: true,
+      })
+      .populate('category');
 
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
-    // CLEAR CACHE
     await this.redisService.del('all_products');
 
     return product;
@@ -135,13 +151,13 @@ export class ProductsService {
   // DELETE PRODUCT
   // =========================
   async remove(id: string) {
-    const product = await this.productModel.findByIdAndDelete(id);
+    const product =
+      await this.productModel.findByIdAndDelete(id);
 
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
-    // CLEAR CACHE
     await this.redisService.del('all_products');
 
     return {
@@ -153,11 +169,14 @@ export class ProductsService {
   // =========================
   // CATEGORY PRODUCTS
   // =========================
-  async findByCategory(category: string) {
-    return this.productModel.find({
-      category,
-      isActive: true,
-    });
+  async findByCategory(categoryId: string) {
+    return this.productModel
+      .find({
+        category: new Types.ObjectId(categoryId),
+        isActive: true,
+      })
+      .populate('category')
+      .sort({ createdAt: -1 });
   }
 
   // =========================
@@ -174,50 +193,39 @@ export class ProductsService {
       limit = '10',
     } = searchDto;
 
-    const filter: any = {};
+    const filter: any = {
+      isActive: true,
+    };
 
     if (keyword) {
-      filter.$text = {
-        $search: keyword,
-      };
+      filter.$text = { $search: keyword };
     }
 
     if (category) {
-      filter.category = category;
+      filter.category = new Types.ObjectId(category);
     }
 
     if (minPrice || maxPrice) {
       filter.price = {};
 
-      if (minPrice) {
+      if (minPrice)
         filter.price.$gte = Number(minPrice);
-      }
 
-      if (maxPrice) {
+      if (maxPrice)
         filter.price.$lte = Number(maxPrice);
-      }
     }
 
     const currentPage = Number(page);
     const perPage = Number(limit);
-    const skip = (currentPage - 1) * perPage;
+    const skip =
+      (currentPage - 1) * perPage;
 
-    let sortOption = {};
+    let sortOption: any = { createdAt: -1 };
 
-    switch (sort) {
-      case 'lowToHigh':
-        sortOption = { price: 1 };
-        break;
-
-      case 'highToLow':
-        sortOption = { price: -1 };
-        break;
-
-      case 'newest':
-      default:
-        sortOption = {
-          createdAt: -1,
-        };
+    if (sort === 'lowToHigh') {
+      sortOption = { price: 1 };
+    } else if (sort === 'highToLow') {
+      sortOption = { price: -1 };
     }
 
     const products = await this.productModel
@@ -227,7 +235,8 @@ export class ProductsService {
       .skip(skip)
       .limit(perPage);
 
-    const total = await this.productModel.countDocuments(filter);
+    const total =
+      await this.productModel.countDocuments(filter);
 
     return {
       products,

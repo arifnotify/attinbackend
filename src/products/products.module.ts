@@ -4,11 +4,15 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { Product, ProductSchema } from './schemas/product.schema';
 
+import {
+  Category,
+  CategorySchema,
+} from '../categories/schemas/category.schema';
+
 import { ProductsController } from './products.controller';
 
 import { ProductsService } from './products.service';
 
-// 🔥 ADD THIS
 import { RedisModule } from '../redis/redis.module';
 
 @Module({
@@ -18,9 +22,13 @@ import { RedisModule } from '../redis/redis.module';
         name: Product.name,
         schema: ProductSchema,
       },
+
+      {
+        name: Category.name,
+        schema: CategorySchema,
+      },
     ]),
 
-    // ✅ IMPORTANT FIX
     RedisModule,
   ],
 
