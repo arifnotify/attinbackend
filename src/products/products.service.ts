@@ -191,15 +191,15 @@ async findAll(search?: string) {
   // =========================
   // CATEGORY PRODUCTS
   // =========================
-  async findByCategory(categoryId: string) {
-    return this.productModel
-      .find({
-        category: new Types.ObjectId(categoryId),
-        isActive: true,
-      })
-      .populate('category')
-      .sort({ createdAt: -1 });
-  }
+async findByCategory(categoryId: string) {
+  return this.productModel
+    .find({
+      category: categoryId,   // 🔥 IMPORTANT CHANGE
+      isActive: true,
+    })
+    .populate('category')
+    .sort({ createdAt: -1 });
+}
 
   // =========================
   // SEARCH PRODUCTS
