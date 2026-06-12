@@ -191,16 +191,34 @@ async findAll(search?: string) {
   // =========================
   // CATEGORY PRODUCTS
   // =========================
-async findByCategory(categoryId: string) {
-  return this.productModel
-    .find({
-      category: new Types.ObjectId(categoryId),
-      isActive: true,
-    })
-    .populate('category')
-    .sort({ createdAt: -1 });
-}
+  async findByCategory(categoryId: string) {
+    const products = await this.productModel
+      .find({
+        category: new Types.ObjectId(categoryId),
+        isActive: true,
+      })
+      .populate('category')
+      .sort({ createdAt: -1 });
 
+    return products.map((product) => {
+      const data: any = product.toObject();
+
+      if (data.productType === 'fresh') {
+        data.freshText = getFreshTime(data.createdAt);
+      }
+
+      if (
+        data.productType === 'regular' &&
+        data.expiryDate
+      ) {
+        data.expiryText = `Expiry: ${formatExpiryDate(
+          data.expiryDate,
+        )}`;
+      }
+
+      return data;
+    });
+  }
   // =========================
   // SEARCH PRODUCTS
   // =========================
