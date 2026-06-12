@@ -194,7 +194,7 @@ async findAll(search?: string) {
 async findByCategory(categoryId: string) {
   return this.productModel
     .find({
-      category: categoryId,   // 🔥 IMPORTANT CHANGE
+      category: new Types.ObjectId(categoryId),
       isActive: true,
     })
     .populate('category')
