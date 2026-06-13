@@ -68,37 +68,23 @@ export class FlashSaleService {
   // =========================
   // GET ACTIVE FLASH SALES (CACHED)
   // =========================
-  async getActiveFlashSales() {
-    const cacheKey = 'flash_sales_active';
+async getActiveFlashSales() {
+  console.log('🟡 BYPASS CACHE TEST');
 
-    const cached = await this.redisService.get(cacheKey);
+  const now = new Date();
 
-    if (cached) {
-      console.log('🔥 ACTIVE FLASH SALES FROM REDIS');
-
-      return typeof cached === 'string' ? JSON.parse(cached) : cached;
-    }
-
-    console.log('🟢 ACTIVE FLASH SALES FROM DB');
-
-    const now = new Date();
-
-    const flashSales = await this.flashSaleModel
-      .find({
-        isActive: true,
-        startTime: { $lte: now },
+  const flashSales = await this.flashSaleModel
+    .find({
+      isActive: true,
+      startTime: { $lte: now },
         endTime: { $gte: now },
-      })
-      .populate('products.product');
+    })
+    .populate('products.product');
 
-    await this.redisService.set(
-      cacheKey,
-      JSON.stringify(flashSales),
-      60, // ⚡ short TTL because time-based
-    );
+  console.log('RESULT:', flashSales);
 
-    return flashSales;
-  }
+  return flashSales;
+}
 
   // =========================
   // GET ALL FLASH SALES (CACHED)
