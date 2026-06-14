@@ -40,7 +40,7 @@ export class FlashSaleService {
       // MARK FLASH SALE
       product.isFlashSale = true;
       product.flashSalePrice = item.salePrice;
-
+      product.flashSaleEndTime = createFlashSaleDto.endTime;
       await product.save();
 
       flashProducts.push({
@@ -126,6 +126,7 @@ async getActiveFlashSales() {
         if (product) {
           product.isFlashSale = false;
           product.flashSalePrice = 0;
+          product.flashSaleEndTime = null;
           await product.save();
         }
       }
@@ -160,6 +161,7 @@ async getActiveFlashSales() {
       if (product) {
         product.isFlashSale = false;
         product.flashSalePrice = 0;
+        product.flashSaleEndTime = null;
         await product.save();
       }
     }
