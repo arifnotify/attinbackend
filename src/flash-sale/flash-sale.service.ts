@@ -77,7 +77,7 @@ async getActiveFlashSales() {
     .find({
       isActive: true,
       startTime: { $lte: now },
-        endTime: { $gte: now },
+      endTime: { $gte: now },
     })
     .populate('products.product');
 

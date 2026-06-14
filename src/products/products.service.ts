@@ -222,70 +222,130 @@ async findAll(search?: string) {
   // =========================
   // SEARCH PRODUCTS
   // =========================
-  async searchProducts(searchDto: SearchProductDto) {
-    const {
-      keyword,
-      category,
-      minPrice,
-      maxPrice,
-      sort,
-      page = '1',
-      limit = '10',
-    } = searchDto;
+  // =========================
+// SEARCH PRODUCTS
+// =========================
+async searchProducts(searchDto: SearchProductDto) {
+  const {
+    keyword,
+    category,
+    minPrice,
+    maxPrice,
+    sort,
+    page = '1',
+    limit = '10',
+  } = searchDto;
 
-    const filter: any = {
-      isActive: true,
+  const filter: any = {
+    isActive: true,
+  };
+
+  // SEARCH BY TITLE / DESCRIPTION / BRAND / LOCATION
+  if (keyword) {
+    filter.$or = [
+      {
+        'title.en': {
+          $regex: keyword,
+          $options: 'i',
+        },
+      },
+      {
+        'title.bn': {
+          $regex: keyword,
+          $options: 'i',
+        },
+      },
+      {
+        'description.en': {
+          $regex: keyword,
+          $options: 'i',
+        },
+      },
+      {
+        'description.bn': {
+          $regex: keyword,
+          $options: 'i',
+        },
+      },
+      {
+        brand: {
+          $regex: keyword,
+          $options: 'i',
+        },
+      },
+      {
+        location: {
+          $regex: keyword,
+          $options: 'i',
+        },
+      },
+    ];
+  }
+
+  // CATEGORY FILTER
+  if (category) {
+    filter.category = new Types.ObjectId(category);
+  }
+
+  // PRICE FILTER
+  if (minPrice || maxPrice) {
+    filter.price = {};
+
+    if (minPrice) {
+      filter.price.$gte = Number(minPrice);
+    }
+
+    if (maxPrice) {
+      filter.price.$lte = Number(maxPrice);
+    }
+  }
+
+  const currentPage = Number(page);
+  const perPage = Number(limit);
+
+  const skip =
+    (currentPage - 1) * perPage;
+
+  // SORT
+  let sortOption: any = {
+    createdAt: -1,
+  };
+
+  if (sort === 'lowToHigh') {
+    sortOption = {
+      price: 1,
     };
+  }
 
-    if (keyword) {
-      filter.$text = { $search: keyword };
-    }
+  if (sort === 'highToLow') {
+    sortOption = {
+      price: -1,
+    };
+  }
 
-    if (category) {
-      filter.category = new Types.ObjectId(category);
-    }
-
-    if (minPrice || maxPrice) {
-      filter.price = {};
-
-      if (minPrice)
-        filter.price.$gte = Number(minPrice);
-
-      if (maxPrice)
-        filter.price.$lte = Number(maxPrice);
-    }
-
-    const currentPage = Number(page);
-    const perPage = Number(limit);
-    const skip =
-      (currentPage - 1) * perPage;
-
-    let sortOption: any = { createdAt: -1 };
-
-    if (sort === 'lowToHigh') {
-      sortOption = { price: 1 };
-    } else if (sort === 'highToLow') {
-      sortOption = { price: -1 };
-    }
-
-    const products = await this.productModel
+  const products =
+    await this.productModel
       .find(filter)
       .populate('category')
       .sort(sortOption)
       .skip(skip)
       .limit(perPage);
 
-    const total =
-      await this.productModel.countDocuments(filter);
+  const total =
+    await this.productModel.countDocuments(
+      filter,
+    );
 
-    return {
-      products,
-      pagination: {
-        total,
-        currentPage,
-        totalPages: Math.ceil(total / perPage),
-        perPage,
-      },
-    };
-  }
+  return {
+    products,
+    pagination: {
+      total,
+      currentPage,
+      totalPages: Math.ceil(
+        total / perPage,
+      ),
+      perPage,
+    },
+  };
+}
 }
