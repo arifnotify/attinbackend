@@ -39,6 +39,10 @@ export class CreateProductDto {
   discountPrice: number;
 
   @IsOptional()
+  @IsString()
+  youtubeVideoUrl?: string;
+
+  @IsOptional()
   @IsNumber()
   flashDiscountPrice: number;
 

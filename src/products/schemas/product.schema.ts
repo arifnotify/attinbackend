@@ -35,6 +35,9 @@ export class Product {
     bn: string;
   };
 
+  @Prop()
+  youtubeVideoUrl: string;
+
   @Prop({
     required: true,
   })
