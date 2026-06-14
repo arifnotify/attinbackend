@@ -126,7 +126,7 @@ async getActiveFlashSales() {
         if (product) {
           product.isFlashSale = false;
           product.flashSalePrice = 0;
-          product.flashSaleEndTime = null;
+          product.set('flashSaleEndTime', null);
           await product.save();
         }
       }
@@ -161,7 +161,7 @@ async getActiveFlashSales() {
       if (product) {
         product.isFlashSale = false;
         product.flashSalePrice = 0;
-        product.flashSaleEndTime = null;
+        product.set('flashSaleEndTime', null);
         await product.save();
       }
     }
