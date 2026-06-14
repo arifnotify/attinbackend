@@ -51,9 +51,10 @@ export class Product {
   flashSalePrice: number;
 
   @Prop({
+    type: Date,
     default: null,
   })
-  flashSaleEndTime: Date | null;
+  flashSaleEndTime: Date;
 
   @Prop({
     default: 0,
