@@ -7,18 +7,26 @@ export type OrderDocument = Order & Document;
 
 @Schema({ timestamps: true })
 export class Order {
-  @Prop({ type: Types.ObjectId, ref: 'User' })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+  })
   user: Types.ObjectId;
 
   @Prop()
   customerPhone: string;
 
-  @Prop({ required: true })
+  @Prop({
+    required: true,
+  })
   shippingAddress: string;
 
   @Prop([
     {
-      product: { type: Types.ObjectId, ref: 'Product' },
+      product: {
+        type: Types.ObjectId,
+        ref: 'Product',
+      },
       productName: String,
       productImage: String,
       quantity: Number,
@@ -28,10 +36,14 @@ export class Order {
   ])
   items: any[];
 
-  @Prop({ required: true })
+  @Prop({
+    required: true,
+  })
   totalAmount: number;
 
-  @Prop({ default: 'COD' })
+  @Prop({
+    default: 'COD',
+  })
   paymentMethod: string;
 
   @Prop({
@@ -40,20 +52,37 @@ export class Order {
   })
   orderStatus: OrderStatus;
 
-  @Prop({ default: false })
+  @Prop({
+    default: false,
+  })
   isPaid: boolean;
 
-  @Prop({ default: false })
+  // =========================
+  // TRACKING
+  // =========================
+
+  @Prop({
+    default: false,
+  })
   trackingEnabled: boolean;
 
-  @Prop({ default: null })
-  riderLat: number | null;
+  @Prop({
+    type: Number,
+    default: null,
+  })
+  riderLat: number;
 
-  @Prop({ default: null })
-  riderLng: number | null;
+  @Prop({
+    type: Number,
+    default: null,
+  })
+  riderLng: number;
 
-  @Prop({ default: null })
-  lastLocationUpdate: Date | null;
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  lastLocationUpdate: Date;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
