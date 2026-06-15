@@ -11,7 +11,6 @@ import {
 } from '@nestjs/common';
 
 import { OrdersService } from './orders.service';
-
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -19,40 +18,37 @@ import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    private readonly service: OrdersService,
-  ) {}
+  constructor(private readonly service: OrdersService) {}
 
   // =========================
   // CREATE ORDER
   // =========================
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(
-    @Req() req: any,
-    @Body() dto: CreateOrderDto,
-  ) {
-    return this.service.createOrder(
-      req.user.userId,
-      dto,
-    );
+  create(@Req() req: any, @Body() dto: CreateOrderDto) {
+    return this.service.createOrder(req.user.userId, dto);
   }
 
   // =========================
-  // CUSTOMER MY ORDERS
+  // MY ORDERS (USER)
   // =========================
   @UseGuards(JwtAuthGuard)
   @Get('my-orders')
-  getMyOrders(
-    @Req() req: any,
-  ) {
-    return this.service.getMyOrders(
-      req.user.userId,
-    );
+  getMyOrders(@Req() req: any) {
+    return this.service.getUserOrders(req.user.userId);
   }
 
   // =========================
-  // GET ALL ORDERS (ADMIN)
+  // ACTIVE ORDER (TRACKING)
+  // =========================
+  @UseGuards(JwtAuthGuard)
+  @Get('active')
+  getActive(@Req() req: any) {
+    return this.service.getActiveOrder(req.user.userId);
+  }
+
+  // =========================
+  // ALL ORDERS (ADMIN)
   // =========================
   @UseGuards(JwtAuthGuard)
   @Get()
@@ -61,56 +57,46 @@ export class OrdersController {
   }
 
   // =========================
-  // GET SINGLE ORDER
+  // SINGLE ORDER
   // =========================
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getOne(
-    @Param('id') id: string,
-  ) {
+  getOne(@Param('id') id: string) {
     return this.service.getSingleOrder(id);
   }
 
   // =========================
-  // UPDATE ORDER STATUS
+  // UPDATE STATUS
   // =========================
   @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
   updateStatus(
     @Param('id') id: string,
-    @Body()
-    dto: UpdateOrderStatusDto,
+    @Body() dto: UpdateOrderStatusDto,
   ) {
-    return this.service.updateOrderStatus(
-      id,
-      dto,
-    );
+    return this.service.updateOrderStatus(id, dto);
   }
 
   // =========================
-  // RIDER UPDATE LOCATION
+  // RIDER LOCATION UPDATE
   // =========================
   @Put(':id/location')
   updateLocation(
-    @Param('id') orderId: string,
+    @Param('id') id: string,
     @Body() body: any,
   ) {
     return this.service.updateRiderLocation(
-      orderId,
+      id,
       body.lat,
       body.lng,
     );
   }
 
   // =========================
-  // CUSTOMER TRACK ORDER
+  // TRACKING (CUSTOMER)
   // =========================
   @Get(':id/tracking')
-  getTracking(
-    @Param('id') orderId: string,
-  ) {
-    return this.service.getTracking(
-      orderId,
-    );
+  getTracking(@Param('id') id: string) {
+    return this.service.getTracking(id);
   }
 }
