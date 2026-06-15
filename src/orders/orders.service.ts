@@ -1,15 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Order, OrderDocument } from './schemas/order.schema';
-
 import { Cart } from '../cart/schemas/cart.schema';
 import { User } from '../users/schemas/user.schema';
 
 import { CreateOrderDto } from './dto/create-order.dto';
-
 import { RedisService } from '../redis/redis.service';
 
 import { OrderStatus } from './enums/order-status.enum';
@@ -32,7 +33,10 @@ export class OrdersService {
   // =========================
   // CREATE ORDER
   // =========================
-  async createOrder(userId: string, dto: CreateOrderDto) {
+  async createOrder(
+    userId: string,
+    dto: CreateOrderDto,
+  ) {
     const user = await this.userModel.findById(userId);
 
     if (!user) {
@@ -61,6 +65,7 @@ export class OrdersService {
       totalPrice: item.totalPrice,
     }));
 
+    // ✅ CLEAN CREATE (NO NULL FIELDS)
     const order = await this.orderModel.create({
       user: userId,
       customerPhone: user.phone,
@@ -76,17 +81,12 @@ export class OrdersService {
       isPaid: false,
 
       trackingEnabled: false,
-
-      riderLat: null,
-      riderLng: null,
-
-      lastLocationUpdate: null,
     });
 
-    await this.cartModel.deleteMany({
-      user: userId,
-    });
+    // clear cart
+    await this.cartModel.deleteMany({ user: userId });
 
+    // clear redis
     await this.redisService.del(`cart:${userId}`);
 
     return order;
@@ -126,12 +126,12 @@ export class OrdersService {
       orderStatus: dto.orderStatus,
     };
 
-    // Out For Delivery
+    // 🚚 Start Tracking
     if (dto.orderStatus === OrderStatus.OUT_FOR_DELIVERY) {
       updateData.trackingEnabled = true;
     }
 
-    // Delivered
+    // 🏁 Stop Tracking
     if (
       dto.orderStatus === OrderStatus.DELIVERED ||
       dto.orderStatus === OrderStatus.CANCELLED
@@ -139,15 +139,21 @@ export class OrdersService {
       updateData.trackingEnabled = false;
     }
 
-    return this.orderModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+    return this.orderModel.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true },
+    );
   }
 
   // =========================
   // UPDATE RIDER LOCATION
   // =========================
-  async updateRiderLocation(orderId: string, lat: number, lng: number) {
+  async updateRiderLocation(
+    orderId: string,
+    lat: number,
+    lng: number,
+  ) {
     const order = await this.orderModel.findById(orderId);
 
     if (!order) {
@@ -165,14 +171,12 @@ export class OrdersService {
         riderLng: lng,
         lastLocationUpdate: new Date(),
       },
-      {
-        new: true,
-      },
+      { new: true },
     );
   }
 
   // =========================
-  // CUSTOMER TRACK ORDER
+  // TRACKING API (CUSTOMER)
   // =========================
   async getTracking(orderId: string) {
     const order = await this.orderModel.findById(orderId);
@@ -184,12 +188,9 @@ export class OrdersService {
     return {
       orderId: order._id,
       orderStatus: order.orderStatus,
-
       trackingEnabled: order.trackingEnabled,
-
       riderLat: order.riderLat,
       riderLng: order.riderLng,
-
       lastLocationUpdate: order.lastLocationUpdate,
     };
   }
