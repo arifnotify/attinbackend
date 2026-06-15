@@ -39,7 +39,20 @@ export class OrdersController {
   }
 
   // =========================
-  // GET ALL ORDERS
+  // CUSTOMER MY ORDERS
+  // =========================
+  @UseGuards(JwtAuthGuard)
+  @Get('my-orders')
+  getMyOrders(
+    @Req() req: any,
+  ) {
+    return this.service.getMyOrders(
+      req.user.userId,
+    );
+  }
+
+  // =========================
+  // GET ALL ORDERS (ADMIN)
   // =========================
   @UseGuards(JwtAuthGuard)
   @Get()
