@@ -1,6 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
+import { OrderStatus } from '../enums/order-status.enum';
+
 export type OrderDocument = Order & Document;
 
 @Schema({ timestamps: true })
@@ -33,13 +35,25 @@ export class Order {
   paymentMethod: string;
 
   @Prop({
-    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'],
-    default: 'Pending',
+    enum: Object.values(OrderStatus),
+    default: OrderStatus.PENDING,
   })
-  orderStatus: string;
+  orderStatus: OrderStatus;
 
   @Prop({ default: false })
   isPaid: boolean;
+
+  @Prop({ default: false })
+  trackingEnabled: boolean;
+
+  @Prop({ default: null })
+  riderLat: number | null;
+
+  @Prop({ default: null })
+  riderLng: number | null;
+
+  @Prop({ default: null })
+  lastLocationUpdate: Date | null;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

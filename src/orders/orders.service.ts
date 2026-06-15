@@ -1,12 +1,18 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Order, OrderDocument } from './schemas/order.schema';
+
 import { Cart } from '../cart/schemas/cart.schema';
 import { User } from '../users/schemas/user.schema';
+
 import { CreateOrderDto } from './dto/create-order.dto';
+
 import { RedisService } from '../redis/redis.service';
+
+import { OrderStatus } from './enums/order-status.enum';
 
 @Injectable()
 export class OrdersService {
@@ -24,17 +30,15 @@ export class OrdersService {
   ) {}
 
   // =========================
-  // CREATE ORDER (MAIN LOGIC)
+  // CREATE ORDER
   // =========================
   async createOrder(userId: string, dto: CreateOrderDto) {
-    // 1. GET USER
     const user = await this.userModel.findById(userId);
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    // 2. GET CART ITEMS
     const cartItems = await this.cartModel
       .find({ user: userId })
       .populate('product');
@@ -43,13 +47,11 @@ export class OrdersService {
       throw new NotFoundException('Cart is empty');
     }
 
-    // 3. CALCULATE TOTAL
     const totalAmount = cartItems.reduce(
       (sum, item) => sum + item.totalPrice,
       0,
     );
 
-    // 4. FORMAT ORDER ITEMS
     const items = cartItems.map((item) => ({
       product: item.product._id,
       productName: item.product.title,
@@ -59,25 +61,33 @@ export class OrdersService {
       totalPrice: item.totalPrice,
     }));
 
-    // 5. CREATE ORDER
     const order = await this.orderModel.create({
       user: userId,
       customerPhone: user.phone,
       shippingAddress: dto.shippingAddress,
+
       items,
       totalAmount,
+
       paymentMethod: 'COD',
-      orderStatus: 'Pending',
+
+      orderStatus: OrderStatus.PENDING,
+
       isPaid: false,
+
+      trackingEnabled: false,
+
+      riderLat: null,
+      riderLng: null,
+
+      lastLocationUpdate: null,
     });
 
-    // 6. CLEAR CART FROM DB
-    await this.cartModel.deleteMany({ user: userId });
+    await this.cartModel.deleteMany({
+      user: userId,
+    });
 
-    // 7. CLEAR REDIS CACHE
     await this.redisService.del(`cart:${userId}`);
-
-    console.log(`ORDER CREATED & CART CLEARED: ${userId}`);
 
     return order;
   }
@@ -106,10 +116,81 @@ export class OrdersService {
   // UPDATE ORDER STATUS
   // =========================
   async updateOrderStatus(id: string, dto: any) {
+    const order = await this.orderModel.findById(id);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const updateData: any = {
+      orderStatus: dto.orderStatus,
+    };
+
+    // Out For Delivery
+    if (dto.orderStatus === OrderStatus.OUT_FOR_DELIVERY) {
+      updateData.trackingEnabled = true;
+    }
+
+    // Delivered
+    if (
+      dto.orderStatus === OrderStatus.DELIVERED ||
+      dto.orderStatus === OrderStatus.CANCELLED
+    ) {
+      updateData.trackingEnabled = false;
+    }
+
+    return this.orderModel.findByIdAndUpdate(id, updateData, {
+      new: true,
+    });
+  }
+
+  // =========================
+  // UPDATE RIDER LOCATION
+  // =========================
+  async updateRiderLocation(orderId: string, lat: number, lng: number) {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (!order.trackingEnabled) {
+      throw new NotFoundException('Tracking not enabled');
+    }
+
     return this.orderModel.findByIdAndUpdate(
-      id,
-      { orderStatus: dto.orderStatus },
-      { new: true },
+      orderId,
+      {
+        riderLat: lat,
+        riderLng: lng,
+        lastLocationUpdate: new Date(),
+      },
+      {
+        new: true,
+      },
     );
+  }
+
+  // =========================
+  // CUSTOMER TRACK ORDER
+  // =========================
+  async getTracking(orderId: string) {
+    const order = await this.orderModel.findById(orderId);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    return {
+      orderId: order._id,
+      orderStatus: order.orderStatus,
+
+      trackingEnabled: order.trackingEnabled,
+
+      riderLat: order.riderLat,
+      riderLng: order.riderLng,
+
+      lastLocationUpdate: order.lastLocationUpdate,
+    };
   }
 }
