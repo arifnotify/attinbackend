@@ -138,7 +138,7 @@ export class OrdersService {
     }
 
     return this.orderModel.findByIdAndUpdate(id, updateData, {
-      new: true,
+      returnDocument: 'after',
     });
   }
 
@@ -161,7 +161,7 @@ export class OrdersService {
         riderLng: lng,
         lastLocationUpdate: new Date(),
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
   }
 
