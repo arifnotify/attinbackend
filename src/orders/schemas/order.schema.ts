@@ -7,9 +7,13 @@ export type OrderDocument = Order & Document;
 
 @Schema({ timestamps: true })
 export class Order {
+  // =========================
+  // USER INFO
+  // =========================
   @Prop({
     type: Types.ObjectId,
     ref: 'User',
+    required: true,
   })
   user: Types.ObjectId;
 
@@ -21,6 +25,9 @@ export class Order {
   })
   shippingAddress: string;
 
+  // =========================
+  // ORDER ITEMS
+  // =========================
   @Prop([
     {
       product: {
@@ -41,6 +48,9 @@ export class Order {
   })
   totalAmount: number;
 
+  // =========================
+  // ORDER META
+  // =========================
   @Prop({
     default: 'COD',
   })
@@ -58,31 +68,29 @@ export class Order {
   isPaid: boolean;
 
   // =========================
-  // TRACKING
+  // ORDER NUMBER (8 DIGIT)
   // =========================
+  @Prop({
+    required: true,
+    unique: true,
+  })
+  orderNumber: string;
 
+  // =========================
+  // TRACKING SYSTEM
+  // =========================
   @Prop({
     default: false,
   })
   trackingEnabled: boolean;
 
+  // কোন Rider assign করা হয়েছে
   @Prop({
-    type: Number,
+    type: Types.ObjectId,
+    ref: 'User',
     default: null,
   })
-  riderLat: number;
-
-  @Prop({
-    type: Number,
-    default: null,
-  })
-  riderLng: number;
-
-  @Prop({
-    type: Date,
-    default: null,
-  })
-  lastLocationUpdate: Date;
+  assignedRider: Types.ObjectId;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

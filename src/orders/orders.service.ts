@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Order, OrderDocument } from './schemas/order.schema';
+import {
+  RiderLocation,
+  RiderLocationDocument,
+} from './rider-location/rider-location.schema';
+
 import { Cart } from '../cart/schemas/cart.schema';
 import { User } from '../users/schemas/user.schema';
 
@@ -19,6 +23,9 @@ export class OrdersService {
     @InjectModel(Order.name)
     private readonly orderModel: Model<OrderDocument>,
 
+    @InjectModel(RiderLocation.name)
+    private readonly riderLocationModel: Model<RiderLocationDocument>,
+
     @InjectModel(Cart.name)
     private readonly cartModel: Model<any>,
 
@@ -29,11 +36,10 @@ export class OrdersService {
   ) {}
 
   // =========================
-  // CREATE ORDER
+  // CREATE ORDER (AUTO 8 DIGIT)
   // =========================
   async createOrder(userId: string, dto: CreateOrderDto) {
     const user = await this.userModel.findById(userId);
-
     if (!user) throw new NotFoundException('User not found');
 
     const cartItems = await this.cartModel
@@ -51,23 +57,50 @@ export class OrdersService {
 
     const items = cartItems.map((item) => ({
       product: item.product._id,
-      productName: JSON.stringify(item.product.title),
-      productImage: item.product.images?.[0] ?? '',
+      productName: item.product.title,
+      productImage: item.product.images?.[0] || '',
       quantity: item.quantity,
       price: item.price,
       totalPrice: item.totalPrice,
     }));
 
+    // =========================
+    // UNIQUE 8 DIGIT ORDER NUMBER
+    // =========================
+    let orderNumber = '';
+    let exists = true;
+
+    while (exists) {
+      orderNumber = Math.floor(
+        10000000 + Math.random() * 90000000,
+      ).toString();
+
+      const check = await this.orderModel.findOne({
+        orderNumber,
+      });
+
+      if (!check) {
+        exists = false;
+      }
+    }
+
     const order = await this.orderModel.create({
+      orderNumber,
+
       user: userId,
       customerPhone: user.phone,
       shippingAddress: dto.shippingAddress,
+
       items,
       totalAmount,
+
       paymentMethod: 'COD',
       orderStatus: OrderStatus.PENDING,
+
       isPaid: false,
       trackingEnabled: false,
+
+      assignedRider: null,
     });
 
     await this.cartModel.deleteMany({ user: userId });
@@ -77,7 +110,7 @@ export class OrdersService {
   }
 
   // =========================
-  // GET USER ORDERS
+  // USER ORDERS
   // =========================
   async getUserOrders(userId: string) {
     return this.orderModel
@@ -86,18 +119,7 @@ export class OrdersService {
   }
 
   // =========================
-  // ACTIVE ORDER
-  // =========================
-  async getActiveOrder(userId: string) {
-    return this.orderModel.findOne({
-      user: userId,
-      orderStatus: OrderStatus.OUT_FOR_DELIVERY,
-      trackingEnabled: true,
-    });
-  }
-
-  // =========================
-  // ALL ORDERS
+  // ALL ORDERS (ADMIN)
   // =========================
   async getAllOrders() {
     return this.orderModel.find().sort({ createdAt: -1 });
@@ -109,18 +131,22 @@ export class OrdersService {
   async getSingleOrder(id: string) {
     const order = await this.orderModel.findById(id);
 
-    if (!order) throw new NotFoundException('Order not found');
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
 
     return order;
   }
 
   // =========================
-  // UPDATE STATUS
+  // UPDATE ORDER STATUS
   // =========================
   async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     const order = await this.orderModel.findById(id);
 
-    if (!order) throw new NotFoundException('Order not found');
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
 
     const updateData: any = {
       orderStatus: dto.orderStatus,
@@ -138,48 +164,77 @@ export class OrdersService {
     }
 
     return this.orderModel.findByIdAndUpdate(id, updateData, {
-      returnDocument: 'after',
+      new: true,
     });
   }
 
   // =========================
-  // RIDER LOCATION
+  // ASSIGN RIDER TO ORDER
   // =========================
-  async updateRiderLocation(orderId: string, lat: number, lng: number) {
+  async assignRider(orderId: string, riderId: string) {
     const order = await this.orderModel.findById(orderId);
 
-    if (!order) throw new NotFoundException('Order not found');
-
-    if (!order.trackingEnabled) {
-      throw new NotFoundException('Tracking not enabled');
+    if (!order) {
+      throw new NotFoundException('Order not found');
     }
 
     return this.orderModel.findByIdAndUpdate(
       orderId,
       {
-        riderLat: lat,
-        riderLng: lng,
-        lastLocationUpdate: new Date(),
+        assignedRider: riderId,
+        orderStatus: OrderStatus.OUT_FOR_DELIVERY,
+        trackingEnabled: true,
       },
-      { returnDocument: 'after' },
+      { new: true },
     );
   }
 
   // =========================
-  // TRACKING RESPONSE
+  // UPDATE RIDER LIVE LOCATION
+  // =========================
+  async updateRiderLocation(
+    riderId: string,
+    lat: number,
+    lng: number,
+  ) {
+    return this.riderLocationModel.findOneAndUpdate(
+      { riderId },
+      {
+        riderId,
+        lat,
+        lng,
+        lastUpdated: new Date(),
+      },
+      {
+        upsert: true,
+        new: true,
+      },
+    );
+  }
+
+  // =========================
+  // TRACK ORDER (CUSTOMER VIEW)
   // =========================
   async getTracking(orderId: string) {
     const order = await this.orderModel.findById(orderId);
 
-    if (!order) throw new NotFoundException('Order not found');
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const riderLocation = await this.riderLocationModel.findOne({
+      riderId: order.assignedRider,
+    });
 
     return {
-      orderId: order._id,
+      orderNumber: order.orderNumber,
       orderStatus: order.orderStatus,
       trackingEnabled: order.trackingEnabled,
-      riderLat: order.riderLat,
-      riderLng: order.riderLng,
-      lastLocationUpdate: order.lastLocationUpdate,
+
+      riderLat: riderLocation?.lat || null,
+      riderLng: riderLocation?.lng || null,
+
+      lastUpdated: riderLocation?.lastUpdated || null,
     };
   }
 }

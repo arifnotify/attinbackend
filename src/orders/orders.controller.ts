@@ -30,21 +30,12 @@ export class OrdersController {
   }
 
   // =========================
-  // MY ORDERS (USER)
+  // USER ORDERS
   // =========================
   @UseGuards(JwtAuthGuard)
   @Get('my-orders')
   getMyOrders(@Req() req: any) {
     return this.service.getUserOrders(req.user.userId);
-  }
-
-  // =========================
-  // ACTIVE ORDER (TRACKING)
-  // =========================
-  @UseGuards(JwtAuthGuard)
-  @Get('active')
-  getActive(@Req() req: any) {
-    return this.service.getActiveOrder(req.user.userId);
   }
 
   // =========================
@@ -66,7 +57,7 @@ export class OrdersController {
   }
 
   // =========================
-  // UPDATE STATUS
+  // UPDATE ORDER STATUS
   // =========================
   @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
@@ -78,22 +69,31 @@ export class OrdersController {
   }
 
   // =========================
-  // RIDER LOCATION UPDATE
+  // ASSIGN RIDER TO ORDER
   // =========================
-  @Put(':id/location')
-  updateLocation(
-    @Param('id') id: string,
-    @Body() body: any,
-  ) {
+  @UseGuards(JwtAuthGuard)
+  @Put('assign-rider')
+  assignRider(@Body() body: any) {
+    return this.service.assignRider(
+      body.orderId,
+      body.riderId,
+    );
+  }
+
+  // =========================
+  // RIDER LIVE LOCATION UPDATE
+  // =========================
+  @Put('rider/location')
+  updateRiderLocation(@Body() body: any) {
     return this.service.updateRiderLocation(
-      id,
+      body.riderId,
       body.lat,
       body.lng,
     );
   }
 
   // =========================
-  // TRACKING (CUSTOMER)
+  // TRACKING (CUSTOMER VIEW)
   // =========================
   @Get(':id/tracking')
   getTracking(@Param('id') id: string) {
