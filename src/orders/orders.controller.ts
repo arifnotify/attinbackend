@@ -67,4 +67,9 @@ export class OrdersController {
   getTracking(@Param('id') id: string) {
     return this.service.getTracking(id);
   }
+
+  @Put(':id/location')
+  updateLocation(@Param('id') id: string, @Body() body: any) {
+    return this.service.updateRiderLocation(id, body.lat, body.lng);
+  }
 }

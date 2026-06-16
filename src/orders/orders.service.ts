@@ -146,6 +146,24 @@ export class OrdersService {
       status: order.orderStatus,
       trackingEnabled: order.trackingEnabled,
       assignedRider: order.assignedRider,
-    };
+
+      riderLat: order.riderLat,
+      riderLng: order.riderLng,
+      lastLocationUpdate: order.lastLocationUpdate,
+};
+  }
+  //////////////////
+  async updateRiderLocation(orderId: string, lat: number, lng: number) {
+    return this.orderModel.findByIdAndUpdate(
+      orderId,
+      {
+        riderLat: lat,
+        riderLng: lng,
+        lastLocationUpdate: new Date(),
+      },
+      {
+        new: true,
+      },
+    );
   }
 }
