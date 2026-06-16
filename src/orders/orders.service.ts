@@ -3,40 +3,28 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Order, OrderDocument } from './schemas/order.schema';
-import {
-  RiderLocation,
-  RiderLocationDocument,
-} from './rider-location/rider-location.schema';
-
-import { Cart } from '../cart/schemas/cart.schema';
 import { User } from '../users/schemas/user.schema';
+import { Cart } from '../cart/schemas/cart.schema';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
-
-import { RedisService } from '../redis/redis.service';
 import { OrderStatus } from './enums/order-status.enum';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectModel(Order.name)
-    private readonly orderModel: Model<OrderDocument>,
-
-    @InjectModel(RiderLocation.name)
-    private readonly riderLocationModel: Model<RiderLocationDocument>,
-
-    @InjectModel(Cart.name)
-    private readonly cartModel: Model<any>,
+    private orderModel: Model<OrderDocument>,
 
     @InjectModel(User.name)
-    private readonly userModel: Model<any>,
+    private userModel: Model<any>,
 
-    private readonly redisService: RedisService,
+    @InjectModel(Cart.name)
+    private cartModel: Model<any>,
   ) {}
 
   // =========================
-  // CREATE ORDER (AUTO 8 DIGIT)
+  // CREATE ORDER
   // =========================
   async createOrder(userId: string, dto: CreateOrderDto) {
     const user = await this.userModel.findById(userId);
@@ -65,56 +53,42 @@ export class OrdersService {
     }));
 
     // =========================
-    // UNIQUE 8 DIGIT ORDER NUMBER
+    // 8 DIGIT ORDER NUMBER
     // =========================
     let orderNumber = '';
     let exists = true;
 
     while (exists) {
-      orderNumber = Math.floor(
-        10000000 + Math.random() * 90000000,
-      ).toString();
+      orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
 
-      const check = await this.orderModel.findOne({
-        orderNumber,
-      });
+      const check = await this.orderModel.findOne({ orderNumber });
 
-      if (!check) {
-        exists = false;
-      }
+      if (!check) exists = false;
     }
 
     const order = await this.orderModel.create({
       orderNumber,
-
       user: userId,
       customerPhone: user.phone,
       shippingAddress: dto.shippingAddress,
-
       items,
       totalAmount,
-
       paymentMethod: 'COD',
       orderStatus: OrderStatus.PENDING,
-
       isPaid: false,
       trackingEnabled: false,
-
     });
 
     await this.cartModel.deleteMany({ user: userId });
-    await this.redisService.del(`cart:${userId}`);
 
     return order;
   }
 
   // =========================
-  // USER ORDERS
+  // MY ORDERS
   // =========================
   async getUserOrders(userId: string) {
-    return this.orderModel
-      .find({ user: userId })
-      .sort({ createdAt: -1 });
+    return this.orderModel.find({ user: userId }).sort({ createdAt: -1 });
   }
 
   // =========================
@@ -129,54 +103,25 @@ export class OrdersService {
   // =========================
   async getSingleOrder(id: string) {
     const order = await this.orderModel.findById(id);
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
+    if (!order) throw new NotFoundException('Order not found');
     return order;
   }
 
   // =========================
-  // UPDATE ORDER STATUS
+  // UPDATE STATUS
   // =========================
   async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
-    const order = await this.orderModel.findById(id);
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
-    const updateData: any = {
-      orderStatus: dto.orderStatus,
-    };
-
-    if (dto.orderStatus === OrderStatus.OUT_FOR_DELIVERY) {
-      updateData.trackingEnabled = true;
-    }
-
-    if (
-      dto.orderStatus === OrderStatus.DELIVERED ||
-      dto.orderStatus === OrderStatus.CANCELLED
-    ) {
-      updateData.trackingEnabled = false;
-    }
-
-    return this.orderModel.findByIdAndUpdate(id, updateData, {
-      new: true,
-    });
+    return this.orderModel.findByIdAndUpdate(
+      id,
+      { orderStatus: dto.orderStatus },
+      { new: true },
+    );
   }
 
   // =========================
-  // ASSIGN RIDER TO ORDER
+  // ASSIGN RIDER
   // =========================
   async assignRider(orderId: string, riderId: string) {
-    const order = await this.orderModel.findById(orderId);
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
     return this.orderModel.findByIdAndUpdate(
       orderId,
       {
@@ -189,51 +134,18 @@ export class OrdersService {
   }
 
   // =========================
-  // UPDATE RIDER LIVE LOCATION
-  // =========================
-  async updateRiderLocation(
-    riderId: string,
-    lat: number,
-    lng: number,
-  ) {
-    return this.riderLocationModel.findOneAndUpdate(
-      { riderId },
-      {
-        riderId,
-        lat,
-        lng,
-        lastUpdated: new Date(),
-      },
-      {
-        upsert: true,
-        new: true,
-      },
-    );
-  }
-
-  // =========================
-  // TRACK ORDER (CUSTOMER VIEW)
+  // TRACK ORDER
   // =========================
   async getTracking(orderId: string) {
     const order = await this.orderModel.findById(orderId);
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
-    const riderLocation = await this.riderLocationModel.findOne({
-      riderId: order.assignedRider,
-    });
+    if (!order) throw new NotFoundException('Order not found');
 
     return {
       orderNumber: order.orderNumber,
-      orderStatus: order.orderStatus,
+      status: order.orderStatus,
       trackingEnabled: order.trackingEnabled,
-
-      riderLat: riderLocation?.lat || null,
-      riderLng: riderLocation?.lng || null,
-
-      lastUpdated: riderLocation?.lastUpdated || null,
+      assignedRider: order.assignedRider,
     };
   }
 }

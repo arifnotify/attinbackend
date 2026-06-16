@@ -42,18 +42,23 @@ export class Order {
   @Prop({ default: false })
   isPaid: boolean;
 
-  @Prop({ default: false })
-  trackingEnabled: boolean;
+  // =========================
+  // ORDER NUMBER (8 DIGIT)
+  // =========================
+  @Prop({ required: true, unique: true })
+  orderNumber: string;
 
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'User',
-    default: null,
-  })
+  // =========================
+  // RIDER ASSIGN
+  // =========================
+  @Prop({ type: Types.ObjectId, ref: 'Rider', default: null })
   assignedRider: Types.ObjectId | null;
 
-  @Prop({ unique: true, required: true })
-  orderNumber: string;
+  // =========================
+  // TRACKING
+  // =========================
+  @Prop({ default: false })
+  trackingEnabled: boolean;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
