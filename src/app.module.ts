@@ -67,6 +67,8 @@ import { RidersModule } from './riders/riders.module';
     LocationsModule,
 
     RidersModule,
+    
+    RiderLocationModule,
   ],
   controllers: [HealthController],
 })
