@@ -18,6 +18,7 @@ import { AddressModule } from './address/address.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LocationsModule } from './locations/locations.module';
+import { RidersModule } from './riders/riders.module';
 
 @Module({
   imports: [
@@ -64,6 +65,8 @@ import { LocationsModule } from './locations/locations.module';
     AnalyticsModule,
 
     LocationsModule,
+
+    RidersModule,
   ],
   controllers: [HealthController],
 })
