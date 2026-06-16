@@ -16,9 +16,7 @@ export class Order {
   @Prop()
   customerPhone: string;
 
-  @Prop({
-    required: true,
-  })
+  @Prop({ required: true })
   shippingAddress: string;
 
   @Prop([
@@ -36,14 +34,10 @@ export class Order {
   ])
   items: any[];
 
-  @Prop({
-    required: true,
-  })
+  @Prop({ required: true })
   totalAmount: number;
 
-  @Prop({
-    default: 'COD',
-  })
+  @Prop({ default: 'COD' })
   paymentMethod: string;
 
   @Prop({
@@ -52,24 +46,14 @@ export class Order {
   })
   orderStatus: OrderStatus;
 
-  @Prop({
-    default: false,
-  })
+  @Prop({ default: false })
   isPaid: boolean;
-
-  // =========================
-  // ORDER NUMBER (8 DIGIT)
-  // =========================
 
   @Prop({
     required: true,
     unique: true,
   })
   orderNumber: string;
-
-  // =========================
-  // RIDER ASSIGN
-  // =========================
 
   @Prop({
     type: Types.ObjectId,
@@ -78,36 +62,8 @@ export class Order {
   })
   assignedRider: Types.ObjectId | null;
 
-  // =========================
-  // TRACKING ENABLE
-  // =========================
-
-  @Prop({
-    default: false,
-  })
+  @Prop({ default: false })
   trackingEnabled: boolean;
-
-  // =========================
-  // LIVE RIDER LOCATION
-  // =========================
-
-  @Prop({
-    type: Number,
-    default: null,
-  })
-  riderLat: number | null;
-
-  @Prop({
-    type: Number,
-    default: null,
-  })
-  riderLng: number | null;
-
-  @Prop({
-    type: Date,
-    default: null,
-  })
-  lastLocationUpdate: Date | null;
 }
 
 export const OrderSchema =
