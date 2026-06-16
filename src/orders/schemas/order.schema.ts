@@ -1,39 +1,23 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-
 import { OrderStatus } from '../enums/order-status.enum';
 
 export type OrderDocument = Order & Document;
 
 @Schema({ timestamps: true })
 export class Order {
-  // =========================
-  // USER INFO
-  // =========================
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'User',
-    required: true,
-  })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   user: Types.ObjectId;
 
   @Prop()
   customerPhone: string;
 
-  @Prop({
-    required: true,
-  })
+  @Prop({ required: true })
   shippingAddress: string;
 
-  // =========================
-  // ORDER ITEMS
-  // =========================
   @Prop([
     {
-      product: {
-        type: Types.ObjectId,
-        ref: 'Product',
-      },
+      product: { type: Types.ObjectId, ref: 'Product' },
       productName: String,
       productImage: String,
       quantity: Number,
@@ -43,17 +27,10 @@ export class Order {
   ])
   items: any[];
 
-  @Prop({
-    required: true,
-  })
+  @Prop({ required: true })
   totalAmount: number;
 
-  // =========================
-  // ORDER META
-  // =========================
-  @Prop({
-    default: 'COD',
-  })
+  @Prop({ default: 'COD' })
   paymentMethod: string;
 
   @Prop({
@@ -62,34 +39,21 @@ export class Order {
   })
   orderStatus: OrderStatus;
 
-  @Prop({
-    default: false,
-  })
+  @Prop({ default: false })
   isPaid: boolean;
 
-  // =========================
-  // ORDER NUMBER (8 DIGIT)
-  // =========================
-  @Prop({
-    required: true,
-    unique: true,
-  })
-  orderNumber: string;
-
-  // =========================
-  // TRACKING SYSTEM
-  // =========================
-  @Prop({
-    default: false,
-  })
+  @Prop({ default: false })
   trackingEnabled: boolean;
 
-  // কোন Rider assign করা হয়েছে
   @Prop({
     type: Types.ObjectId,
     ref: 'User',
     default: null,
   })
   assignedRider: Types.ObjectId | null;
+
+  @Prop({ unique: true, required: true })
+  orderNumber: string;
+}
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
