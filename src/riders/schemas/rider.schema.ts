@@ -5,19 +5,30 @@ export type RiderDocument = Rider & Document;
 
 @Schema({ timestamps: true })
 export class Rider {
-  @Prop({ required: true })
+  @Prop({
+    required: true,
+  })
   name: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({
+    required: true,
+    unique: true,
+  })
   phone: string;
 
-  @Prop({ required: true })
+  @Prop({
+    required: true,
+  })
   password: string;
 
-  @Prop({ default: 'rider' })
+  @Prop({
+    default: 'rider',
+  })
   role: string;
 
-  @Prop({ default: true })
+  @Prop({
+    default: true,
+  })
   isActive: boolean;
 }
 
