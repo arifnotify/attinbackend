@@ -100,7 +100,6 @@ export class OrdersService {
       isPaid: false,
       trackingEnabled: false,
 
-      assignedRider: null,
     });
 
     await this.cartModel.deleteMany({ user: userId });

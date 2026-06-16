@@ -90,7 +90,6 @@ export class Order {
     ref: 'User',
     default: null,
   })
-  assignedRider: Types.ObjectId;
-}
+  assignedRider: Types.ObjectId | null;
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
