@@ -4,7 +4,6 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
 
-import { Order, OrderSchema } from './schemas/order.schema';
 
 import {
   RiderLocation,
@@ -16,6 +15,7 @@ import { Cart, CartSchema } from '../cart/schemas/cart.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
 
 import { RedisModule } from '../redis/redis.module';
+import { Order } from './schemas/order.schema';
 
 @Module({
   imports: [
