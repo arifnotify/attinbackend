@@ -19,6 +19,7 @@ import { CouponsModule } from './coupons/coupons.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LocationsModule } from './locations/locations.module';
 import { RidersModule } from './riders/riders.module';
+import { RiderLocationModule } from './orders/rider-location/rider-location.module';
 
 @Module({
   imports: [
@@ -67,6 +68,8 @@ import { RidersModule } from './riders/riders.module';
     LocationsModule,
 
     RidersModule,
+
+    RiderLocationModule,
   ],
   controllers: [HealthController],
 })

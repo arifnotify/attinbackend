@@ -1,0 +1,38 @@
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+
+import { Model, Types } from 'mongoose';
+
+import { RiderLocation, RiderLocationDocument } from './rider-location.schema';
+
+@Injectable()
+export class RiderLocationService {
+  constructor(
+    @InjectModel(RiderLocation.name)
+    private riderLocationModel: Model<RiderLocationDocument>,
+  ) {}
+
+  async updateLocation(riderId: string, lat: number, lng: number) {
+    return this.riderLocationModel.findOneAndUpdate(
+      {
+        riderId: new Types.ObjectId(riderId),
+      },
+      {
+        riderId,
+        lat,
+        lng,
+        updatedAt: new Date(),
+      },
+      {
+        upsert: true,
+        new: true,
+      },
+    );
+  }
+
+  async getLocation(riderId: string) {
+    return this.riderLocationModel.findOne({
+      riderId,
+    });
+  }
+}
