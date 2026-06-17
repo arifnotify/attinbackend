@@ -1,4 +1,4 @@
-import { Prop, Schema } from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { OrderStatus } from '../enums/order-status.enum';
 
@@ -65,3 +65,5 @@ export class Order {
   @Prop({ default: false })
   trackingEnabled: boolean;
 }
+
+export const OrderSchema = SchemaFactory.createForClass(Order);
