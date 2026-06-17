@@ -65,5 +65,3 @@ export class Order {
   @Prop({ default: false })
   trackingEnabled: boolean;
 }
-
-export const OrderSchema = SchemaFactory.createForClass(Order);
