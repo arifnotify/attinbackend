@@ -204,4 +204,14 @@ async getTracking(orderId: string) {
     lastLocationUpdate: riderLocation?.updatedAt ?? null,
   };
 }
+
+////////////////////////////////////
+async getRiderOrders(riderId: string) {
+  return this.orderModel
+    .find({
+      assignedRider: new Types.ObjectId(riderId),
+    })
+    .sort({ createdAt: -1 });
+}
+
 }
