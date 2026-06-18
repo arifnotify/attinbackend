@@ -26,7 +26,7 @@ export class RiderLocationService {
     },
     {
       upsert: true,
-      new: true,
+      returnDocument: 'after', // ✅
     },
   );
 }
