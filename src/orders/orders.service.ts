@@ -61,7 +61,10 @@ export class OrdersService {
 
     const items = cartItems.map((item) => ({
       product: item.product._id,
-      productName: item.product.title,
+        productName:
+    typeof item.product.title === 'object'
+      ? item.product.title.en
+      : item.product.title,
       productImage:
         item.product.images?.[0] || '',
       quantity: item.quantity,
