@@ -14,28 +14,22 @@ export class RiderLocationService {
   ) {}
 
   async updateLocation(riderId: string, lat: number, lng: number) {
-    if (!Types.ObjectId.isValid(riderId)) {
-      throw new BadRequestException('Invalid Rider Id');
-    }
-
     const objectId = new Types.ObjectId(riderId);
 
     return this.riderLocationModel.findOneAndUpdate(
-      {
-        riderId: objectId,
-      },
-      {
-        riderId: objectId,
-        lat,
-        lng,
-        updatedAt: new Date(),
-      },
-      {
-        upsert: true,
-        returnDocument: 'after',
-      },
-    );
-  }
+    { riderId: objectId },
+    {
+      riderId: objectId,
+      lat,
+      lng,
+      updatedAt: new Date(),
+    },
+    {
+      upsert: true,
+      new: true,
+    },
+  );
+}
 
   async getLocation(riderId: string) {
     if (!Types.ObjectId.isValid(riderId)) {

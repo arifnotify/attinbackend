@@ -158,15 +158,13 @@ export class OrdersService {
     return this.orderModel.findByIdAndUpdate(
       orderId,
       {
-        assignedRider: riderId,
+        assignedRider: new Types.ObjectId(riderId),
         orderStatus: OrderStatus.OUT_FOR_DELIVERY,
         trackingEnabled: true,
-      },
-      {
-        new: true,
-      },
-    );
-  }
+    },
+    { new: true },
+  );
+}
 
   // =========================
   // TRACKING
@@ -175,28 +173,35 @@ export class OrdersService {
 async getTracking(orderId: string) {
   const order = await this.orderModel.findById(orderId);
 
-  console.log('ORDER =>', order);
-
   if (!order) {
     throw new NotFoundException('Order not found');
   }
 
-  console.log('ASSIGNED RIDER =>', order.assignedRider);
+  if (!order.assignedRider) {
+    return {
+      orderNumber: order.orderNumber,
+      status: order.orderStatus,
+      trackingEnabled: false,
+    };
+  }
+
+  const riderId =
+    typeof order.assignedRider === 'string'
+      ? new Types.ObjectId(order.assignedRider)
+      : order.assignedRider;
 
   const riderLocation = await this.riderLocationModel.findOne({
-    riderId: order.assignedRider,
+    riderId,
   });
-
-  console.log('RIDER LOCATION =>', riderLocation);
 
   return {
     orderNumber: order.orderNumber,
-    status: order.orderStatus,
-    trackingEnabled: order.trackingEnabled,
-    assignedRider: order.assignedRider,
-    riderLat: riderLocation?.lat ?? null,
-    riderLng: riderLocation?.lng ?? null,
-    lastLocationUpdate: riderLocation?.updatedAt ?? null,
+      status: order.orderStatus,
+      trackingEnabled: order.trackingEnabled,
+      assignedRider: order.assignedRider,
+      riderLat: riderLocation?.lat ?? null,
+      riderLng: riderLocation?.lng ?? null,
+      lastLocationUpdate: riderLocation?.updatedAt ?? null,
   };
 }
 }
