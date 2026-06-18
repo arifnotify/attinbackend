@@ -12,7 +12,10 @@ export class RiderLocationController {
   }
 
   @Get(':riderId')
-  getLocation(@Param('riderId') riderId: string) {
+  getLocation(
+    @Param('riderId')
+    riderId: string,
+  ) {
     return this.service.getLocation(riderId);
   }
 }
