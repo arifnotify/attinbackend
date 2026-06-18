@@ -139,71 +139,51 @@ export class OrdersService {
   // UPDATE STATUS
   // =========================
 
-  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
-    return this.orderModel.findByIdAndUpdate(
-      id,
-      {
-        orderStatus: dto.orderStatus,
-      },
-      {
-        new: true,
-      },
-    );
+async getTracking(orderId: string) {
+  const order = await this.orderModel.findById(orderId);
+
+  if (!order) {
+    throw new NotFoundException('Order not found');
   }
 
-  // =========================
-  // ASSIGN RIDER
-  // =========================
-
-  async assignRider(orderId: string, riderId: string) {
-    return this.orderModel.findByIdAndUpdate(
-      orderId,
-      {
-        assignedRider: riderId,
-        orderStatus: OrderStatus.OUT_FOR_DELIVERY,
-        trackingEnabled: true,
-      },
-      {
-        new: true,
-      },
-    );
-  }
-
-  // =========================
-  // TRACKING
-  // =========================
-
-  async getTracking(orderId: string) {
-    const order = await this.orderModel.findById(orderId);
-
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
-    if (!order.assignedRider) {
-      return {
-        orderNumber: order.orderNumber,
-        status: order.orderStatus,
-        trackingEnabled: false,
-      };
-    }
-
-    const riderLocation = await this.riderLocationModel.findOne({
-        riderId: order.assignedRider,
-      });
-
+  if (!order.assignedRider) {
     return {
       orderNumber: order.orderNumber,
       status: order.orderStatus,
-      trackingEnabled: order.trackingEnabled,
+      trackingEnabled: false,
+      assignedRider: null,
+      riderLat: null,
+      riderLng: null,
+      lastLocationUpdate: null,
+    };
+  }
 
-      assignedRider: order.assignedRider,
+  const riderLocation =
+    await this.riderLocationModel.findOne({
+      riderId: new Types.ObjectId(
+        order.assignedRider.toString(),
+      ),
+    });
 
-      riderLat: riderLocation?.lat ?? null,
+  return {
+    orderNumber: order.orderNumber,
 
-      riderLng: riderLocation?.lng ?? null,
+    status: order.orderStatus,
 
-      lastLocationUpdate: riderLocation?.updatedAt ?? null,
+    trackingEnabled:
+      order.trackingEnabled,
+
+    assignedRider:
+      order.assignedRider,
+
+    riderLat:
+      riderLocation?.lat ?? null,
+
+    riderLng:
+      riderLocation?.lng ?? null,
+
+    lastLocationUpdate:
+      riderLocation?.updatedAt ?? null,
     };
   }
 }
