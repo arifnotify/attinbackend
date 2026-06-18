@@ -102,8 +102,4 @@ export class OrdersController {
     return this.service.getTracking(id);
   }
 
-  @Get('rider/:riderId')
-  getRiderOrders(@Param('riderId') riderId: string) {
-    return this.service.getRiderOrders(riderId);
-  }
 }

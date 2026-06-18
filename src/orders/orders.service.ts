@@ -205,13 +205,5 @@ async getTracking(orderId: string) {
   };
 }
 
-////////////////////////////////////
-async getRiderOrders(riderId: string) {
-  return this.orderModel
-    .find({
-      assignedRider: new Types.ObjectId(riderId),
-    })
-    .sort({ createdAt: -1 });
-}
 
 }
