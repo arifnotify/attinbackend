@@ -99,20 +99,13 @@ export class RidersService {
   // =========================
   // RIDER ORDERS
   // =========================
-
 async getMyOrders(riderId: string) {
-  const orders = await this.orderModel
+  return this.orderModel
     .find({
       assignedRider: new Types.ObjectId(riderId),
     })
-    .sort({
-      createdAt: -1,
-    });
-
-  console.log('RIDER ID:', riderId);
-  console.log('ORDERS COUNT:', orders.length);
-
-  return orders;
+    .lean()
+    .sort({ createdAt: -1 });
 }
 
   // =========================
