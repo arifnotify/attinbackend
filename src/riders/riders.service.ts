@@ -100,12 +100,15 @@ export class RidersService {
   // RIDER ORDERS
   // =========================
 async getMyOrders(riderId: string) {
-  return this.orderModel
+  const orders = await this.orderModel
     .find({
       assignedRider: new Types.ObjectId(riderId),
     })
     .lean()
     .sort({ createdAt: -1 });
+
+  // 🔥 FIX: clean nested objects
+  return JSON.parse(JSON.stringify(orders));
 }
 
   // =========================
