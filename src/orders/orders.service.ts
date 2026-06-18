@@ -168,7 +168,7 @@ export class OrdersService {
 
   // =========================
   // TRACKING
-  // =========================
+  // =========================s
 
 async getTracking(orderId: string) {
   const order = await this.orderModel.findById(orderId);
@@ -196,12 +196,12 @@ async getTracking(orderId: string) {
 
   return {
     orderNumber: order.orderNumber,
-      status: order.orderStatus,
-      trackingEnabled: order.trackingEnabled,
-      assignedRider: order.assignedRider,
-      riderLat: riderLocation?.lat ?? null,
-      riderLng: riderLocation?.lng ?? null,
-      lastLocationUpdate: riderLocation?.updatedAt ?? null,
+    status: order.orderStatus,
+    trackingEnabled: order.trackingEnabled,
+    assignedRider: order.assignedRider,
+    riderLat: riderLocation?.lat ?? null,
+    riderLng: riderLocation?.lng ?? null,
+    lastLocationUpdate: riderLocation?.updatedAt ?? null,
   };
 }
 }
