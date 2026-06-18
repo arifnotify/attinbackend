@@ -37,10 +37,7 @@ export class OrdersService {
   // CREATE ORDER
   // =========================
 
-  async createOrder(
-    userId: string,
-    dto: CreateOrderDto,
-  ) {
+  async createOrder(userId: string, dto: CreateOrderDto) {
     const user =
       await this.userModel.findById(userId);
 
@@ -55,9 +52,7 @@ export class OrdersService {
       .populate('product');
 
     if (!cartItems.length) {
-      throw new NotFoundException(
-        'Cart is empty',
-      );
+      throw new NotFoundException('Cart is empty');
     }
 
     const totalAmount = cartItems.reduce(
@@ -79,35 +74,29 @@ export class OrdersService {
     let exists = true;
 
     while (exists) {
-      orderNumber = Math.floor(
-        10000000 + Math.random() * 90000000,
-      ).toString();
+      orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
 
-      const check =
-        await this.orderModel.findOne({
-          orderNumber,
-        });
+      const check = await this.orderModel.findOne({
+        orderNumber,
+      });
 
       if (!check) {
         exists = false;
       }
     }
 
-    const order =
-      await this.orderModel.create({
-        orderNumber,
-        user: userId,
-        customerPhone: user.phone,
-        shippingAddress:
-          dto.shippingAddress,
-        items,
-        totalAmount,
-        paymentMethod: 'COD',
-        orderStatus:
-          OrderStatus.PENDING,
-        isPaid: false,
-        trackingEnabled: false,
-      });
+    const order = await this.orderModel.create({
+      orderNumber,
+      user: userId,
+      customerPhone: user.phone,
+      shippingAddress: dto.shippingAddress,
+      items,
+      totalAmount,
+      paymentMethod: 'COD',
+      orderStatus: OrderStatus.PENDING,
+      isPaid: false,
+      trackingEnabled: false,
+    });
 
     await this.cartModel.deleteMany({
       user: userId,
@@ -121,9 +110,7 @@ export class OrdersService {
   // =========================
 
   async getUserOrders(userId: string) {
-    return this.orderModel
-      .find({ user: userId })
-      .sort({ createdAt: -1 });
+    return this.orderModel.find({ user: userId }).sort({ createdAt: -1 });
   }
 
   // =========================
@@ -131,9 +118,7 @@ export class OrdersService {
   // =========================
 
   async getAllOrders() {
-    return this.orderModel
-      .find()
-      .sort({ createdAt: -1 });
+    return this.orderModel.find().sort({ createdAt: -1 });
   }
 
   // =========================
@@ -141,13 +126,10 @@ export class OrdersService {
   // =========================
 
   async getSingleOrder(id: string) {
-    const order =
-      await this.orderModel.findById(id);
+    const order = await this.orderModel.findById(id);
 
     if (!order) {
-      throw new NotFoundException(
-        'Order not found',
-      );
+      throw new NotFoundException('Order not found');
     }
 
     return order;
@@ -157,10 +139,7 @@ export class OrdersService {
   // UPDATE STATUS
   // =========================
 
-  async updateOrderStatus(
-    id: string,
-    dto: UpdateOrderStatusDto,
-  ) {
+  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     return this.orderModel.findByIdAndUpdate(
       id,
       {
@@ -176,16 +155,12 @@ export class OrdersService {
   // ASSIGN RIDER
   // =========================
 
-  async assignRider(
-    orderId: string,
-    riderId: string,
-  ) {
+  async assignRider(orderId: string, riderId: string) {
     return this.orderModel.findByIdAndUpdate(
       orderId,
       {
         assignedRider: riderId,
-        orderStatus:
-          OrderStatus.OUT_FOR_DELIVERY,
+        orderStatus: OrderStatus.OUT_FOR_DELIVERY,
         trackingEnabled: true,
       },
       {
@@ -199,13 +174,10 @@ export class OrdersService {
   // =========================
 
   async getTracking(orderId: string) {
-    const order =
-      await this.orderModel.findById(orderId);
+    const order = await this.orderModel.findById(orderId);
 
     if (!order) {
-      throw new NotFoundException(
-        'Order not found',
-      );
+      throw new NotFoundException('Order not found');
     }
 
     if (!order.assignedRider) {
@@ -216,29 +188,22 @@ export class OrdersService {
       };
     }
 
-    const riderLocation =
-      await this.riderLocationModel.findOne({
+    const riderLocation = await this.riderLocationModel.findOne({
         riderId: order.assignedRider,
       });
 
     return {
       orderNumber: order.orderNumber,
       status: order.orderStatus,
-      trackingEnabled:
-        order.trackingEnabled,
+      trackingEnabled: order.trackingEnabled,
 
-      assignedRider:
-        order.assignedRider,
+      assignedRider: order.assignedRider,
 
-      riderLat:
-        riderLocation?.lat ?? null,
+      riderLat: riderLocation?.lat ?? null,
 
-      riderLng:
-        riderLocation?.lng ?? null,
+      riderLng: riderLocation?.lng ?? null,
 
-      lastLocationUpdate:
-        riderLocation?.updatedAt ??
-        null,
+      lastLocationUpdate: riderLocation?.updatedAt ?? null,
     };
   }
 }

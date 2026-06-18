@@ -76,10 +76,7 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
-  updateStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateOrderStatusDto,
-  ) {
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
     return this.service.updateOrderStatus(
       id,
       dto,
@@ -93,10 +90,7 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @Put('assign-rider')
   assignRider(@Body() body: any) {
-    return this.service.assignRider(
-      body.orderId,
-      body.riderId,
-    );
+    return this.service.assignRider(body.orderId, body.riderId);
   }
 
   // =========================

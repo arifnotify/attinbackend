@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model, Types } from 'mongoose';
 
 import { RiderLocation, RiderLocationDocument } from './rider-location.schema';
@@ -13,12 +12,22 @@ export class RiderLocationService {
   ) {}
 
   async updateLocation(riderId: string, lat: number, lng: number) {
+    if (!riderId || !lat || !lng) {
+      throw new BadRequestException('Missing data');
+    }
+
+    if (!Types.ObjectId.isValid(riderId)) {
+      throw new BadRequestException('Invalid riderId');
+    }
+
+    const objectId = new Types.ObjectId(riderId);
+
     return this.riderLocationModel.findOneAndUpdate(
       {
-        riderId: new Types.ObjectId(riderId),
+        riderId: objectId,
       },
       {
-        riderId,
+        riderId: objectId, // ✅ FIXED
         lat,
         lng,
         updatedAt: new Date(),
@@ -31,8 +40,12 @@ export class RiderLocationService {
   }
 
   async getLocation(riderId: string) {
+    if (!Types.ObjectId.isValid(riderId)) {
+      throw new BadRequestException('Invalid riderId');
+    }
+
     return this.riderLocationModel.findOne({
-      riderId,
+      riderId: new Types.ObjectId(riderId),
     });
   }
 }
