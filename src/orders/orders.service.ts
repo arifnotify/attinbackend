@@ -139,6 +139,40 @@ export class OrdersService {
   // UPDATE STATUS
   // =========================
 
+  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
+    return this.orderModel.findByIdAndUpdate(
+      id,
+      {
+        orderStatus: dto.orderStatus,
+      },
+      {
+        new: true,
+      },
+    );
+  }
+
+  // =========================
+  // ASSIGN RIDER
+  // =========================
+
+  async assignRider(orderId: string, riderId: string) {
+    return this.orderModel.findByIdAndUpdate(
+      orderId,
+      {
+        assignedRider: riderId,
+        orderStatus: OrderStatus.OUT_FOR_DELIVERY,
+        trackingEnabled: true,
+      },
+      {
+        new: true,
+      },
+    );
+  }
+
+  // =========================
+  // TRACKING
+  // =========================
+
 async getTracking(orderId: string) {
   const order = await this.orderModel.findById(orderId);
 
@@ -184,6 +218,6 @@ async getTracking(orderId: string) {
 
     lastLocationUpdate:
       riderLocation?.updatedAt ?? null,
-    };
-  }
+  };
+}
 }
