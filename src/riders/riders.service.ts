@@ -6,7 +6,7 @@ import {
 
 import { InjectModel } from '@nestjs/mongoose';
 
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 
 import * as bcrypt from 'bcrypt';
 
@@ -100,15 +100,20 @@ export class RidersService {
   // RIDER ORDERS
   // =========================
 
-  async getMyOrders(riderId: string) {
-    return this.orderModel
-      .find({
-        assignedRider: riderId,
-      })
-      .sort({
-        createdAt: -1,
-      });
-  }
+async getMyOrders(riderId: string) {
+  const orders = await this.orderModel
+    .find({
+      assignedRider: new Types.ObjectId(riderId),
+    })
+    .sort({
+      createdAt: -1,
+    });
+
+  console.log('RIDER ID:', riderId);
+  console.log('ORDERS COUNT:', orders.length);
+
+  return orders;
+}
 
   // =========================
   // COMPLETE ORDER
