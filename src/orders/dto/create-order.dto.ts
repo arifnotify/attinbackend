@@ -1,7 +1,7 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsMongoId } from 'class-validator';
 
 export class CreateOrderDto {
   @IsNotEmpty()
-  @IsString()
+  @IsMongoId()
   shippingAddress: string;
 }

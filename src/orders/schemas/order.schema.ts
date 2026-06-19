@@ -16,8 +16,12 @@ export class Order {
   @Prop()
   customerPhone: string;
 
-  @Prop({ required: true })
-  shippingAddress: string;
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Address',
+    required: true,
+  })
+  shippingAddress: Types.ObjectId;
 
   @Prop([
     {

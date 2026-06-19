@@ -7,6 +7,10 @@ export type AddressDocument = Address & Document;
   timestamps: true,
 })
 export class Address {
+
+  // =========================
+  // USER REFERENCE
+  // =========================
   @Prop({
     type: Types.ObjectId,
     ref: 'User',
@@ -15,40 +19,27 @@ export class Address {
   })
   user: Types.ObjectId;
 
-  @Prop({
-    required: true,
-    trim: true,
-  })
+  // =========================
+  // BASIC INFO
+  // =========================
+  @Prop({ required: true, trim: true })
   fullName: string;
 
-  @Prop({
-    required: true,
-    trim: true,
-  })
+  @Prop({ required: true, trim: true })
   phoneNumber: string;
 
-  // গ্রামের নাম / এলাকার নাম
-  @Prop({
-    required: true,
-    trim: true,
-  })
+  @Prop({ required: true, trim: true })
   areaOrVillage: string;
 
-  // মসজিদ, বাজার, স্কুল ইত্যাদি
-  @Prop({
-    required: true,
-    trim: true,
-  })
+  @Prop({ required: true, trim: true })
   landmark: string;
 
-  // অতিরিক্ত নির্দেশনা
-  @Prop({
-    default: '',
-    trim: true,
-  })
+  @Prop({ default: '', trim: true })
   directionNote: string;
 
-  // GPS Location
+  // =========================
+  // GPS LOCATION (IMPORTANT FOR RIDER MAP)
+  // =========================
   @Prop({
     required: true,
     min: -90,
@@ -63,17 +54,29 @@ export class Address {
   })
   longitude: number;
 
-  // Home / Office / Other
-  @Prop({
-    default: 'Home',
-    trim: true,
-  })
+  // =========================
+  // GOOGLE MAP READY URL (NEW)
+  // =========================
+  @Prop()
+  googleMapUrl: string;
+
+  // =========================
+  // LABEL (HOME / OFFICE)
+  // =========================
+  @Prop({ default: 'Home' })
   label: string;
 
-  @Prop({
-    default: false,
-  })
+  @Prop({ default: false })
   isDefault: boolean;
+
+  // =========================
+  // NEW: TRACKING SUPPORT (IMPORTANT)
+  // =========================
+  @Prop({ default: true })
+  isActive: boolean;
+
+  @Prop({ default: false })
+  isDeleted: boolean;
 }
 
 export const AddressSchema = SchemaFactory.createForClass(Address);

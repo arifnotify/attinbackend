@@ -15,6 +15,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 import { OrderStatus } from './enums/order-status.enum';
+import { Address } from 'src/address/schemas/address.schema';
 
 @Injectable()
 export class OrdersService {
@@ -28,6 +29,9 @@ export class OrdersService {
     @InjectModel(Cart.name)
     private cartModel: Model<any>,
 
+    @InjectModel(Address.name)
+    private addressModel: Model<any>,
+
     @InjectModel(RiderLocation.name)
     private riderLocationModel: Model<RiderLocationDocument>,
   ) {}
@@ -35,15 +39,20 @@ export class OrdersService {
   // =========================
   // CREATE ORDER
   // =========================
-
   async createOrder(userId: string, dto: CreateOrderDto) {
-    const user =
-      await this.userModel.findById(userId);
+    const user = await this.userModel.findById(userId);
 
     if (!user) {
-      throw new NotFoundException(
-        'User not found',
-      );
+      throw new NotFoundException('User not found');
+    }
+
+    const address = await this.addressModel.findOne({
+      _id: dto.shippingAddress,
+      user: userId,
+    });
+
+    if (!address) {
+      throw new NotFoundException('Address not found');
     }
 
     const cartItems = await this.cartModel
@@ -61,12 +70,11 @@ export class OrdersService {
 
     const items = cartItems.map((item) => ({
       product: item.product._id,
-        productName:
-    typeof item.product.title === 'object'
-      ? item.product.title.en
-      : item.product.title,
-      productImage:
-        item.product.images?.[0] || '',
+      productName:
+        typeof item.product.title === 'object'
+          ? item.product.title.en
+          : item.product.title,
+      productImage: item.product.images?.[0] || '',
       quantity: item.quantity,
       price: item.price,
       totalPrice: item.totalPrice,
@@ -76,22 +84,25 @@ export class OrdersService {
     let exists = true;
 
     while (exists) {
-      orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
+      orderNumber = Math.floor(
+        10000000 + Math.random() * 90000000,
+      ).toString();
 
       const check = await this.orderModel.findOne({
         orderNumber,
       });
 
-      if (!check) {
-        exists = false;
-      }
+      if (!check) exists = false;
     }
 
     const order = await this.orderModel.create({
       orderNumber,
       user: userId,
       customerPhone: user.phone,
-      shippingAddress: dto.shippingAddress,
+
+      // 🔥 IMPORTANT FIX
+      shippingAddress: address._id,
+
       items,
       totalAmount,
       paymentMethod: 'COD',
@@ -100,9 +111,7 @@ export class OrdersService {
       trackingEnabled: false,
     });
 
-    await this.cartModel.deleteMany({
-      user: userId,
-    });
+    await this.cartModel.deleteMany({ user: userId });
 
     return order;
   }
@@ -110,25 +119,30 @@ export class OrdersService {
   // =========================
   // USER ORDERS
   // =========================
-
   async getUserOrders(userId: string) {
-    return this.orderModel.find({ user: userId }).sort({ createdAt: -1 });
+    return this.orderModel
+      .find({ user: userId })
+      .populate('shippingAddress')
+      .sort({ createdAt: -1 });
   }
 
   // =========================
   // ALL ORDERS
   // =========================
-
   async getAllOrders() {
-    return this.orderModel.find().sort({ createdAt: -1 });
+    return this.orderModel
+      .find()
+      .populate('shippingAddress')
+      .sort({ createdAt: -1 });
   }
 
   // =========================
   // SINGLE ORDER
   // =========================
-
   async getSingleOrder(id: string) {
-    const order = await this.orderModel.findById(id);
+    const order = await this.orderModel
+      .findById(id)
+      .populate('shippingAddress');
 
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -140,23 +154,32 @@ export class OrdersService {
   // =========================
   // UPDATE STATUS
   // =========================
-
   async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
-    return this.orderModel.findByIdAndUpdate(
+    const order = await this.orderModel.findById(id);
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    const updated = await this.orderModel.findByIdAndUpdate(
       id,
-      {
-        orderStatus: dto.orderStatus,
-      },
-      {
-        new: true,
-      },
+      { orderStatus: dto.orderStatus },
+      { new: true },
     );
+
+    // 🔥 AUTO STOP TRACKING WHEN DELIVERED
+    if (dto.orderStatus === OrderStatus.DELIVERED) {
+      await this.orderModel.findByIdAndUpdate(id, {
+        trackingEnabled: false,
+      });
+    }
+
+    return updated;
   }
 
   // =========================
   // ASSIGN RIDER
   // =========================
-
   async assignRider(orderId: string, riderId: string) {
     return this.orderModel.findByIdAndUpdate(
       orderId,
@@ -164,48 +187,56 @@ export class OrdersService {
         assignedRider: new Types.ObjectId(riderId),
         orderStatus: OrderStatus.OUT_FOR_DELIVERY,
         trackingEnabled: true,
-    },
-    { new: true },
-  );
-}
-
-  // =========================
-  // TRACKING
-  // =========================s
-
-async getTracking(orderId: string) {
-  const order = await this.orderModel.findById(orderId);
-
-  if (!order) {
-    throw new NotFoundException('Order not found');
+      },
+      { new: true },
+    );
   }
 
-  if (!order.assignedRider) {
+  // =========================
+  // TRACKING (MAIN FIX)
+  // =========================
+  async getTracking(orderId: string) {
+    const order = await this.orderModel
+      .findById(orderId)
+      .populate('shippingAddress');
+
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    if (!order.assignedRider) {
+      return {
+        orderNumber: order.orderNumber,
+        status: order.orderStatus,
+        trackingEnabled: false,
+      };
+    }
+
+    const riderLocation = await this.riderLocationModel.findOne({
+      riderId: order.assignedRider,
+    });
+
+    const address = order.shippingAddress as any;
+
     return {
       orderNumber: order.orderNumber,
       status: order.orderStatus,
-      trackingEnabled: false,
+      trackingEnabled: order.trackingEnabled,
+
+      // 🔥 USER LOCATION (FOR MAP)
+      destination: {
+        lat: address.latitude,
+        lng: address.longitude,
+        area: address.areaOrVillage,
+        landmark: address.landmark,
+      },
+
+      // 🚴 RIDER LOCATION
+      rider: {
+        lat: riderLocation?.lat ?? null,
+        lng: riderLocation?.lng ?? null,
+        updatedAt: riderLocation?.updatedAt ?? null,
+      },
     };
   }
-
-  const riderId =
-    typeof order.assignedRider === 'string'
-      ? new Types.ObjectId(order.assignedRider)
-      : order.assignedRider;
-
-  const riderLocation = await this.riderLocationModel.findOne({
-    riderId,
-  });
-
-  return {
-    orderNumber: order.orderNumber,
-    status: order.orderStatus,
-    trackingEnabled: order.trackingEnabled,
-    assignedRider: order.assignedRider,
-    riderLat: riderLocation?.lat ?? null,
-    riderLng: riderLocation?.lng ?? null,
-    lastLocationUpdate: riderLocation?.updatedAt ?? null,
-  };
-}
-
 }
