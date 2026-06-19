@@ -154,28 +154,29 @@ export class OrdersService {
   // =========================
   // UPDATE STATUS
   // =========================
-  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
-    const order = await this.orderModel.findById(id);
+async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
+  const order = await this.orderModel.findById(id);
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-
-    const updated = await this.orderModel.findByIdAndUpdate(
-      id,
-      { orderStatus: dto.orderStatus },
-      { new: true },
-    );
-
-    // 🔥 AUTO STOP TRACKING WHEN DELIVERED
-    if (dto.orderStatus === OrderStatus.DELIVERED) {
-      await this.orderModel.findByIdAndUpdate(id, {
-        trackingEnabled: false,
-      });
-    }
-
-    return updated;
+  if (!order) {
+    throw new NotFoundException('Order not found');
   }
+
+  const updated = await this.orderModel.findByIdAndUpdate(
+    id,
+    { orderStatus: dto.orderStatus },
+    { new: true },
+  );
+
+  // 🔥 DELIVERY COMPLETE LOGIC
+  if (dto.orderStatus === OrderStatus.DELIVERED) {
+    await this.orderModel.findByIdAndUpdate(id, {
+      trackingEnabled: false,
+      assignedRider: null, // optional but recommended
+    });
+  }
+
+  return updated;
+}
 
   // =========================
   // ASSIGN RIDER

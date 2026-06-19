@@ -102,33 +102,23 @@ export class RidersService {
   // RIDER ORDERS
   // =========================
 
-  async getMyOrders(riderId: string) {
-    return this.orderModel
-      .find({
-        assignedRider: new Types.ObjectId(
-          riderId,
-        ),
+async getMyOrders(riderId: string) {
+  return this.orderModel
+    .find({
+      assignedRider: new Types.ObjectId(riderId),
 
-        orderStatus: {
-          $nin: [
-            'DELIVERED',
-            'CANCELLED',
-          ],
-        },
-      })
-
-      // 🔥 Address Populate
-      .populate(
-          'shippingAddress',
-        'fullName phoneNumber areaOrVillage landmark directionNote latitude longitude',
-      )
-
-      .sort({
-        createdAt: -1,
-      })
-
-      .lean();
-  }
+      // 🔥 IMPORTANT FIX HERE
+      orderStatus: {
+        $nin: ['DELIVERED', 'CANCELLED'],
+      },
+    })
+    .populate(
+      'shippingAddress',
+      'fullName phoneNumber areaOrVillage landmark directionNote latitude longitude',
+    )
+    .sort({ createdAt: -1 })
+    .lean();
+}
 
   // =========================
   // COMPLETE ORDER
