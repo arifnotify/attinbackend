@@ -100,37 +100,37 @@ export class RidersService {
   // RIDER ORDERS
   // =========================
 async getMyOrders(riderId: string) {
-  const orders = await this.orderModel
+  return this.orderModel
     .find({
       assignedRider: new Types.ObjectId(riderId),
+
+      orderStatus: {
+        $nin: ['DELIVERED', 'CANCELLED'],
+      },
     })
-    .lean()
-    .sort({ createdAt: -1 });
-
-  // 🔥 FIX: clean nested objects
-  return JSON.parse(JSON.stringify(orders));
+    .sort({ createdAt: -1 })
+    .lean();
 }
-
   // =========================
   // COMPLETE ORDER
   // =========================
 
-  async completeOrder(orderId: string) {
-    const order = await this.orderModel.findById(orderId);
+async completeOrder(orderId: string, riderId: string) {
+  const order = await this.orderModel.findById(orderId);
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
+  if (!order) throw new NotFoundException('Order not found');
 
-    return this.orderModel.findByIdAndUpdate(
-      orderId,
-      {
-        orderStatus: 'Delivered',
-        trackingEnabled: false,
-      },
-      {
-        new: true,
-      },
-    );
+  if (order.assignedRider.toString() !== riderId) {
+    throw new UnauthorizedException('Not your order');
   }
+
+  return this.orderModel.findByIdAndUpdate(
+    orderId,
+    {
+      orderStatus: 'DELIVERED',
+      trackingEnabled: false,
+    },
+    { new: true },
+  );
+}
 }

@@ -62,10 +62,6 @@ export class RidersController {
 
   @UseGuards(JwtAuthGuard)
   @Post('complete-order/:orderId')
-  completeOrder(
-    @Param('orderId')
-    orderId: string,
-  ) {
-    return this.service.completeOrder(orderId);
-  }
+  completeOrder(@Param('orderId') orderId: string, @Req() req: any) {
+  return this.service.completeOrder(orderId,req.user.id || req.user.userId,);}
 }
