@@ -36,18 +36,12 @@ export class RidersService {
   // CREATE RIDER
   // =========================
 
-  async createRider(
-    dto: CreateRiderDto,
-  ) {
-    const hash = await bcrypt.hash(
-      dto.password,
-      10,
-    );
+  async createRider(dto: CreateRiderDto) {
+    const hash = await bcrypt.hash(dto.password, 10);
 
-    const rider =
-      await this.riderModel.create({
-        name: dto.name,
-        phone: dto.phone,
+    const rider = await this.riderModel.create({
+      name: dto.name,
+      phone: dto.phone,
         password: hash,
         role: 'rider',
       });
@@ -63,18 +57,26 @@ export class RidersService {
   // =========================
 
   async login(dto: LoginRiderDto) {
-    const rider = await this.riderModel.findOne({
-      phone: dto.phone,
-    });
+    const rider =
+      await this.riderModel.findOne({
+        phone: dto.phone,
+      });
 
     if (!rider) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        'Invalid credentials',
+      );
     }
 
-    const match = await bcrypt.compare(dto.password, rider.password);
+    const match = await bcrypt.compare(
+      dto.password,
+      rider.password,
+    );
 
     if (!match) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        'Invalid credentials',
+      );
     }
 
     const token = this.jwtService.sign({
@@ -99,38 +101,72 @@ export class RidersService {
   // =========================
   // RIDER ORDERS
   // =========================
-async getMyOrders(riderId: string) {
-  return this.orderModel
-    .find({
-      assignedRider: new Types.ObjectId(riderId),
 
-      orderStatus: {
-        $nin: ['DELIVERED', 'CANCELLED'],
-      },
-    })
-    .sort({ createdAt: -1 })
-    .lean();
-}
+  async getMyOrders(riderId: string) {
+    return this.orderModel
+      .find({
+        assignedRider: new Types.ObjectId(
+          riderId,
+        ),
+
+        orderStatus: {
+          $nin: [
+            'DELIVERED',
+            'CANCELLED',
+          ],
+        },
+      })
+
+      // 🔥 Address Populate
+      .populate(
+          'shippingAddress',
+        'fullName phoneNumber areaOrVillage landmark directionNote latitude longitude',
+      )
+
+      .sort({
+        createdAt: -1,
+      })
+
+      .lean();
+  }
+
   // =========================
   // COMPLETE ORDER
   // =========================
 
-async completeOrder(orderId: string, riderId: string) {
-  const order = await this.orderModel.findById(orderId);
+  async completeOrder(
+    orderId: string,
+    riderId: string,
+  ) {
+    const order =
+      await this.orderModel.findById(
+        orderId,
+      );
 
-  if (!order) throw new NotFoundException('Order not found');
+    if (!order) {
+      throw new NotFoundException(
+        'Order not found',
+      );
+    }
 
-  if (order.assignedRider.toString() !== riderId) {
-    throw new UnauthorizedException('Not your order');
+    if (
+      order.assignedRider?.toString() !==
+      riderId
+    ) {
+      throw new UnauthorizedException(
+        'Not your order',
+      );
+    }
+
+    return this.orderModel.findByIdAndUpdate(
+      orderId,
+      {
+        orderStatus: 'DELIVERED',
+        trackingEnabled: false,
+      },
+      {
+        new: true,
+      },
+    );
   }
-
-  return this.orderModel.findByIdAndUpdate(
-    orderId,
-    {
-      orderStatus: 'DELIVERED',
-      trackingEnabled: false,
-    },
-    { new: true },
-  );
-}
 }

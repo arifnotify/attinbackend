@@ -15,6 +15,8 @@ import { Cart, CartSchema } from '../cart/schemas/cart.schema';
 
 import { User, UserSchema } from '../users/schemas/user.schema';
 
+import { Address, AddressSchema } from '../address/schemas/address.schema';
+
 import { RedisModule } from '../redis/redis.module';
 
 @Module({
@@ -38,6 +40,12 @@ import { RedisModule } from '../redis/redis.module';
       {
         name: User.name,
         schema: UserSchema,
+      },
+
+      // 🔥 ADD THIS
+      {
+        name: Address.name,
+        schema: AddressSchema,
       },
     ]),
 
