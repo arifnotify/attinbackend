@@ -240,4 +240,28 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       },
     };
   }
+
+  // =========================
+// ACTIVE ORDER
+// =========================
+
+async getActiveOrder(
+  userId: string,
+) {
+  return this.orderModel
+    .findOne({
+      user: userId,
+
+      orderStatus: {
+        $in: [
+          OrderStatus.PENDING,
+          OrderStatus.PROCESSING,
+          OrderStatus.OUT_FOR_DELIVERY,
+        ],
+      },
+    })
+    .sort({
+      createdAt: -1,
+    });
+}
 }

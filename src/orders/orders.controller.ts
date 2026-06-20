@@ -51,6 +51,18 @@ export class OrdersController {
   }
 
   // =========================
+  // ACTIVE ORDER
+  // =========================
+
+  @UseGuards(JwtAuthGuard)
+  @Get('active')
+  getActiveOrder(@Req() req: any) {
+    return this.service.getActiveOrder(
+      req.user.userId,
+    );
+  }
+
+  // =========================
   // ALL ORDERS
   // =========================
 
@@ -61,12 +73,25 @@ export class OrdersController {
   }
 
   // =========================
+  // TRACK ORDER
+  // =========================
+
+  @Get(':id/tracking')
+  getTracking(
+    @Param('id') id: string,
+  ) {
+    return this.service.getTracking(id);
+  }
+
+  // =========================
   // SINGLE ORDER
   // =========================
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getOne(@Param('id') id: string) {
+  getOne(
+    @Param('id') id: string,
+  ) {
     return this.service.getSingleOrder(id);
   }
 
@@ -76,7 +101,10 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
-  updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
+  updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto,
+  ) {
     return this.service.updateOrderStatus(
       id,
       dto,
@@ -89,17 +117,12 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Put('assign-rider')
-  assignRider(@Body() body: any) {
-    return this.service.assignRider(body.orderId, body.riderId);
+  assignRider(
+    @Body() body: any,
+  ) {
+    return this.service.assignRider(
+      body.orderId,
+      body.riderId,
+    );
   }
-
-  // =========================
-  // TRACK ORDER
-  // =========================
-
-  @Get(':id/tracking')
-  getTracking(@Param('id') id: string) {
-    return this.service.getTracking(id);
-  }
-
 }
