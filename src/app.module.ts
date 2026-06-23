@@ -21,6 +21,7 @@ import { LocationsModule } from './locations/locations.module';
 import { RidersModule } from './riders/riders.module';
 
 import { RiderLocationModule } from './orders/rider-location/rider-location.module';
+import { SocketModule } from './socket/socket.module';
 
 @Module({
   imports: [
@@ -69,7 +70,10 @@ import { RiderLocationModule } from './orders/rider-location/rider-location.modu
     LocationsModule,
 
     RidersModule,
+
     RiderLocationModule,
+
+    SocketModule,
   ],
   controllers: [HealthController],
 })
