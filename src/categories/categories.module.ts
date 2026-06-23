@@ -11,6 +11,7 @@ import { CategoriesService } from './categories.service';
 import { ProductsModule } from '../products/products.module';
 // 🔥 ADD THIS
 import { RedisModule } from '../redis/redis.module';
+import { SocketModule } from 'src/socket/socket.module';
 
 @Module({
   imports: [
@@ -22,6 +23,8 @@ import { RedisModule } from '../redis/redis.module';
     ]),
     // ✅ IMPORTANT FIX
     RedisModule,
+
+    SocketModule,
 
     ProductsModule,
   ],

@@ -11,6 +11,7 @@ import { FlashSaleController } from './flash-sale.controller';
 import { FlashSaleService } from './flash-sale.service';
 // 🔥 ADD THIS
 import { RedisModule } from '../redis/redis.module';
+import { SocketModule } from 'src/socket/socket.module';
 
 @Module({
   imports: [
@@ -27,6 +28,8 @@ import { RedisModule } from '../redis/redis.module';
     ]),
     // ✅ IMPORTANT FIX
     RedisModule,
+
+    SocketModule,
   ],
 
   controllers: [FlashSaleController],

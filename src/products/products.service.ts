@@ -13,6 +13,7 @@ import { RedisService } from '../redis/redis.service';
 
 import { formatExpiryDate } from 'src/common/utils/expiry.util';
 import { getFreshTime } from 'src/common/utils/fresh-time.util';
+import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
 export class ProductsService {
@@ -21,6 +22,8 @@ export class ProductsService {
     private readonly productModel: Model<ProductDocument>,
 
     private readonly redisService: RedisService,
+
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   // =========================
@@ -33,6 +36,9 @@ export class ProductsService {
     });
 
     await this.redisService.del('all_products');
+
+    // 🔥 SOCKET EVENT
+    this.socketGateway.emitHomeUpdated();
 
     return product.populate('category');
   }
@@ -166,6 +172,9 @@ async findAll(search?: string) {
 
     await this.redisService.del('all_products');
 
+    // 🔥 SOCKET EVENT
+    this.socketGateway.emitHomeUpdated();
+
     return product;
   }
 
@@ -181,6 +190,9 @@ async findAll(search?: string) {
     }
 
     await this.redisService.del('all_products');
+
+    // 🔥 SOCKET EVENT
+    this.socketGateway.emitHomeUpdated();
 
     return {
       success: true,

@@ -9,6 +9,7 @@ import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
 import { RedisService } from '../redis/redis.service';
+import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
 export class CategoriesService {
@@ -17,6 +18,8 @@ export class CategoriesService {
     private categoryModel: Model<CategoryDocument>,
 
     private redisService: RedisService,
+
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   // =========================
@@ -26,6 +29,9 @@ export class CategoriesService {
     const category = await this.categoryModel.create(createCategoryDto);
 
     await this.redisService.del('all_categories');
+
+    // 🔥 SOCKET EVENT
+    this.socketGateway.emitHomeUpdated();
 
     return category;
   }
@@ -112,6 +118,9 @@ export class CategoriesService {
 
     await this.redisService.del('all_categories');
 
+    // 🔥 SOCKET EVENT
+    this.socketGateway.emitHomeUpdated();
+
     return category;
   }
 
@@ -126,6 +135,9 @@ export class CategoriesService {
     }
 
     await this.redisService.del('all_categories');
+
+    // 🔥 SOCKET EVENT
+    this.socketGateway.emitHomeUpdated();
 
     return {
       success: true,

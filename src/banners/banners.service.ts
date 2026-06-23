@@ -9,6 +9,7 @@ import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
 
 import { RedisService } from '../redis/redis.service';
+import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
 export class BannersService {
@@ -17,6 +18,8 @@ export class BannersService {
     private bannerModel: Model<BannerDocument>,
 
     private redisService: RedisService,
+
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   // =========================
@@ -28,6 +31,10 @@ export class BannersService {
     // 🧠 CLEAR CACHE
     await this.redisService.del('banners_active');
     await this.redisService.del('banners_all');
+
+    // 🔥 SOCKET EVENTS
+    this.socketGateway.emitBannerUpdated();
+    this.socketGateway.emitHomeUpdated();
 
     return banner;
   }
@@ -111,6 +118,10 @@ export class BannersService {
     await this.redisService.del('banners_active');
     await this.redisService.del('banners_all');
 
+    // 🔥 SOCKET EVENTS
+    this.socketGateway.emitBannerUpdated();
+    this.socketGateway.emitHomeUpdated();
+
     return banner;
   }
 
@@ -129,6 +140,10 @@ export class BannersService {
     // 🧠 CLEAR CACHE
     await this.redisService.del('banners_active');
     await this.redisService.del('banners_all');
+
+    // 🔥 SOCKET EVENTS
+    this.socketGateway.emitBannerUpdated();
+    this.socketGateway.emitHomeUpdated();
 
     return {
       success: true,

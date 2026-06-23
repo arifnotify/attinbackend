@@ -11,6 +11,7 @@ import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
 
 import { RedisService } from '../redis/redis.service';
 import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
+import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
 export class FlashSaleService {
@@ -22,6 +23,8 @@ export class FlashSaleService {
     private productModel: Model<ProductDocument>,
 
     private redisService: RedisService,
+
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   // =========================
@@ -60,6 +63,10 @@ export class FlashSaleService {
     // 🧠 CLEAR CACHE
     await this.redisService.del('flash_sales_active');
     await this.redisService.del('flash_sales_all');
+
+    // 🔥 SOCKET EVENTS
+    this.socketGateway.emitFlashSaleUpdated();
+    this.socketGateway.emitHomeUpdated();
 
     return flashSale;
   }
@@ -137,6 +144,10 @@ async getActiveFlashSales() {
     await this.redisService.del('flash_sales_active');
     await this.redisService.del('flash_sales_all');
 
+    // 🔥 SOCKET EVENTS
+    this.socketGateway.emitFlashSaleUpdated();
+    this.socketGateway.emitHomeUpdated();
+
     return {
       success: true,
       message: 'Expired sales updated',
@@ -168,6 +179,11 @@ async getActiveFlashSales() {
     // 🧠 CLEAR CACHE
     await this.redisService.del('flash_sales_active');
     await this.redisService.del('flash_sales_all');
+
+    // 🔥 SOCKET EVENTS
+    this.socketGateway.emitFlashSaleUpdated();
+    this.socketGateway.emitHomeUpdated();
+
 
     return {
       success: true,
