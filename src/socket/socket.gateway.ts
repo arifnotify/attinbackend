@@ -103,13 +103,5 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`rider_${riderId}`).emit('order_assigned', order);
   }
 
-  emitAddressUpdated(userId: string) {
-    this.server.emit('address_updated', {
-      userId,
-      timestamp: Date.now(),
-    },
-  );
-}
-
 
 }

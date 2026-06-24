@@ -10,7 +10,6 @@ import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
 
 import { RedisService } from '../redis/redis.service';
-import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
 export class AddressService {
@@ -19,8 +18,6 @@ export class AddressService {
     private readonly addressModel: Model<AddressDocument>,
 
     private readonly redisService: RedisService,
-
-    private readonly socketGateway: SocketGateway,
   ) {}
 
   // =========================
@@ -46,15 +43,12 @@ export class AddressService {
     }
 
     const address = await this.addressModel.create({
-      ...createAddressDto,
-      user: userId,
+        ...createAddressDto,
+        user: userId,
       });
 
     // Clear Cache
     await this.redisService.del(`addresses:${userId}`);
-
-    // SOCKET EVENT
-    this.socketGateway.emitAddressUpdated(userId);
 
     return address;
   }
@@ -135,9 +129,6 @@ export class AddressService {
 
     await this.redisService.del(`addresses:${address.user}`);
 
-    // SOCKET EVENT
-    this.socketGateway.emitAddressUpdated(address.user.toString());
-
     return updatedAddress;
   }
 
@@ -169,9 +160,6 @@ export class AddressService {
 
     await this.redisService.del(`addresses:${userId}`);
 
-    // SOCKET EVENT
-    this.socketGateway.emitAddressUpdated(userId);
-
     return {
       success: true,
       message: 'Default address updated successfully',
@@ -191,9 +179,6 @@ export class AddressService {
     await this.addressModel.findByIdAndDelete(id);
 
     await this.redisService.del(`addresses:${address.user}`);
-
-    // SOCKET EVENT
-    this.socketGateway.emitAddressUpdated(address.user.toString(),);
 
     return {
       success: true,
