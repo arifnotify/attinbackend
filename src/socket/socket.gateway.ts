@@ -15,6 +15,9 @@ import { Server, Socket } from 'socket.io';
   transports: ['websocket', 'polling'],
 })
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  emitAddressUpdated(userId: string) {
+    throw new Error('Method not implemented.');
+  }
   @WebSocketServer()
   server: Server;
 
@@ -99,4 +102,14 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitOrderAssigned(riderId: string, order: any) {
     this.server.to(`rider_${riderId}`).emit('order_assigned', order);
   }
+
+  emitAddressUpdated(userId: string) {
+    this.server.emit('address_updated', {
+      userId,
+      timestamp: Date.now(),
+    },
+  );
+}
+
+
 }
