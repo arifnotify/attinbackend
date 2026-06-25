@@ -13,7 +13,6 @@ export class SupportLinksController {
   update(@Body() dto: UpdateSupportLinkDto) {
     return this.service.updateLinks(dto);
   }
-
   // USER: GET LINKS
   // =========================
   @Get()
