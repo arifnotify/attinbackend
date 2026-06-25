@@ -64,6 +64,8 @@ export class FlashSaleService {
     await this.redisService.del('flash_sales_active');
     await this.redisService.del('flash_sales_all');
 
+    await this.redisService.del('all_products');
+
     // 🔥 SOCKET EVENTS
     this.socketGateway.emitFlashSaleUpdated();
     this.socketGateway.emitHomeUpdated();
@@ -144,6 +146,8 @@ async getActiveFlashSales() {
     await this.redisService.del('flash_sales_active');
     await this.redisService.del('flash_sales_all');
 
+    await this.redisService.del('all_products');
+
     // 🔥 SOCKET EVENTS
     this.socketGateway.emitFlashSaleUpdated();
     this.socketGateway.emitHomeUpdated();
@@ -179,6 +183,8 @@ async getActiveFlashSales() {
     // 🧠 CLEAR CACHE
     await this.redisService.del('flash_sales_active');
     await this.redisService.del('flash_sales_all');
+
+    await this.redisService.del('all_products');
 
     // 🔥 SOCKET EVENTS
     this.socketGateway.emitFlashSaleUpdated();
