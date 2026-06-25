@@ -22,6 +22,7 @@ import { RidersModule } from './riders/riders.module';
 
 import { RiderLocationModule } from './orders/rider-location/rider-location.module';
 import { SocketModule } from './socket/socket.module';
+import { SupportLinksModule } from './support-links/support-links.module';
 
 @Module({
   imports: [
@@ -74,6 +75,8 @@ import { SocketModule } from './socket/socket.module';
     RiderLocationModule,
 
     SocketModule,
+
+    SupportLinksModule, // 👈 এটা MUST
   ],
   controllers: [HealthController],
 })
