@@ -14,7 +14,6 @@ export class SupportLinksController {
     return this.service.updateLinks(dto);
   }
 
-  // =========================
   // USER: GET LINKS
   // =========================
   @Get()
