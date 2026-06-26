@@ -1,35 +1,47 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+
 import {
   SupportLink,
   SupportLinkDocument,
 } from './schemas/support-link.schema';
 
+import { UpdateSupportLinkDto } from './dto/update-support-link.dto';
+
 @Injectable()
 export class SupportLinksService {
   constructor(
     @InjectModel(SupportLink.name)
-    private model: Model<SupportLinkDocument>,
+    private readonly model: Model<SupportLinkDocument>,
   ) {}
 
-  // =========================
-  // ADMIN: CREATE / UPDATE LINKS
-  // =========================
-  async updateLinks(dto: any) {
+  // ==========================
+  // CREATE / UPDATE
+  // ==========================
+  async updateLinks(dto: UpdateSupportLinkDto) {
     const existing = await this.model.findOne();
 
     if (!existing) {
-      return this.model.create(dto);
+      return await this.model.create(dto);
     }
 
-    return this.model.findByIdAndUpdate(existing._id, dto, { new: true });
+    Object.assign(existing, dto);
+
+    return await existing.save();
   }
 
-  // =========================
-  // USER: GET LINKS
-  // =========================
+  // ==========================
+  // GET LINKS
+  // ==========================
   async getLinks() {
-    return this.model.findOne();
+    const links = await this.model.findOne();
+
+    if (!links) {
+      throw new NotFoundException('Support links not found');
+    }
+
+    return links;
   }
 }

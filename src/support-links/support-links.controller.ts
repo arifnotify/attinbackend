@@ -1,22 +1,27 @@
-import { Controller, Get, Post, Body } from '@nestjs/common';
+import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+
 import { SupportLinksService } from './support-links.service';
 import { UpdateSupportLinkDto } from './dto/update-support-link.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @Controller('support-links')
 export class SupportLinksController {
   constructor(private readonly service: SupportLinksService) {}
 
-  // =========================
-  // ADMIN: UPDATE LINKS
-  // =========================
-  @Post('admin/update')
-  update(@Body() dto: UpdateSupportLinkDto) {
+  // =====================================
+  // ADMIN: UPDATE SUPPORT LINKS
+  // =====================================
+  @UseGuards(JwtAuthGuard)
+  @Patch()
+  async update(@Body() dto: UpdateSupportLinkDto) {
     return this.service.updateLinks(dto);
   }
-  // USER: GET LINKS
-  // =========================
+
+  // =====================================
+  // USER APP: GET SUPPORT LINKS
+  // =====================================
   @Get()
-  get() {
+  async get() {
     return this.service.getLinks();
   }
 }
