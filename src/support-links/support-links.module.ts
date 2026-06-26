@@ -6,6 +6,8 @@ import { SupportLink, SupportLinkSchema } from './schemas/support-link.schema';
 import { SupportLinksService } from './support-links.service';
 import { SupportLinksController } from './support-links.controller';
 
+import { AuthModule } from '../auth/auth.module'; // 🔥 ADD THIS
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -14,6 +16,7 @@ import { SupportLinksController } from './support-links.controller';
         schema: SupportLinkSchema,
       },
     ]),
+    AuthModule, // 🔥 THIS IS THE FIX
   ],
 
   controllers: [SupportLinksController],
