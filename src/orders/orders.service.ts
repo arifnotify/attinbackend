@@ -3,10 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
-import { RewardTransactionType } from 'src/rewards/schemas/reward-transaction.schema';
-import { UsersService } from 'src/users/users.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
@@ -23,10 +20,12 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 import { OrderStatus } from './enums/order-status.enum';
+
 import { Address } from 'src/address/schemas/address.schema';
 
 import { RewardsService } from 'src/rewards/rewards.service';
 import { CouponsService } from 'src/coupons/coupons.service';
+
 import { UsersService } from 'src/users/users.service';
 
 import { RewardTransactionType } from 'src/rewards/schemas/reward-transaction.schema';
