@@ -208,7 +208,7 @@ export class RewardsService {
 
     amount: data.amount,
 
-    type: data.type,
+    type: data.type as RewardTransactionType,
 
     order: new Types.ObjectId(data.order),
 

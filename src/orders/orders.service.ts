@@ -3,7 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { RewardTransactionType } from 'src/rewards/schemas/reward-transaction.schema';
+import { UsersService } from 'src/users/users.service';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 
@@ -194,44 +197,49 @@ export class OrdersService {
   // =========================
   // RETURN ORDER ITEM
   // =========================
-  async returnOrderItem(orderId: string, returnAmount: number) {
-    const order = await this.orderModel.findById(orderId);
-    if (!order) throw new NotFoundException('Order not found');
+async returnOrderItem(orderId: string, returnAmount: number) {
+  const order = await this.orderModel.findById(orderId);
 
-    if ((order.returnedAmount || 0) + returnAmount > order.totalAmount) {
-      throw new BadRequestException('Invalid return amount');
-    }
-
-    order.returnedAmount = (order.returnedAmount || 0) + returnAmount;
-    order.refundAmount = (order.refundAmount || 0) + returnAmount;
-
-    await order.save();
-
-    const userId = order.user.toString();
-    const wallet = await this.rewardsService.getWallet(userId);
-
-    const ratio = returnAmount / order.totalAmount;
-    const deductedReward = (order.earnedReward || 0) * ratio;
-
-    wallet.balance = Math.max(0, wallet.balance - deductedReward);
-    wallet.totalEarned = Math.max(0, wallet.totalEarned - deductedReward);
-
-    await wallet.save();
-
-    await this.rewardsService.createTransaction({
-      user: userId,
-      amount: deductedReward,
-      type: RewardTransactionType.DEDUCT,
-      order: orderId,
-      description: 'Reward reversed due to return',
-    });
-
-    return {
-      success: true,
-      refundedAmount: returnAmount,
-      rewardDeducted: deductedReward,
-    };
+  if (!order) {
+    throw new NotFoundException('Order not found');
   }
+
+  if ((order.returnedAmount || 0) + returnAmount > order.totalAmount) {
+    throw new BadRequestException('Return exceeds order amount');
+  }
+
+  order.returnedAmount = (order.returnedAmount || 0) + returnAmount;
+  order.refundAmount = (order.refundAmount || 0) + returnAmount;
+
+  await order.save();
+
+  const userId = order.user.toString();
+
+  const wallet = await this.rewardsService.getWallet(userId);
+
+  const ratio = returnAmount / order.totalAmount;
+
+  const deductedReward = (order.earnedReward || 0) * ratio;
+
+  wallet.balance = Math.max(0, wallet.balance - deductedReward);
+  wallet.totalEarned = Math.max(0, wallet.totalEarned - deductedReward);
+
+  await wallet.save();
+
+  await this.rewardsService.createTransaction({
+    user: userId,
+    amount: deductedReward,
+    type: RewardTransactionType.DEDUCT,
+    order: orderId,
+    description: 'Reward reversed due to return',
+  });
+
+  return {
+    success: true,
+    refunded: returnAmount,
+    rewardDeducted: deductedReward,
+  };
+}
 
   // ========================= OTHER METHODS =========================
   async getUserOrders(userId: string) {
@@ -259,6 +267,49 @@ export class OrdersService {
       { new: true },
     );
   }
+  /////////////////////////////
+  async getTracking(orderId: string) {
+  const order = await this.orderModel
+    .findById(orderId)
+    .populate('shippingAddress');
+
+  if (!order) {
+    throw new NotFoundException('Order not found');
+  }
+
+  if (!order.assignedRider) {
+    return {
+      orderNumber: order.orderNumber,
+      status: order.orderStatus,
+      trackingEnabled: false,
+    };
+  }
+
+  const riderLocation = await this.riderLocationModel.findOne({
+    riderId: order.assignedRider,
+  });
+
+  const address = order.shippingAddress as any;
+
+  return {
+    orderNumber: order.orderNumber,
+    status: order.orderStatus,
+    trackingEnabled: order.trackingEnabled,
+
+    destination: {
+      lat: address.latitude,
+      lng: address.longitude,
+      area: address.areaOrVillage,
+      landmark: address.landmark,
+    },
+
+    rider: {
+      lat: riderLocation?.lat ?? null,
+      lng: riderLocation?.lng ?? null,
+      updatedAt: riderLocation?.updatedAt ?? null,
+    },
+  };
+}
 
   async getActiveOrder(userId: string) {
     return this.orderModel.findOne({
