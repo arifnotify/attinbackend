@@ -20,10 +20,10 @@ import { Address, AddressSchema } from '../address/schemas/address.schema';
 import { RedisModule } from '../redis/redis.module';
 import { RewardsModule } from 'src/rewards/rewards.module';
 import { UsersModule } from 'src/users/users.module';
+import { CouponsModule } from 'src/coupons/coupons.module';
 
 @Module({
   imports: [
-    UsersModule,
     MongooseModule.forFeature([
       {
         name: Order.name,
@@ -55,6 +55,8 @@ import { UsersModule } from 'src/users/users.module';
     RedisModule,
 
     RewardsModule,
+    CouponsModule, // ✅ ADD THIS
+    UsersModule,   // ✅ ADD THIS (UsersService জন্য)
   ],
 
   controllers: [OrdersController],
