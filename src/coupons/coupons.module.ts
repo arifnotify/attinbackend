@@ -21,5 +21,7 @@ import { CouponsService } from './coupons.service';
   controllers: [CouponsController],
 
   providers: [CouponsService],
+
+  exports: [CouponsService],
 })
 export class CouponsModule {}

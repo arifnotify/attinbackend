@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
-import { Document } from 'mongoose';
+import { HydratedDocument, Types } from 'mongoose';
 
-export type CouponDocument = Coupon & Document;
+export type CouponDocument = HydratedDocument<Coupon>;
 
 @Schema({
   timestamps: true,
@@ -15,35 +15,33 @@ export class Coupon {
   code: string;
 
   @Prop({
-    enum: ['percentage', 'fixed'],
-    required: true,
+    type: Types.ObjectId,
+    ref: 'User',
   })
-  type: string;
+  user: Types.ObjectId;
 
   @Prop({
     required: true,
   })
-  discount: number;
+  discountAmount: number;
 
   @Prop({
-    default: 0,
+    default: false,
   })
-  minimumOrderAmount: number;
+  isUsed: boolean;
+
+  @Prop()
+  usedAt: Date;
 
   @Prop({
     required: true,
   })
-  expireDate: Date;
+  expiresAt: Date;
 
   @Prop({
     default: true,
   })
   isActive: boolean;
-
-  @Prop({
-    default: 0,
-  })
-  usageCount: number;
 }
 
 export const CouponSchema = SchemaFactory.createForClass(Coupon);

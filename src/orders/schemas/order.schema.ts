@@ -68,6 +68,35 @@ export class Order {
 
   @Prop({ default: false })
   trackingEnabled: boolean;
-}
+
+  @Prop({
+    default: 0,
+  })
+  rewardUsed: number;
+
+  @Prop({
+    default: 0,
+  })
+  discountAmount: number;
+
+  @Prop({
+    default: 0,
+  })
+  finalAmount: number;
+
+@Prop({
+  default: 0,
+})
+earnedReward: number;
+
+@Prop({
+  default: 0,
+})
+returnedAmount: number;
+
+@Prop({
+  default: 0,
+})
+refundAmount: number;
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

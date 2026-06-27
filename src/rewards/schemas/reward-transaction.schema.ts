@@ -2,13 +2,14 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import { HydratedDocument, Types } from 'mongoose';
 
-export type RewardTransactionDocument =
-  HydratedDocument<RewardTransaction>;
+export type RewardTransactionDocument = HydratedDocument<RewardTransaction>;
 
 export enum RewardTransactionType {
   EARN = 'earn',
 
   REDEEM = 'redeem',
+  
+  DEDUCT = 'deduct',
 
   RETURN = 'return',
 

@@ -49,4 +49,10 @@ export class RewardSettingsService {
 
     return settings;
   }
+
+  // GET SETTINGS
+
+  async getSettings() {
+    return this.rewardSettingsModel.findOne();
+  }
 }

@@ -1,4 +1,71 @@
-import {
+import { Injectable } from '@nestjs/common';
+
+import { InjectModel } from '@nestjs/mongoose';
+
+import { Model, Types } from 'mongoose';
+
+import { Coupon, CouponDocument } from './schemas/coupon.schema';
+
+@Injectable()
+export class CouponsService {
+  constructor(
+    @InjectModel(Coupon.name)
+    private couponModel: Model<CouponDocument>,
+  ) {}
+
+  async generateCoupon(userId: string, amount: number) {
+    const code =
+      'RW-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    const expiresAt = new Date();
+
+    expiresAt.setMonth(expiresAt.getMonth() + 6);
+
+    return this.couponModel.create({
+      code,
+
+      user: new Types.ObjectId(userId),
+
+      discountAmount: amount,
+
+      expiresAt,
+    });
+  }
+
+  async getUserCoupons(userId: string) {
+    return this.couponModel.find({
+      user: userId,
+      isActive: true,
+    });
+  }
+
+  async validateCoupon(userId: string, code: string) {
+    const coupon = await this.couponModel.findOne({
+      code,
+      user: userId,
+      isActive: true,
+      isUsed: false,
+    });
+
+    if (!coupon) {
+      throw new Error('Invalid coupon');
+    }
+
+    if (new Date() > coupon.expiresAt) {
+      throw new Error('Coupon expired');
+    }
+
+    return coupon;
+  }
+
+  async markAsUsed(couponId: string) {
+    return this.couponModel.findByIdAndUpdate(couponId, {
+      isUsed: true,
+      usedAt: new Date(),
+    });
+  }
+}
+/* import {
   BadRequestException,
   Injectable,
   NotFoundException,
@@ -114,4 +181,4 @@ export class CouponsService {
       message: 'Coupon deleted successfully',
     };
   }
-}
+}*/

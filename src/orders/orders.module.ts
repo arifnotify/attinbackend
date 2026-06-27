@@ -18,6 +18,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { Address, AddressSchema } from '../address/schemas/address.schema';
 
 import { RedisModule } from '../redis/redis.module';
+import { RewardsModule } from 'src/rewards/rewards.module';
 
 @Module({
   imports: [
@@ -50,6 +51,8 @@ import { RedisModule } from '../redis/redis.module';
     ]),
 
     RedisModule,
+
+    RewardsModule,
   ],
 
   controllers: [OrdersController],

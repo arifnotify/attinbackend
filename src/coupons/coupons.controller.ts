@@ -1,4 +1,21 @@
-import {
+import { Controller, Get, Param } from '@nestjs/common';
+
+import { CouponsService } from './coupons.service';
+
+@Controller('coupons')
+export class CouponsController {
+  constructor(private readonly couponsService: CouponsService) {}
+
+  @Get(':userId')
+  getCoupons(
+    @Param('userId')
+    userId: string,
+  ) {
+    return this.couponsService.getUserCoupons(userId);
+  }
+}
+
+/*import {
   Body,
   Controller,
   Delete,
@@ -52,4 +69,4 @@ export class CouponsController {
   deleteCoupon(@Param('id') id: string) {
     return this.couponsService.deleteCoupon(id);
   }
-}
+}*/
