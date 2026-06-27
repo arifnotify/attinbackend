@@ -4,12 +4,13 @@ import { InjectModel } from '@nestjs/mongoose';
 
 import { Model } from 'mongoose';
 
-
-
 import { CreateRewardSettingsDto } from './dto/create-reward-settings.dto';
 
 import { UpdateRewardSettingsDto } from './dto/update-reward-settings.dto';
-import { RewardSettingsDocument } from './schemas/reward-setting.schema';
+import {
+  RewardSettings,
+  RewardSettingsDocument,
+} from './schemas/reward-setting.schema';
 
 @Injectable()
 export class RewardSettingsService {

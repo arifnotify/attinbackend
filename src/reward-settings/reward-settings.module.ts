@@ -2,8 +2,6 @@ import { Module } from '@nestjs/common';
 
 import { MongooseModule } from '@nestjs/mongoose';
 
-
-
 import { RewardSettingsController } from './reward-settings.controller';
 
 import { RewardSettingsService } from './reward-settings.service';
