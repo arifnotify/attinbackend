@@ -23,6 +23,8 @@ import { RidersModule } from './riders/riders.module';
 import { RiderLocationModule } from './orders/rider-location/rider-location.module';
 import { SocketModule } from './socket/socket.module';
 import { SupportLinksModule } from './support-links/support-links.module';
+import { RewardsModule } from './rewards/rewards.module';
+import { RewardSettingsModule } from './reward-settings/reward-settings.module';
 
 @Module({
   imports: [
@@ -76,7 +78,11 @@ import { SupportLinksModule } from './support-links/support-links.module';
 
     SocketModule,
 
-    SupportLinksModule, // 👈 এটা MUST
+    SupportLinksModule,
+
+    RewardsModule,
+
+    RewardSettingsModule, // 👈 এটা MUST
   ],
   controllers: [HealthController],
 })
