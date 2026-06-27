@@ -19,9 +19,11 @@ import { Address, AddressSchema } from '../address/schemas/address.schema';
 
 import { RedisModule } from '../redis/redis.module';
 import { RewardsModule } from 'src/rewards/rewards.module';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
   imports: [
+    UsersModule,
     MongooseModule.forFeature([
       {
         name: Order.name,
