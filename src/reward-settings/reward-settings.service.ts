@@ -45,10 +45,6 @@ export class RewardSettingsService {
       throw new NotFoundException('Reward settings not found');
     }
 
-    return this.rewardSettingsModel.findByIdAndUpdate(
-      settings._id,
-      dto,
-      { new: true },
-    );
+    return this.rewardSettingsModel.findByIdAndUpdate(settings._id, dto,{ new: true },);
   }
 }

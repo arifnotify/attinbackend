@@ -210,4 +210,14 @@ export class RewardsService {
       description: data.description,
     });
   }
+
+  ///////////////////////////////////////////////////////
+
+  async getAllTransactions() {
+    return this.transactionModel
+      .find()
+      .populate('user', 'phone customerType')
+      .populate('order', 'orderNumber totalAmount')
+      .sort({ createdAt: -1 });
+  }
 }

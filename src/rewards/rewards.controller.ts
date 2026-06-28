@@ -6,7 +6,7 @@ export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) {}
 
   // =========================
-  // ADMIN: ALL WALLETS
+  // ADMIN WALLET LIST
   // =========================
   @Get('admin/wallets')
   getAllWallets() {
@@ -14,7 +14,15 @@ export class RewardsController {
   }
 
   // =========================
-  // SINGLE USER WALLET
+  // ADMIN TRANSACTIONS
+  // =========================
+  @Get('admin/transactions')
+  getAllTransactions() {
+    return this.rewardsService.getAllTransactions();
+  }
+
+  // =========================
+  // USER WALLET
   // =========================
   @Get('wallet/:userId')
   getWallet(@Param('userId') userId: string) {
@@ -22,7 +30,7 @@ export class RewardsController {
   }
 
   // =========================
-  // HISTORY
+  // USER HISTORY
   // =========================
   @Get('history/:userId')
   history(@Param('userId') userId: string) {

@@ -312,78 +312,83 @@ export class OrdersService {
   // DELIVERY COMPLETED
   // =========================
 
-  if (dto.orderStatus === OrderStatus.DELIVERED) {
-    await this.orderModel.findByIdAndUpdate(id, {
-      trackingEnabled: false,
-      assignedRider: null,
+if (dto.orderStatus === OrderStatus.DELIVERED) {
+  await this.orderModel.findByIdAndUpdate(id, {
+    trackingEnabled: false,
+    assignedRider: null,
+  });
+
+  const user = await this.userModel.findById(order.user);
+
+  const customerType = user?.customerType ?? 'regular';
+
+  // =========================
+  // GIVE REWARD
+  // =========================
+
+  const earnedReward =
+    await this.rewardsService.rewardAfterOrder(
+      order.user.toString(),
+      customerType,
+      order.totalAmount,
+      order._id.toString(),
+    );
+
+  // Save reward in Order
+  await this.orderModel.findByIdAndUpdate(order._id, {
+    earnedReward: earnedReward || 0,
+  });
+
+  // =========================
+  // USER REWARD UPDATE
+  // =========================
+
+  if (earnedReward > 0) {
+    await this.usersService.increaseRewardEarned(
+      order.user.toString(),
+      earnedReward,
+    );
+
+    // 🔥 ADD THIS (IMPORTANT FIX)
+    await this.rewardsService.createTransaction({
+      user: order.user.toString(),
+      amount: earnedReward,
+      type: RewardTransactionType.EARN,
+      order: order._id.toString(),
+      description: 'Reward earned from delivered order',
     });
-
-    const user = await this.userModel.findById(order.user);
-
-    const customerType =
-      user?.customerType ?? 'regular';
-
-    // =========================
-    // GIVE REWARD
-    // =========================
-
-    const earnedReward =
-      await this.rewardsService.rewardAfterOrder(
-        order.user.toString(),
-        customerType,
-        order.totalAmount,
-        order._id.toString(),
-      );
-
-    // Save reward in Order
-    await this.orderModel.findByIdAndUpdate(
-      order._id,
-      {
-        earnedReward: earnedReward || 0,
-      },
-    );
-
-    // =========================
-    // UPDATE USER REWARD
-    // =========================
-
-    if (earnedReward && earnedReward > 0) {
-      await this.usersService.increaseRewardEarned(
-        order.user.toString(),
-        earnedReward,
-      );
-    }
-
-    // =========================
-    // UPDATE USER STATS
-    // =========================
-
-    await this.usersService.increaseSpentAmount(
-      order.user.toString(),
-      order.totalAmount,
-    );
-
-    await this.usersService.increaseOrderCount(
-      order.user.toString(),
-    );
-
-    // =========================
-    // AUTO CUSTOMER LEVEL
-    // =========================
-
-    await this.usersService.checkCustomerLevel(
-      order.user.toString(),
-    );
-
-    // =========================
-    // AUTO PURCHASE COUPON
-    // =========================
-
-    await this.couponsService.generatePurchaseCoupon(
-      order.user.toString(),
-      order.totalAmount,
-    );
   }
+
+  // =========================
+  // USER STATS UPDATE
+  // =========================
+
+  await this.usersService.increaseSpentAmount(
+    order.user.toString(),
+    order.totalAmount,
+  );
+
+  await this.usersService.increaseOrderCount(
+    order.user.toString(),
+  );
+
+  // =========================
+  // CUSTOMER LEVEL CHECK
+  // =========================
+
+  await this.usersService.checkCustomerLevel(
+    order.user.toString(),
+  );
+
+  // =========================
+  // AUTO COUPON GENERATE
+  // =========================
+
+  await this.couponsService.generatePurchaseCoupon(
+    order.user.toString(),
+    order.totalAmount,
+  );
+}
 
     return updated;
   }
