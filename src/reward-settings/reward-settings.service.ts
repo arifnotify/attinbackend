@@ -7,13 +7,12 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { CreateRewardSettingsDto } from './dto/create-reward-settings.dto';
-import { UpdateRewardSettingsDto } from './dto/update-reward-settings.dto';
-
 import {
   RewardSettings,
   RewardSettingsDocument,
 } from './schemas/reward-setting.schema';
+import { CreateRewardSettingsDto } from './dto/create-reward-settings.dto';
+import { UpdateRewardSettingsDto } from './dto/update-reward-settings.dto';
 
 @Injectable()
 export class RewardSettingsService {
@@ -22,55 +21,34 @@ export class RewardSettingsService {
     private rewardSettingsModel: Model<RewardSettingsDocument>,
   ) {}
 
-  // =========================
-  // CREATE SETTINGS (ONLY ONCE)
-  // =========================
-
+  // CREATE (ONLY ONCE)
   async create(dto: CreateRewardSettingsDto) {
     const exists = await this.rewardSettingsModel.findOne();
 
     if (exists) {
-      throw new BadRequestException(
-        'Reward settings already exist',
-      );
+      throw new BadRequestException('Reward settings already exist');
     }
 
     return this.rewardSettingsModel.create(dto);
   }
 
-  // =========================
-  // GET SETTINGS (USED BY ADMIN + SYSTEM)
-  // =========================
-
+  // GET SETTINGS
   async getSettings() {
     return this.rewardSettingsModel.findOne();
   }
 
-  // alias (optional for backward compatibility)
-  async find() {
-    return this.getSettings();
-  }
-
-  // =========================
-  // UPDATE SETTINGS (SINGLE DOCUMENT)
-  // =========================
-
+  // UPDATE (SINGLETON FIX)
   async update(dto: UpdateRewardSettingsDto) {
-    const settings =
-      await this.rewardSettingsModel.findOne();
+    const settings = await this.rewardSettingsModel.findOne();
 
     if (!settings) {
-      throw new NotFoundException(
-        'Reward settings not found',
-      );
+      throw new NotFoundException('Reward settings not found');
     }
 
     return this.rewardSettingsModel.findByIdAndUpdate(
       settings._id,
       dto,
-      {
-        new: true,
-      },
+      { new: true },
     );
   }
 }

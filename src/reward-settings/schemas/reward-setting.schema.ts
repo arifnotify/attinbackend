@@ -1,5 +1,4 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
 import { HydratedDocument } from 'mongoose';
 
 export type RewardSettingsDocument = HydratedDocument<RewardSettings>;
@@ -8,52 +7,28 @@ export type RewardSettingsDocument = HydratedDocument<RewardSettings>;
   timestamps: true,
 })
 export class RewardSettings {
-  // Regular Customer Reward %
-  @Prop({
-    default: 2,
-  })
+  @Prop({ default: 2, min: 0, max: 100 })
   regularPercentage: number;
 
-  // Premium Customer Reward %
-  @Prop({
-    default: 5,
-  })
+  @Prop({ default: 5, min: 0, max: 100 })
   premiumPercentage: number;
 
-  // VIP Customer Reward %
-  @Prop({
-    default: 8,
-  })
+  @Prop({ default: 8, min: 0, max: 100 })
   vipPercentage: number;
 
-  // Every Amount
-  @Prop({
-    default: 100,
-  })
+  @Prop({ default: 100, min: 1 })
   perAmount: number;
 
-  // Minimum Redeem
-  @Prop({
-    default: 50,
-  })
+  @Prop({ default: 50, min: 0 })
   minimumRedeem: number;
 
-  // Maximum Redeem
-  @Prop({
-    default: 300,
-  })
+  @Prop({ default: 300, min: 0 })
   maximumRedeem: number;
 
-  // Reward Expire Days
-  @Prop({
-    default: 365,
-  })
+  @Prop({ default: 365, min: 1 })
   expireDays: number;
 
-  // Enable Reward System
-  @Prop({
-    default: true,
-  })
+  @Prop({ default: true })
   isActive: boolean;
 }
 

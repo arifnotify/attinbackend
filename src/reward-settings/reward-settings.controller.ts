@@ -1,35 +1,27 @@
-import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
-
+import { Body, Controller, Get, Post, Patch } from '@nestjs/common';
 import { RewardSettingsService } from './reward-settings.service';
-
 import { CreateRewardSettingsDto } from './dto/create-reward-settings.dto';
-
 import { UpdateRewardSettingsDto } from './dto/update-reward-settings.dto';
 
 @Controller('reward-settings')
 export class RewardSettingsController {
   constructor(private readonly rewardSettingsService: RewardSettingsService) {}
 
+  // CREATE (admin only once)
   @Post()
-  create(
-    @Body()
-    dto: CreateRewardSettingsDto,
-  ) {
+  create(@Body() dto: CreateRewardSettingsDto) {
     return this.rewardSettingsService.create(dto);
   }
 
+  // GET (admin + system)
   @Get()
-  find() {
-    return this.rewardSettingsService.find();
+  getSettings() {
+    return this.rewardSettingsService.getSettings();
   }
 
-  @Patch(':id')
-  update(
-    @Param('id') id: string,
-
-    @Body()
-    dto: UpdateRewardSettingsDto,
-  ) {
-    return this.rewardSettingsService.update(id, dto);
+  // UPDATE (FIXED - NO ID)
+  @Patch()
+  update(@Body() dto: UpdateRewardSettingsDto) {
+    return this.rewardSettingsService.update(dto);
   }
 }

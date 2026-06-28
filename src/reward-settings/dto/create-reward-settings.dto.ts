@@ -1,27 +1,28 @@
-import { IsBoolean, IsNumber } from 'class-validator';
+import { IsBoolean, IsNumber, Min, Max, IsOptional } from 'class-validator';
 
 export class CreateRewardSettingsDto {
-  @IsNumber()
+  @IsNumber() @Min(0) @Max(100)
   regularPercentage: number;
 
-  @IsNumber()
+  @IsNumber() @Min(0) @Max(100)
   premiumPercentage: number;
 
-  @IsNumber()
+  @IsNumber() @Min(0) @Max(100)
   vipPercentage: number;
 
-  @IsNumber()
+  @IsNumber() @Min(1)
   perAmount: number;
 
-  @IsNumber()
+  @IsNumber() @Min(0)
   minimumRedeem: number;
 
-  @IsNumber()
+  @IsNumber() @Min(0)
   maximumRedeem: number;
 
-  @IsNumber()
+  @IsNumber() @Min(1)
   expireDays: number;
 
   @IsBoolean()
+  @IsOptional()
   isActive: boolean;
 }
