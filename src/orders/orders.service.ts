@@ -64,49 +64,36 @@ export class OrdersService {
   // CREATE ORDER
   // =========================
 
-  async createOrder(
-    userId: string,
-    dto: CreateOrderDto,
-  ) {
-    const user =
-      await this.userModel.findById(userId);
+  async createOrder(userId: string, dto: CreateOrderDto) {
+    const user = await this.userModel.findById(userId);
 
     if (!user) {
-      throw new NotFoundException(
-        'User not found',
-      );
+      throw new NotFoundException('User not found');
     }
 
-    const address =
-      await this.addressModel.findOne({
-        _id: dto.shippingAddress,
-        user: userId,
-      });
+    const address = await this.addressModel.findOne({
+      _id: dto.shippingAddress,
+      user: userId,
+    });
 
     if (!address) {
-      throw new NotFoundException(
-        'Address not found',
-      );
+      throw new NotFoundException('Address not found');
     }
 
-    const cartItems =
-      await this.cartModel
-        .find({
-          user: userId,
-        })
-        .populate('product');
+    const cartItems = await this.cartModel
+      .find({
+        user: userId,
+      })
+      .populate('product');
 
     if (!cartItems.length) {
-      throw new NotFoundException(
-        'Cart is empty',
-      );
+      throw new NotFoundException('Cart is empty');
     }
 
-    const totalAmount =
-      cartItems.reduce(
-        (sum, item) => sum + item.totalPrice,
-        0,
-      );
+    const totalAmount = cartItems.reduce(
+      (sum, item) => sum + item.totalPrice,
+      0,
+    );
 
     let rewardUsed = 0;
 
@@ -121,16 +108,9 @@ export class OrdersService {
     // =========================
 
     if (dto.couponCode) {
-      coupon =
-        await this.couponsService.validateCoupon(
-          userId,
-          dto.couponCode,
-        );
+      coupon = await this.couponsService.validateCoupon(userId, dto.couponCode);
 
-      couponDiscount = Math.min(
-        coupon.discountAmount,
-        finalAmount,
-      );
+      couponDiscount = Math.min(coupon.discountAmount, finalAmount);
 
       finalAmount -= couponDiscount;
     }
@@ -139,28 +119,14 @@ export class OrdersService {
     // APPLY REWARD
     // =========================
 
-    if (
-      dto.useReward &&
-      dto.rewardAmount
-    ) {
-      const wallet =
-        await this.rewardsService.getWallet(
-          userId,
-        );
+    if (dto.useReward && dto.rewardAmount) {
+      const wallet = await this.rewardsService.getWallet(userId);
 
-      if (
-        dto.rewardAmount >
-        wallet.balance
-      ) {
-        throw new BadRequestException(
-          'Insufficient reward balance',
-        );
+      if (dto.rewardAmount > wallet.balance) {
+        throw new BadRequestException('Insufficient reward balance');
       }
 
-      rewardUsed = Math.min(
-        dto.rewardAmount,
-        finalAmount,
-      );
+      rewardUsed = Math.min(dto.rewardAmount, finalAmount);
 
       finalAmount -= rewardUsed;
     }
@@ -169,15 +135,13 @@ export class OrdersService {
       finalAmount = 0;
     }
 
-    const items =
-      cartItems.map((item) => ({
-        product: item.product._id,
+    const items = cartItems.map((item) => ({
+      product: item.product._id,
 
-        productName:
-          typeof item.product.title ===
-          'object'
-            ? item.product.title.en
-            : item.product.title,
+      productName:
+        typeof item.product.title === 'object'
+          ? item.product.title.en
+          : item.product.title,
 
         productImage:
           item.product.images?.[0] || '',
@@ -519,10 +483,7 @@ export class OrdersService {
   // ASSIGN RIDER
   // =========================
 
-  async assignRider(
-    orderId: string,
-    riderId: string,
-  ) {
+  async assignRider(orderId: string, riderId: string) {
     return this.orderModel.findByIdAndUpdate(
       orderId,
       {

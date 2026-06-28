@@ -84,6 +84,13 @@ export class RewardsService {
     return wallet;
   }
 
+  /////////////////////////////////////
+  async getAllWallets() {
+    return this.walletModel
+      .find()
+      .populate('user', 'phone customerType')
+      .sort({ createdAt: -1 });
+  }
   // =========================
   // GET BALANCE
   // =========================
@@ -97,9 +104,7 @@ export class RewardsService {
   // =========================
 
   async history(userId: string) {
-    return this.transactionModel
-      .find({ user: userId })
-      .sort({ createdAt: -1 });
+    return this.transactionModel.find({ user: userId }).sort({ createdAt: -1 });
   }
 
   // =========================
@@ -138,10 +143,7 @@ export class RewardsService {
     orderAmount: number,
     orderId: string,
   ): Promise<number> {
-    const reward = await this.calculateReward(
-      customerType,
-      orderAmount,
-    );
+    const reward = await this.calculateReward(customerType, orderAmount);
 
     if (!reward || reward <= 0) {
       return 0;
@@ -165,9 +167,7 @@ export class RewardsService {
     const wallet = await this.getWallet(userId);
 
     if (wallet.balance < amount) {
-      throw new BadRequestException(
-        'Insufficient reward balance',
-      );
+      throw new BadRequestException('Insufficient reward balance');
     }
 
     await this.walletModel.updateOne(
