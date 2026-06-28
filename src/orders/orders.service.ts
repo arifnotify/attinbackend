@@ -252,6 +252,8 @@ export class OrdersService {
         rewardUsed,
         order._id.toString(),
       );
+
+      await this.usersService.increaseRewardUsed(userId, rewardUsed);
     }
 
     // =========================
@@ -321,109 +323,107 @@ export class OrdersService {
   // UPDATE ORDER STATUS
   // =========================
 
-  async updateOrderStatus(
-    id: string,
-    dto: UpdateOrderStatusDto,
-  ) {
-    const order =
-      await this.orderModel.findById(id);
+// =========================
+// UPDATE STATUS
+// =========================
 
-    if (!order) {
-      throw new NotFoundException(
-        'Order not found',
+  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
+  const order = await this.orderModel.findById(id);
+
+  if (!order) {
+    throw new NotFoundException('Order not found');
+  }
+
+  const updated = await this.orderModel.findByIdAndUpdate(
+    id,
+    {
+      orderStatus: dto.orderStatus,
+    },
+    {
+      new: true,
+    },
+  );
+
+  // =========================
+  // DELIVERY COMPLETED
+  // =========================
+
+  if (dto.orderStatus === OrderStatus.DELIVERED) {
+    await this.orderModel.findByIdAndUpdate(id, {
+      trackingEnabled: false,
+      assignedRider: null,
+    });
+
+    const user = await this.userModel.findById(order.user);
+
+    const customerType =
+      user?.customerType ?? 'regular';
+
+    // =========================
+    // GIVE REWARD
+    // =========================
+
+    const earnedReward =
+      await this.rewardsService.rewardAfterOrder(
+        order.user.toString(),
+        customerType,
+        order.totalAmount,
+        order._id.toString(),
+      );
+
+    // Save reward in Order
+    await this.orderModel.findByIdAndUpdate(
+      order._id,
+      {
+        earnedReward: earnedReward || 0,
+      },
+    );
+
+    // =========================
+    // UPDATE USER REWARD
+    // =========================
+
+    if (earnedReward && earnedReward > 0) {
+      await this.usersService.increaseRewardEarned(
+        order.user.toString(),
+        earnedReward,
       );
     }
 
-    const updated =
-      await this.orderModel.findByIdAndUpdate(
-        id,
-        {
-          orderStatus: dto.orderStatus,
-        },
-        {
-          new: true,
-        },
-      );
-
     // =========================
-    // DELIVERY COMPLETED
+    // UPDATE USER STATS
     // =========================
 
-    if (
-      dto.orderStatus ===
-      OrderStatus.DELIVERED
-    ) {
-      await this.orderModel.findByIdAndUpdate(
-        id,
-        {
-          trackingEnabled: false,
-          assignedRider: null,
-        },
-      );
+    await this.usersService.increaseSpentAmount(
+      order.user.toString(),
+      order.totalAmount,
+    );
 
-      const user =
-        await this.userModel.findById(
-          order.user,
-        );
+    await this.usersService.increaseOrderCount(
+      order.user.toString(),
+    );
 
-      const customerType =
-        user?.customerType ??
-        'regular';
+    // =========================
+    // AUTO CUSTOMER LEVEL
+    // =========================
 
-      // =========================
-      // GIVE REWARD
-      // =========================
+    await this.usersService.checkCustomerLevel(
+      order.user.toString(),
+    );
 
-      const earnedReward =
-        await this.rewardsService.rewardAfterOrder(
-          order.user.toString(),
-          customerType,
-          order.totalAmount,
-          order._id.toString(),
-        );
+    // =========================
+    // AUTO PURCHASE COUPON
+    // =========================
 
-      await this.orderModel.findByIdAndUpdate(
-        order._id,
-        {
-          earnedReward:
-            earnedReward || 0,
-        },
-      );
-
-      // =========================
-      // UPDATE USER STATS
-      // =========================
-
-      await this.usersService.increaseSpentAmount(
-        order.user.toString(),
-        order.totalAmount,
-      );
-
-      await this.usersService.increaseOrderCount(
-        order.user.toString(),
-      );
-
-      // =========================
-      // AUTO CUSTOMER LEVEL
-      // =========================
-
-      await this.usersService.checkCustomerLevel(
-        order.user.toString(),
-      );
-
-      // =========================
-      // AUTO PURCHASE COUPON
-      // =========================
-
-      await this.couponsService.generatePurchaseCoupon(
-        order.user.toString(),
-        order.totalAmount,
-      );
-    }
+    await this.couponsService.generatePurchaseCoupon(
+      order.user.toString(),
+      order.totalAmount,
+    );
+  }
 
     return updated;
   }
-    // =========================
+  // =========================
   // RETURN ORDER ITEM
   // =========================
 
@@ -490,16 +490,23 @@ export class OrdersService {
 
     await wallet.save();
 
-    await this.rewardsService.createTransaction(
+    // Update User Reward Summary
+    await this.userModel.findByIdAndUpdate(
+      userId,
       {
-        user: userId,
-        amount: deductedReward,
-        type: RewardTransactionType.DEDUCT,
-        order: orderId,
-        description:
-          'Reward reversed due to return',
+        $inc: {
+          totalRewardEarned: -deductedReward,
+        },
       },
     );
+
+    await this.rewardsService.createTransaction({
+      user: userId,
+      amount: deductedReward,
+      type: RewardTransactionType.DEDUCT,
+      order: orderId,
+      description: 'Reward reversed due to return',
+    });
 
     return {
       success: true,
