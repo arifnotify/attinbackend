@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
 import { Model, Types } from 'mongoose';
@@ -13,56 +12,127 @@ export class CouponsService {
     private couponModel: Model<CouponDocument>,
   ) {}
 
+  // =========================
+  // GENERATE SIMPLE COUPON (REWARD SYSTEM)
+  // =========================
+
   async generateCoupon(userId: string, amount: number) {
     const code =
-      'RW-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      'RW-' +
+      Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
 
     const expiresAt = new Date();
-
     expiresAt.setMonth(expiresAt.getMonth() + 6);
 
     return this.couponModel.create({
       code,
-
       user: new Types.ObjectId(userId),
-
       discountAmount: amount,
-
       expiresAt,
+      isActive: true,
+      isUsed: false,
     });
   }
+
+  // =========================
+  // PURCHASE COUPON (ORDER BASED - DAY 22)
+  // =========================
+
+  async generatePurchaseCoupon(
+    userId: string,
+    totalAmount: number,
+    orderId?: string,
+  ) {
+    const discount = Math.floor(totalAmount * 0.05); // 5% reward coupon
+
+    if (discount <= 0) return null;
+
+    // prevent duplicate for same order
+    if (orderId) {
+      const existing = await this.couponModel.findOne({
+        user: new Types.ObjectId(userId),
+        order: new Types.ObjectId(orderId),
+      });
+
+      if (existing) {
+        return existing;
+      }
+    }
+
+    const code =
+      'PUR-' +
+      Math.random()
+        .toString(36)
+        .substring(2, 8)
+        .toUpperCase();
+
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 30);
+
+    return this.couponModel.create({
+      code,
+      user: new Types.ObjectId(userId),
+      discountAmount: discount,
+      expiresAt,
+      isActive: true,
+      isUsed: false,
+      order: orderId ? new Types.ObjectId(orderId) : null,
+    });
+  }
+
+  // =========================
+  // GET USER COUPONS
+  // =========================
 
   async getUserCoupons(userId: string) {
-    return this.couponModel.find({
-      user: userId,
-      isActive: true,
-    });
+    return this.couponModel
+      .find({
+        user: new Types.ObjectId(userId),
+        isActive: true,
+        isUsed: false,
+      })
+      .sort({ createdAt: -1 });
   }
+
+  // =========================
+  // VALIDATE COUPON
+  // =========================
 
   async validateCoupon(userId: string, code: string) {
     const coupon = await this.couponModel.findOne({
       code,
-      user: userId,
+      user: new Types.ObjectId(userId),
       isActive: true,
       isUsed: false,
     });
 
     if (!coupon) {
-      throw new Error('Invalid coupon');
+      throw new BadRequestException('Invalid coupon');
     }
 
     if (new Date() > coupon.expiresAt) {
-      throw new Error('Coupon expired');
+      throw new BadRequestException('Coupon expired');
     }
 
     return coupon;
   }
 
+  // =========================
+  // MARK AS USED
+  // =========================
+
   async markAsUsed(couponId: string) {
-    return this.couponModel.findByIdAndUpdate(couponId, {
-      isUsed: true,
-      usedAt: new Date(),
-    });
+    return this.couponModel.findByIdAndUpdate(
+      couponId,
+      {
+        isUsed: true,
+        usedAt: new Date(),
+      },
+      { new: true },
+    );
   }
 }
 /* import {

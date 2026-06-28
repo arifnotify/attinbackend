@@ -12,7 +12,6 @@ import {
 } from './schemas/reward-wallet.schema';
 import {
   RewardTransaction,
- 
   RewardTransactionSchema,
 } from './schemas/reward-transaction.schema';
 

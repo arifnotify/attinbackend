@@ -1,12 +1,15 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model } from 'mongoose';
 
 import { CreateRewardSettingsDto } from './dto/create-reward-settings.dto';
-
 import { UpdateRewardSettingsDto } from './dto/update-reward-settings.dto';
+
 import {
   RewardSettings,
   RewardSettingsDocument,
@@ -19,40 +22,55 @@ export class RewardSettingsService {
     private rewardSettingsModel: Model<RewardSettingsDocument>,
   ) {}
 
-  // CREATE
+  // =========================
+  // CREATE SETTINGS (ONLY ONCE)
+  // =========================
+
   async create(dto: CreateRewardSettingsDto) {
     const exists = await this.rewardSettingsModel.findOne();
 
     if (exists) {
-      throw new Error('Reward settings already exist.');
+      throw new BadRequestException(
+        'Reward settings already exist',
+      );
     }
 
     return this.rewardSettingsModel.create(dto);
   }
 
-  // GET
-
-  async find() {
-    return this.rewardSettingsModel.findOne();
-  }
-
-  // UPDATE
-
-  async update(id: string, dto: UpdateRewardSettingsDto) {
-    const settings = await this.rewardSettingsModel.findByIdAndUpdate(id, dto, {
-      new: true,
-    });
-
-    if (!settings) {
-      throw new NotFoundException('Reward settings not found');
-    }
-
-    return settings;
-  }
-
-  // GET SETTINGS
+  // =========================
+  // GET SETTINGS (USED BY ADMIN + SYSTEM)
+  // =========================
 
   async getSettings() {
     return this.rewardSettingsModel.findOne();
+  }
+
+  // alias (optional for backward compatibility)
+  async find() {
+    return this.getSettings();
+  }
+
+  // =========================
+  // UPDATE SETTINGS (SINGLE DOCUMENT)
+  // =========================
+
+  async update(dto: UpdateRewardSettingsDto) {
+    const settings =
+      await this.rewardSettingsModel.findOne();
+
+    if (!settings) {
+      throw new NotFoundException(
+        'Reward settings not found',
+      );
+    }
+
+    return this.rewardSettingsModel.findByIdAndUpdate(
+      settings._id,
+      dto,
+      {
+        new: true,
+      },
+    );
   }
 }

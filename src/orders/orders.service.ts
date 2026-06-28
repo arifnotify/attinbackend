@@ -5,10 +5,13 @@ import {
 } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
+
 import { Model, Types } from 'mongoose';
 
 import { Order, OrderDocument } from './schemas/order.schema';
+
 import { User } from '../users/schemas/user.schema';
+
 import { Cart } from '../cart/schemas/cart.schema';
 
 import {
@@ -17,6 +20,7 @@ import {
 } from './rider-location/rider-location.schema';
 
 import { CreateOrderDto } from './dto/create-order.dto';
+
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 
 import { OrderStatus } from './enums/order-status.enum';
@@ -24,6 +28,7 @@ import { OrderStatus } from './enums/order-status.enum';
 import { Address } from 'src/address/schemas/address.schema';
 
 import { RewardsService } from 'src/rewards/rewards.service';
+
 import { CouponsService } from 'src/coupons/coupons.service';
 
 import { UsersService } from 'src/users/users.service';
@@ -49,89 +54,198 @@ export class OrdersService {
     private riderLocationModel: Model<RiderLocationDocument>,
 
     private rewardsService: RewardsService,
+
     private couponsService: CouponsService,
+
     private usersService: UsersService,
   ) {}
 
   // =========================
   // CREATE ORDER
   // =========================
-  async createOrder(userId: string, dto: CreateOrderDto) {
-    const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('User not found');
 
-    const address = await this.addressModel.findOne({
-      _id: dto.shippingAddress,
-      user: userId,
-    });
-    if (!address) throw new NotFoundException('Address not found');
+  async createOrder(
+    userId: string,
+    dto: CreateOrderDto,
+  ) {
+    const user =
+      await this.userModel.findById(userId);
 
-    const cartItems = await this.cartModel.find({ user: userId }).populate('product');
-    if (!cartItems.length) throw new NotFoundException('Cart is empty');
-
-    const totalAmount = cartItems.reduce((s, i) => s + i.totalPrice, 0);
-
-    let rewardUsed = 0;
-    let couponDiscount = 0;
-    let finalAmount = totalAmount;
-    let coupon: any = null;
-
-    // reward apply
-    if (dto.useReward && dto.rewardAmount) {
-      rewardUsed = dto.rewardAmount;
-      finalAmount -= rewardUsed;
+    if (!user) {
+      throw new NotFoundException(
+        'User not found',
+      );
     }
 
-    // coupon apply
+    const address =
+      await this.addressModel.findOne({
+        _id: dto.shippingAddress,
+        user: userId,
+      });
+
+    if (!address) {
+      throw new NotFoundException(
+        'Address not found',
+      );
+    }
+
+    const cartItems =
+      await this.cartModel
+        .find({
+          user: userId,
+        })
+        .populate('product');
+
+    if (!cartItems.length) {
+      throw new NotFoundException(
+        'Cart is empty',
+      );
+    }
+
+    const totalAmount =
+      cartItems.reduce(
+        (sum, item) => sum + item.totalPrice,
+        0,
+      );
+
+    let rewardUsed = 0;
+
+    let couponDiscount = 0;
+
+    let finalAmount = totalAmount;
+
+    let coupon: any = null;
+
+    // =========================
+    // APPLY COUPON
+    // =========================
+
     if (dto.couponCode) {
-      coupon = await this.couponsService.validateCoupon(userId, dto.couponCode);
-      couponDiscount = coupon.discountAmount;
+      coupon =
+        await this.couponsService.validateCoupon(
+          userId,
+          dto.couponCode,
+        );
+
+      couponDiscount = Math.min(
+        coupon.discountAmount,
+        finalAmount,
+      );
+
       finalAmount -= couponDiscount;
     }
 
-    if (finalAmount < 0) finalAmount = 0;
+    // =========================
+    // APPLY REWARD
+    // =========================
 
-    const items = cartItems.map((item) => ({
-      product: item.product._id,
-      productName:
-        typeof item.product.title === 'object'
-          ? item.product.title.en
-          : item.product.title,
-      productImage: item.product.images?.[0] || '',
-      quantity: item.quantity,
-      price: item.price,
-      totalPrice: item.totalPrice,
-    }));
+    if (
+      dto.useReward &&
+      dto.rewardAmount
+    ) {
+      const wallet =
+        await this.rewardsService.getWallet(
+          userId,
+        );
+
+      if (
+        dto.rewardAmount >
+        wallet.balance
+      ) {
+        throw new BadRequestException(
+          'Insufficient reward balance',
+        );
+      }
+
+      rewardUsed = Math.min(
+        dto.rewardAmount,
+        finalAmount,
+      );
+
+      finalAmount -= rewardUsed;
+    }
+
+    if (finalAmount < 0) {
+      finalAmount = 0;
+    }
+
+    const items =
+      cartItems.map((item) => ({
+        product: item.product._id,
+
+        productName:
+          typeof item.product.title ===
+          'object'
+            ? item.product.title.en
+            : item.product.title,
+
+        productImage:
+          item.product.images?.[0] || '',
+
+        quantity: item.quantity,
+
+        price: item.price,
+
+        totalPrice: item.totalPrice,
+      }));
 
     let orderNumber = '';
+
     let exists = true;
 
     while (exists) {
-      orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
-      const check = await this.orderModel.findOne({ orderNumber });
-      if (!check) exists = false;
+      orderNumber = Math.floor(
+        10000000 +
+          Math.random() * 90000000,
+      ).toString();
+
+      const check =
+        await this.orderModel.findOne({
+          orderNumber,
+        });
+
+      if (!check) {
+        exists = false;
+      }
     }
 
-    const order = await this.orderModel.create({
-      orderNumber,
-      user: userId,
-      customerPhone: user.phone,
-      shippingAddress: address._id,
-      items,
+    const order =
+      await this.orderModel.create({
+        orderNumber,
 
-      totalAmount,
-      rewardUsed,
-      couponDiscount,
-      finalAmount,
-      discountAmount: rewardUsed + couponDiscount,
+        user: userId,
 
-      paymentMethod: 'COD',
-      orderStatus: OrderStatus.PENDING,
-      isPaid: false,
-      trackingEnabled: false,
-    });
+        customerPhone: user.phone,
 
-    // redeem reward
+        shippingAddress: address._id,
+
+        items,
+
+        totalAmount,
+
+        rewardUsed,
+
+        couponDiscount,
+
+        discountAmount:
+          rewardUsed + couponDiscount,
+
+        finalAmount,
+
+        paymentMethod: 'COD',
+
+        orderStatus:
+          OrderStatus.PENDING,
+
+        isPaid: false,
+
+        trackingEnabled: false,
+      });
+
+    // =========================
+    // REDEEM REWARD
+    // =========================
+
     if (rewardUsed > 0) {
       await this.rewardsService.redeemReward(
         userId,
@@ -140,186 +254,363 @@ export class OrdersService {
       );
     }
 
-    // mark coupon used
+    // =========================
+    // MARK COUPON USED
+    // =========================
+
     if (coupon) {
-      await this.couponsService.markAsUsed(coupon._id.toString());
+      await this.couponsService.markAsUsed(
+        coupon._id.toString(),
+      );
     }
 
-    await this.cartModel.deleteMany({ user: userId });
+    await this.cartModel.deleteMany({
+      user: userId,
+    });
+
+    return order;
+  }
+    // =========================
+  // USER ORDERS
+  // =========================
+
+  async getUserOrders(userId: string) {
+    return this.orderModel
+      .find({
+        user: userId,
+      })
+      .populate('shippingAddress')
+      .sort({
+        createdAt: -1,
+      });
+  }
+
+  // =========================
+  // ALL ORDERS
+  // =========================
+
+  async getAllOrders() {
+    return this.orderModel
+      .find()
+      .populate('shippingAddress')
+      .sort({
+        createdAt: -1,
+      });
+  }
+
+  // =========================
+  // SINGLE ORDER
+  // =========================
+
+  async getSingleOrder(id: string) {
+    const order =
+      await this.orderModel
+        .findById(id)
+        .populate('shippingAddress');
+
+    if (!order) {
+      throw new NotFoundException(
+        'Order not found',
+      );
+    }
 
     return order;
   }
 
   // =========================
-  // UPDATE STATUS
+  // UPDATE ORDER STATUS
   // =========================
-  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
-    const order = await this.orderModel.findById(id);
-    if (!order) throw new NotFoundException('Order not found');
 
-    const updated = await this.orderModel.findByIdAndUpdate(
-      id,
-      { orderStatus: dto.orderStatus },
-      { new: true },
-    );
+  async updateOrderStatus(
+    id: string,
+    dto: UpdateOrderStatusDto,
+  ) {
+    const order =
+      await this.orderModel.findById(id);
 
-    // DELIVERY COMPLETE
-    if (dto.orderStatus === OrderStatus.DELIVERED) {
-      await this.orderModel.findByIdAndUpdate(id, {
-        trackingEnabled: false,
-        assignedRider: null,
-      });
+    if (!order) {
+      throw new NotFoundException(
+        'Order not found',
+      );
+    }
 
-      const user = await this.userModel.findById(order.user);
-
-      const customerType = user?.customerType || 'regular';
-
-      const reward = await this.rewardsService.rewardAfterOrder(
-        order.user.toString(),
-        customerType,
-        order.totalAmount,
-        order._id.toString(),
+    const updated =
+      await this.orderModel.findByIdAndUpdate(
+        id,
+        {
+          orderStatus: dto.orderStatus,
+        },
+        {
+          new: true,
+        },
       );
 
-      await this.orderModel.findByIdAndUpdate(order._id, {
-        earnedReward: reward || 0,
-      });
+    // =========================
+    // DELIVERY COMPLETED
+    // =========================
 
-      await this.usersService.increaseSpentAmount(order.user.toString(), order.totalAmount);
-      await this.usersService.increaseOrderCount(order.user.toString());
-      await this.usersService.checkCustomerLevel(order.user.toString());
+    if (
+      dto.orderStatus ===
+      OrderStatus.DELIVERED
+    ) {
+      await this.orderModel.findByIdAndUpdate(
+        id,
+        {
+          trackingEnabled: false,
+          assignedRider: null,
+        },
+      );
+
+      const user =
+        await this.userModel.findById(
+          order.user,
+        );
+
+      const customerType =
+        user?.customerType ??
+        'regular';
+
+      // =========================
+      // GIVE REWARD
+      // =========================
+
+      const earnedReward =
+        await this.rewardsService.rewardAfterOrder(
+          order.user.toString(),
+          customerType,
+          order.totalAmount,
+          order._id.toString(),
+        );
+
+      await this.orderModel.findByIdAndUpdate(
+        order._id,
+        {
+          earnedReward:
+            earnedReward || 0,
+        },
+      );
+
+      // =========================
+      // UPDATE USER STATS
+      // =========================
+
+      await this.usersService.increaseSpentAmount(
+        order.user.toString(),
+        order.totalAmount,
+      );
+
+      await this.usersService.increaseOrderCount(
+        order.user.toString(),
+      );
+
+      // =========================
+      // AUTO CUSTOMER LEVEL
+      // =========================
+
+      await this.usersService.checkCustomerLevel(
+        order.user.toString(),
+      );
+
+      // =========================
+      // AUTO PURCHASE COUPON
+      // =========================
+
+      await this.couponsService.generatePurchaseCoupon(
+        order.user.toString(),
+        order.totalAmount,
+      );
     }
 
     return updated;
   }
-
-  // =========================
+    // =========================
   // RETURN ORDER ITEM
   // =========================
-async returnOrderItem(orderId: string, returnAmount: number) {
-  const order = await this.orderModel.findById(orderId);
 
-  if (!order) {
-    throw new NotFoundException('Order not found');
-  }
+  async returnOrderItem(
+    orderId: string,
+    returnAmount: number,
+  ) {
+    const order =
+      await this.orderModel.findById(
+        orderId,
+      );
 
-  if ((order.returnedAmount || 0) + returnAmount > order.totalAmount) {
-    throw new BadRequestException('Return exceeds order amount');
-  }
+    if (!order) {
+      throw new NotFoundException(
+        'Order not found',
+      );
+    }
 
-  order.returnedAmount = (order.returnedAmount || 0) + returnAmount;
-  order.refundAmount = (order.refundAmount || 0) + returnAmount;
+    if (
+      (order.returnedAmount || 0) +
+        returnAmount >
+      order.totalAmount
+    ) {
+      throw new BadRequestException(
+        'Return exceeds order amount',
+      );
+    }
 
-  await order.save();
+    order.returnedAmount =
+      (order.returnedAmount || 0) +
+      returnAmount;
 
-  const userId = order.user.toString();
+    order.refundAmount =
+      (order.refundAmount || 0) +
+      returnAmount;
 
-  const wallet = await this.rewardsService.getWallet(userId);
+    await order.save();
 
-  const ratio = returnAmount / order.totalAmount;
+    const userId =
+      order.user.toString();
 
-  const deductedReward = (order.earnedReward || 0) * ratio;
+    const wallet =
+      await this.rewardsService.getWallet(
+        userId,
+      );
 
-  wallet.balance = Math.max(0, wallet.balance - deductedReward);
-  wallet.totalEarned = Math.max(0, wallet.totalEarned - deductedReward);
+    const ratio =
+      returnAmount / order.totalAmount;
 
-  await wallet.save();
+    const deductedReward =
+      (order.earnedReward || 0) *
+      ratio;
 
-  await this.rewardsService.createTransaction({
-    user: userId,
-    amount: deductedReward,
-    type: RewardTransactionType.DEDUCT,
-    order: orderId,
-    description: 'Reward reversed due to return',
-  });
-
-  return {
-    success: true,
-    refunded: returnAmount,
-    rewardDeducted: deductedReward,
-  };
-}
-
-  // ========================= OTHER METHODS =========================
-  async getUserOrders(userId: string) {
-    return this.orderModel.find({ user: userId }).sort({ createdAt: -1 });
-  }
-
-  async getAllOrders() {
-    return this.orderModel.find().sort({ createdAt: -1 });
-  }
-
-  async getSingleOrder(id: string) {
-    const order = await this.orderModel.findById(id);
-    if (!order) throw new NotFoundException('Order not found');
-    return order;
-  }
-
-  async assignRider(orderId: string, riderId: string) {
-    return this.orderModel.findByIdAndUpdate(
-      orderId,
-      {
-        assignedRider: new Types.ObjectId(riderId),
-        orderStatus: OrderStatus.OUT_FOR_DELIVERY,
-        trackingEnabled: true,
-      },
-      { new: true },
+    wallet.balance = Math.max(
+      0,
+      wallet.balance - deductedReward,
     );
-  }
-  /////////////////////////////
-  async getTracking(orderId: string) {
-  const order = await this.orderModel
-    .findById(orderId)
-    .populate('shippingAddress');
 
-  if (!order) {
-    throw new NotFoundException('Order not found');
-  }
+    wallet.totalEarned = Math.max(
+      0,
+      wallet.totalEarned -
+        deductedReward,
+    );
 
-  if (!order.assignedRider) {
+    await wallet.save();
+
+    await this.rewardsService.createTransaction(
+      {
+        user: userId,
+        amount: deductedReward,
+        type: RewardTransactionType.DEDUCT,
+        order: orderId,
+        description:
+          'Reward reversed due to return',
+      },
+    );
+
     return {
-      orderNumber: order.orderNumber,
-      status: order.orderStatus,
-      trackingEnabled: false,
+      success: true,
+      refunded: returnAmount,
+      rewardDeducted: deductedReward,
     };
   }
 
-  const riderLocation = await this.riderLocationModel.findOne({
-    riderId: order.assignedRider,
-  });
+  // =========================
+  // ASSIGN RIDER
+  // =========================
 
-  const address = order.shippingAddress as any;
+  async assignRider(
+    orderId: string,
+    riderId: string,
+  ) {
+    return this.orderModel.findByIdAndUpdate(
+      orderId,
+      {
+        assignedRider:
+          new Types.ObjectId(riderId),
 
-  return {
-    orderNumber: order.orderNumber,
-    status: order.orderStatus,
-    trackingEnabled: order.trackingEnabled,
+        orderStatus:
+          OrderStatus.OUT_FOR_DELIVERY,
 
-    destination: {
-      lat: address.latitude,
-      lng: address.longitude,
-      area: address.areaOrVillage,
-      landmark: address.landmark,
-    },
+        trackingEnabled: true,
+      },
+      {
+        new: true,
+      },
+    );
+  }
 
-    rider: {
-      lat: riderLocation?.lat ?? null,
-      lng: riderLocation?.lng ?? null,
-      updatedAt: riderLocation?.updatedAt ?? null,
-    },
-  };
-}
+  // =========================
+  // TRACKING
+  // =========================
+
+  async getTracking(orderId: string) {
+    const order =
+      await this.orderModel
+        .findById(orderId)
+        .populate('shippingAddress');
+
+    if (!order) {
+      throw new NotFoundException(
+        'Order not found',
+      );
+    }
+
+    if (!order.assignedRider) {
+      return {
+        orderNumber: order.orderNumber,
+        status: order.orderStatus,
+        trackingEnabled: false,
+      };
+    }
+
+    const riderLocation =
+      await this.riderLocationModel.findOne(
+        {
+          riderId: order.assignedRider,
+        },
+      );
+
+    const address =
+      order.shippingAddress as any;
+
+    return {
+      orderNumber: order.orderNumber,
+      status: order.orderStatus,
+      trackingEnabled:
+        order.trackingEnabled,
+
+      destination: {
+        lat: address.latitude,
+        lng: address.longitude,
+        area:
+          address.areaOrVillage,
+        landmark:
+          address.landmark,
+      },
+
+      rider: {
+        lat: riderLocation?.lat ?? null,
+        lng: riderLocation?.lng ?? null,
+        updatedAt:
+          riderLocation?.updatedAt ??
+          null,
+      },
+    };
+  }
+
+  // =========================
+  // ACTIVE ORDER
+  // =========================
 
   async getActiveOrder(userId: string) {
-    return this.orderModel.findOne({
-      user: userId,
-      orderStatus: {
-        $in: [
-          OrderStatus.PENDING,
-          OrderStatus.PROCESSING,
-          OrderStatus.OUT_FOR_DELIVERY,
-        ],
-      },
-    });
+    return this.orderModel
+      .findOne({
+        user: userId,
+
+        orderStatus: {
+          $in: [
+            OrderStatus.PENDING,
+            OrderStatus.PROCESSING,
+            OrderStatus.OUT_FOR_DELIVERY,
+          ],
+        },
+      })
+      .sort({
+        createdAt: -1,
+      });
   }
 }

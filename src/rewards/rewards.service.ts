@@ -1,7 +1,5 @@
-import { Injectable } from '@nestjs/common';
-
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model, Types } from 'mongoose';
 
 import {
@@ -14,8 +12,8 @@ import {
   RewardTransactionDocument,
   RewardTransactionType,
 } from './schemas/reward-transaction.schema';
+
 import { RewardSettingsService } from 'src/reward-settings/reward-settings.service';
-import { CouponsService } from 'src/coupons/coupons.service';
 
 @Injectable()
 export class RewardsService {
@@ -27,13 +25,11 @@ export class RewardsService {
     private transactionModel: Model<RewardTransactionDocument>,
 
     private rewardSettingsService: RewardSettingsService,
-
-    private couponsService: CouponsService,
   ) {}
 
-  // ===========================
-  // CREATE WALLET IF NOT EXISTS
-  // ===========================
+  // =========================
+  // GET OR CREATE WALLET
+  // =========================
 
   async getWallet(userId: string) {
     let wallet = await this.walletModel.findOne({
@@ -43,15 +39,18 @@ export class RewardsService {
     if (!wallet) {
       wallet = await this.walletModel.create({
         user: new Types.ObjectId(userId),
+        balance: 0,
+        totalEarned: 0,
+        totalUsed: 0,
       });
     }
 
     return wallet;
   }
 
-  // ===========================
-  // ADD REWARD
-  // ===========================
+  // =========================
+  // ADD REWARD (SAFE + ATOMIC)
+  // =========================
 
   async addReward(
     userId: string,
@@ -59,64 +58,53 @@ export class RewardsService {
     orderId: string,
     description: string,
   ) {
+    if (amount <= 0) return null;
+
+    await this.walletModel.updateOne(
+      { user: userId },
+      {
+        $inc: {
+          balance: amount,
+          totalEarned: amount,
+        },
+      },
+      { upsert: true },
+    );
+
     const wallet = await this.getWallet(userId);
-
-    wallet.balance += amount;
-
-    wallet.totalEarned += amount;
-
-    await wallet.save();
 
     await this.transactionModel.create({
       user: new Types.ObjectId(userId),
-
       amount,
-
       type: RewardTransactionType.EARN,
-
       order: new Types.ObjectId(orderId),
-
       description,
     });
-    // AUTO COUPON GENERATE
-    if (wallet.balance >= 100) {
-      await this.couponsService.generateCoupon(userId, 100);
-
-      wallet.balance -= 100;
-
-      await wallet.save();
-    }
 
     return wallet;
   }
 
-  // ===========================
+  // =========================
   // GET BALANCE
-  // ===========================
+  // =========================
 
   async getBalance(userId: string) {
-    const wallet = await this.getWallet(userId);
-
-    return wallet;
+    return this.getWallet(userId);
   }
 
-  // ===========================
+  // =========================
   // HISTORY
-  // ===========================
+  // =========================
 
   async history(userId: string) {
     return this.transactionModel
-      .find({
-        user: userId,
-      })
-      .sort({
-        createdAt: -1,
-      });
+      .find({ user: userId })
+      .sort({ createdAt: -1 });
   }
 
-  // ===========================
+  // =========================
   // CALCULATE REWARD
-  // ===========================
+  // =========================
 
   async calculateReward(customerType: string, orderAmount: number) {
     const settings = await this.rewardSettingsService.getSettings();
@@ -140,20 +128,23 @@ export class RewardsService {
     return Number(reward.toFixed(2));
   }
 
-  // ===========================
-  // ORDER DELIVERED
-  // ===========================
+  // =========================
+  // ORDER DELIVERED REWARD
+  // =========================
 
   async rewardAfterOrder(
     userId: string,
     customerType: string,
     orderAmount: number,
     orderId: string,
-  ) {
-    const reward = await this.calculateReward(customerType, orderAmount);
+  ): Promise<number> {
+    const reward = await this.calculateReward(
+      customerType,
+      orderAmount,
+    );
 
-    if (reward <= 0) {
-      return;
+    if (!reward || reward <= 0) {
+      return 0;
     }
 
     await this.addReward(
@@ -166,53 +157,57 @@ export class RewardsService {
     return reward;
   }
 
-  ////////////////////////////////////////
+  // =========================
+  // REDEEM REWARD
+  // =========================
+
   async redeemReward(userId: string, amount: number, orderId: string) {
     const wallet = await this.getWallet(userId);
 
     if (wallet.balance < amount) {
-      throw new Error('Insufficient reward balance');
+      throw new BadRequestException(
+        'Insufficient reward balance',
+      );
     }
 
-    wallet.balance -= amount;
-
-    wallet.totalUsed += amount;
-
-    await wallet.save();
+    await this.walletModel.updateOne(
+      { user: userId },
+      {
+        $inc: {
+          balance: -amount,
+          totalUsed: amount,
+        },
+      },
+    );
 
     await this.transactionModel.create({
-      user: userId,
-
+      user: new Types.ObjectId(userId),
       amount,
-
       type: RewardTransactionType.REDEEM,
-
-      order: orderId,
-
+      order: new Types.ObjectId(orderId),
       description: 'Reward used during checkout',
     });
 
-    return wallet;
+    return this.getWallet(userId);
   }
-  
-/////////////////////////////////////////
+
+  // =========================
+  // CREATE CUSTOM TRANSACTION
+  // =========================
+
   async createTransaction(data: {
-  user: string;
-  amount: number;
-  type: string;
-  order: string;
-  description: string;
-}) {
-  return this.transactionModel.create({
-    user: new Types.ObjectId(data.user),
-
-    amount: data.amount,
-
-    type: data.type as RewardTransactionType,
-
-    order: new Types.ObjectId(data.order),
-
-    description: data.description,
-  });
-}
+    user: string;
+    amount: number;
+    type: RewardTransactionType;
+    order: string;
+    description: string;
+  }) {
+    return this.transactionModel.create({
+      user: new Types.ObjectId(data.user),
+      amount: data.amount,
+      type: data.type,
+      order: new Types.ObjectId(data.order),
+      description: data.description,
+    });
+  }
 }

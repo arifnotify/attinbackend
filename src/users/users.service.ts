@@ -176,18 +176,23 @@ export class UsersService {
   // CHANGE CUSTOMER TYPE
   // ===========================
   async checkCustomerLevel(userId: string) {
-    const user = await this.getUserById(userId);
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
     let customerType = CustomerType.REGULAR;
 
-    if (user.totalSpent >= 50000) {
+    if ((user.totalSpent || 0) >= 50000) {
       customerType = CustomerType.VIP;
-    } else if (user.totalSpent >= 10000) {
+    } else if ((user.totalSpent || 0) >= 10000) {
       customerType = CustomerType.PREMIUM;
     }
 
     if (customerType !== user.customerType) {
-      await this.updateCustomerType(userId, customerType);
+      user.customerType = customerType;
+      await user.save();
     }
 
     return customerType;
