@@ -13,6 +13,15 @@ export class CouponsController {
   ) {
     return this.couponsService.getUserCoupons(userId);
   }
+
+  // ===========================
+  // ADMIN
+  // ===========================
+
+  @Get('admin')
+  getAllCoupons() {
+    return this.couponsService.getAllCoupons();
+  }
 }
 
 /*import {

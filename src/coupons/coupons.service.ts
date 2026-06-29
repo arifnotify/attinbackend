@@ -134,6 +134,26 @@ export class CouponsService {
       { new: true },
     );
   }
+
+  // ===========================
+// ADMIN - GET ALL COUPONS
+// ===========================
+
+async getAllCoupons() {
+  return this.couponModel
+    .find()
+    .populate({
+      path: "user",
+      select: "phone customerType",
+    })
+    .populate({
+      path: "order",
+      select: "orderNumber",
+    })
+    .sort({
+      createdAt: -1,
+    });
+}
 }
 /* import {
   BadRequestException,
