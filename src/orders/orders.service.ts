@@ -170,11 +170,9 @@ export class OrdersService {
 
         rewardUsed,
 
-        discountAmount:
-          rewardUsed 
+        discountAmount: rewardUsed 
 
-        finalAmount,
-
+        //finalAmount,
         paymentMethod: 'COD',
 
         orderStatus:
