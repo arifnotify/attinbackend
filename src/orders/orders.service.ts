@@ -29,8 +29,6 @@ import { Address } from 'src/address/schemas/address.schema';
 
 import { RewardsService } from 'src/rewards/rewards.service';
 
-//import { CouponsService } from 'src/coupons/coupons.service';
-
 import { UsersService } from 'src/users/users.service';
 
 import { RewardTransactionType } from 'src/rewards/schemas/reward-transaction.schema';
@@ -54,8 +52,6 @@ export class OrdersService {
     private riderLocationModel: Model<RiderLocationDocument>,
 
     private rewardsService: RewardsService,
-
-    //private couponsService: CouponsService,
 
     private usersService: UsersService,
   ) {}
@@ -97,23 +93,8 @@ export class OrdersService {
 
     let rewardUsed = 0;
 
-    //let couponDiscount = 0;
-
     let finalAmount = totalAmount;
 
-    //let coupon: any = null;
-
-    // =========================
-    // APPLY COUPON
-    // =========================
-
-   /* if (dto.couponCode) {
-      coupon = await this.couponsService.validateCoupon(userId, dto.couponCode);
-
-      couponDiscount = Math.min(coupon.discountAmount, finalAmount);
-
-      finalAmount -= couponDiscount;
-    }*/
 
     // =========================
     // APPLY REWARD
@@ -189,10 +170,8 @@ export class OrdersService {
 
         rewardUsed,
 
-     //   couponDiscount,
-
         discountAmount:
-          rewardUsed //+ couponDiscount,
+          rewardUsed 
 
         finalAmount,
 
@@ -220,15 +199,7 @@ export class OrdersService {
       await this.usersService.increaseRewardUsed(userId, rewardUsed);
     }
 
-    // =========================
-    // MARK COUPON USED
-    // =========================
 
-   /* if (coupon) {
-      await this.couponsService.markAsUsed(
-        coupon._id.toString(),
-      );
-    }*/
 
     await this.cartModel.deleteMany({
       user: userId,
@@ -372,14 +343,7 @@ if (dto.orderStatus === OrderStatus.DELIVERED) {
     order.user.toString(),
   );
 
-  // =========================
-  // AUTO COUPON GENERATE
-  // =========================
 
- /* await this.couponsService.generatePurchaseCoupon(
-    order.user.toString(),
-    order.totalAmount,
-  );*/
 }
 
     return updated;
