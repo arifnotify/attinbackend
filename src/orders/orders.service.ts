@@ -29,7 +29,7 @@ import { Address } from 'src/address/schemas/address.schema';
 
 import { RewardsService } from 'src/rewards/rewards.service';
 
-import { CouponsService } from 'src/coupons/coupons.service';
+//import { CouponsService } from 'src/coupons/coupons.service';
 
 import { UsersService } from 'src/users/users.service';
 
@@ -55,7 +55,7 @@ export class OrdersService {
 
     private rewardsService: RewardsService,
 
-    private couponsService: CouponsService,
+    //private couponsService: CouponsService,
 
     private usersService: UsersService,
   ) {}
@@ -97,23 +97,23 @@ export class OrdersService {
 
     let rewardUsed = 0;
 
-    let couponDiscount = 0;
+    //let couponDiscount = 0;
 
     let finalAmount = totalAmount;
 
-    let coupon: any = null;
+    //let coupon: any = null;
 
     // =========================
     // APPLY COUPON
     // =========================
 
-    if (dto.couponCode) {
+   /* if (dto.couponCode) {
       coupon = await this.couponsService.validateCoupon(userId, dto.couponCode);
 
       couponDiscount = Math.min(coupon.discountAmount, finalAmount);
 
       finalAmount -= couponDiscount;
-    }
+    }*/
 
     // =========================
     // APPLY REWARD
@@ -189,10 +189,10 @@ export class OrdersService {
 
         rewardUsed,
 
-        couponDiscount,
+     //   couponDiscount,
 
         discountAmount:
-          rewardUsed + couponDiscount,
+          rewardUsed //+ couponDiscount,
 
         finalAmount,
 
@@ -224,11 +224,11 @@ export class OrdersService {
     // MARK COUPON USED
     // =========================
 
-    if (coupon) {
+   /* if (coupon) {
       await this.couponsService.markAsUsed(
         coupon._id.toString(),
       );
-    }
+    }*/
 
     await this.cartModel.deleteMany({
       user: userId,
@@ -376,10 +376,10 @@ if (dto.orderStatus === OrderStatus.DELIVERED) {
   // AUTO COUPON GENERATE
   // =========================
 
-  await this.couponsService.generatePurchaseCoupon(
+ /* await this.couponsService.generatePurchaseCoupon(
     order.user.toString(),
     order.totalAmount,
-  );
+  );*/
 }
 
     return updated;

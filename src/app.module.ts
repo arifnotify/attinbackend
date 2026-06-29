@@ -15,7 +15,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CartModule } from './cart/cart.module';
 import { OrdersModule } from './orders/orders.module';
 import { AddressModule } from './address/address.module';
-import { CouponsModule } from './coupons/coupons.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { LocationsModule } from './locations/locations.module';
 import { RidersModule } from './riders/riders.module';
@@ -65,9 +64,7 @@ import { RewardSettingsModule } from './reward-settings/reward-settings.module';
     OrdersModule,
 
     AddressModule,
-
-    CouponsModule,
-
+    
     AnalyticsModule,
 
     LocationsModule,

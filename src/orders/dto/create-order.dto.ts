@@ -4,7 +4,6 @@ import {
   IsOptional,
   IsBoolean,
   IsNumber,
-  //IsString,
 } from 'class-validator';
 
 export class CreateOrderDto {
@@ -20,7 +19,4 @@ export class CreateOrderDto {
   @IsNumber()
   rewardAmount?: number;
 
- // @IsOptional()
- // @IsString()
- // couponCode?: string;
 }
