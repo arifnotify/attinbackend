@@ -5,7 +5,7 @@ import { RewardsService } from './rewards.service';
 import { RewardsController } from './rewards.controller';
 
 import { RewardSettingsModule } from 'src/reward-settings/reward-settings.module';
-import { CouponsModule } from 'src/coupons/coupons.module';
+//import { CouponsModule } from 'src/coupons/coupons.module';
 import {
   RewardWallet,
   RewardWalletSchema,
@@ -23,7 +23,7 @@ import {
     ]),
 
     RewardSettingsModule,
-    CouponsModule, // 🔥 IMPORTANT FIX
+   // CouponsModule, // 🔥 IMPORTANT FIX
   ],
 
   providers: [RewardsService],

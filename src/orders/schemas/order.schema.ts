@@ -55,8 +55,8 @@ export class Order {
   @Prop({ default: 0 })
   rewardUsed: number;
 
-  @Prop({ default: 0 })
-  couponDiscount: number;
+ // @Prop({ default: 0 })
+  //couponDiscount: number;
 
   @Prop({ default: 0 })
   finalAmount: number;
@@ -118,9 +118,8 @@ export class Order {
   // COUPON SYSTEM (NEW)
   // =========================
 
-  @Prop({ default: null })
-  couponCode: string;
+ // @Prop({ default: null })
+ // couponCode: string;
 }
 
-export const OrderSchema =
-  SchemaFactory.createForClass(Order);
+export const OrderSchema = SchemaFactory.createForClass(Order);

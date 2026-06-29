@@ -349,14 +349,6 @@ if (dto.orderStatus === OrderStatus.DELIVERED) {
       earnedReward,
     );
 
-        // 🔥 ADD THIS (IMPORTANT FIX)
-   /* await this.rewardsService.createTransaction({
-      user: order.user.toString(),
-      amount: earnedReward,
-      type: RewardTransactionType.EARN,
-      order: order._id.toString(),
-      description: 'Reward earned from delivered order',
-    });*/
   }
 
   // =========================
