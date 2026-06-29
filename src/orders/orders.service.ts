@@ -64,13 +64,13 @@ export class OrdersService {
     const user = await this.userModel.findById(userId);
 
     if (!user) {
-    throw new NotFoundException('User not found');
+      throw new NotFoundException('User not found');
   }
 
   const address = await this.addressModel.findOne({
-    _id: dto.shippingAddress,
-    user: userId,
-  });
+      _id: dto.shippingAddress,
+      user: userId,
+    });
 
   if (!address) {
     throw new NotFoundException('Address not found');
@@ -90,7 +90,7 @@ export class OrdersService {
   );
 
   let rewardUsed = 0;
-  let finalAmount = totalAmount;
+    let finalAmount: number = totalAmount;
 
   // =========================
   // APPLY REWARD
@@ -103,12 +103,12 @@ export class OrdersService {
       throw new BadRequestException('Insufficient reward balance');
     }
 
-    rewardUsed = Math.min(dto.rewardAmount, finalAmount);
-    finalAmount -= rewardUsed;
+      rewardUsed = Math.min(dto.rewardAmount, finalAmount);
+      finalAmount -= rewardUsed;
   }
 
   if (finalAmount < 0) {
-    finalAmount = 0;
+      finalAmount = 0;
   }
 
   // =========================
