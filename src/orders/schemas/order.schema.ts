@@ -56,8 +56,8 @@ export class Order {
   rewardUsed: number;
 
 
- // @Prop({ default: 0 })
-  //finalAmount: number;
+  @Prop({ default: 0 })
+  finalAmount: number;
 
   // =========================
   // PAYMENT

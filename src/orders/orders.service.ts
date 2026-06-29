@@ -64,147 +64,128 @@ export class OrdersService {
     const user = await this.userModel.findById(userId);
 
     if (!user) {
-      throw new NotFoundException('User not found');
+    throw new NotFoundException('User not found');
+  }
+
+  const address = await this.addressModel.findOne({
+    _id: dto.shippingAddress,
+    user: userId,
+  });
+
+  if (!address) {
+    throw new NotFoundException('Address not found');
+  }
+
+  const cartItems = await this.cartModel
+    .find({ user: userId })
+    .populate('product');
+
+  if (!cartItems.length) {
+    throw new NotFoundException('Cart is empty');
+  }
+
+  const totalAmount = cartItems.reduce(
+    (sum, item) => sum + item.totalPrice,
+    0,
+  );
+
+  let rewardUsed = 0;
+  let finalAmount = totalAmount;
+
+  // =========================
+  // APPLY REWARD
+  // =========================
+
+  if (dto.useReward && dto.rewardAmount) {
+    const wallet = await this.rewardsService.getWallet(userId);
+
+    if (dto.rewardAmount > wallet.balance) {
+      throw new BadRequestException('Insufficient reward balance');
     }
 
-    const address = await this.addressModel.findOne({
-      _id: dto.shippingAddress,
-      user: userId,
+    rewardUsed = Math.min(dto.rewardAmount, finalAmount);
+    finalAmount -= rewardUsed;
+  }
+
+  if (finalAmount < 0) {
+    finalAmount = 0;
+  }
+
+  // =========================
+  // ITEMS MAP
+  // =========================
+
+  const items = cartItems.map((item) => ({
+    product: item.product._id,
+    productName:
+      typeof item.product.title === 'object'
+        ? item.product.title.en
+        : item.product.title,
+    productImage: item.product.images?.[0] || '',
+    quantity: item.quantity,
+    price: item.price,
+    totalPrice: item.totalPrice,
+  }));
+
+  // =========================
+  // ORDER NUMBER GENERATE
+  // =========================
+
+  let orderNumber = '';
+  let exists = true;
+
+  while (exists) {
+    orderNumber = Math.floor(
+      10000000 + Math.random() * 90000000,
+    ).toString();
+
+    const check = await this.orderModel.findOne({
+      orderNumber,
     });
 
-    if (!address) {
-      throw new NotFoundException('Address not found');
+    if (!check) {
+      exists = false;
     }
+  }
 
-    const cartItems = await this.cartModel
-      .find({
-        user: userId,
-      })
-      .populate('product');
+  // ❗❗ IMPORTANT FIX (THIS WAS YOUR ERROR)
+  const order = await this.orderModel.create({
+    orderNumber,
+    user: userId,
+    customerPhone: user.phone,
+    shippingAddress: address._id,
+    items,
+    totalAmount,
+      rewardUsed,
+      discountAmount: rewardUsed, // ✅ FIXED COMMA
+      finalAmount, // ✅ THIS WAS ERROR POINT BEFORE
+      paymentMethod: 'COD',
+    orderStatus: OrderStatus.PENDING,
+    isPaid: false,
+    trackingEnabled: false,
+  });
 
-    if (!cartItems.length) {
-      throw new NotFoundException('Cart is empty');
-    }
+  // =========================
+  // REDEEM REWARD
+  // =========================
 
-    const totalAmount = cartItems.reduce(
-      (sum, item) => sum + item.totalPrice,
-      0,
+  if (rewardUsed > 0) {
+    await this.rewardsService.redeemReward(
+      userId,
+      rewardUsed,
+      order._id.toString(),
     );
 
-    let rewardUsed = 0;
-
-    let finalAmount = totalAmount;
-
-
-    // =========================
-    // APPLY REWARD
-    // =========================
-
-    if (dto.useReward && dto.rewardAmount) {
-      const wallet = await this.rewardsService.getWallet(userId);
-
-      if (dto.rewardAmount > wallet.balance) {
-        throw new BadRequestException('Insufficient reward balance');
-      }
-
-      rewardUsed = Math.min(dto.rewardAmount, finalAmount);
-
-      finalAmount -= rewardUsed;
-    }
-
-    if (finalAmount < 0) {
-      finalAmount = 0;
-    }
-
-    const items = cartItems.map((item) => ({
-      product: item.product._id,
-
-      productName:
-        typeof item.product.title === 'object'
-          ? item.product.title.en
-          : item.product.title,
-
-        productImage:
-          item.product.images?.[0] || '',
-
-        quantity: item.quantity,
-
-        price: item.price,
-
-        totalPrice: item.totalPrice,
-      }));
-
-    let orderNumber = '';
-
-    let exists = true;
-
-    while (exists) {
-      orderNumber = Math.floor(
-        10000000 +
-          Math.random() * 90000000,
-      ).toString();
-
-      const check =
-        await this.orderModel.findOne({
-          orderNumber,
-        });
-
-      if (!check) {
-        exists = false;
-      }
-    }
-
-    const order =
-      await this.orderModel.create({
-        orderNumber,
-
-        user: userId,
-
-        customerPhone: user.phone,
-
-        shippingAddress: address._id,
-
-        items,
-
-        totalAmount,
-
-        rewardUsed,
-
-        discountAmount: rewardUsed 
-
-        //finalAmount,
-        paymentMethod: 'COD',
-
-        orderStatus:
-          OrderStatus.PENDING,
-
-        isPaid: false,
-
-        trackingEnabled: false,
-      });
-
-    // =========================
-    // REDEEM REWARD
-    // =========================
-
-    if (rewardUsed > 0) {
-      await this.rewardsService.redeemReward(
-        userId,
-        rewardUsed,
-        order._id.toString(),
-      );
-
-      await this.usersService.increaseRewardUsed(userId, rewardUsed);
-    }
-
-
-
-    await this.cartModel.deleteMany({
-      user: userId,
-    });
-
-    return order;
+    await this.usersService.increaseRewardUsed(
+      userId,
+      rewardUsed,
+    );
   }
+
+  await this.cartModel.deleteMany({ user: userId });
+
+  return order;
+}
     // =========================
   // USER ORDERS
   // =========================
