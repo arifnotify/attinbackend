@@ -26,39 +26,120 @@ export class CartService {
     private redisService: RedisService,
   ) {}
 
+  // =========================
+  // SYNC CART
+  // =========================
+
   async syncCart(userId: string, items: any[]) {
-    await this.cartModel.deleteMany({ user: userId });
-
-    const newItems = items.map((item) => ({
+    await this.cartModel.deleteMany({
       user: userId,
-      product: item.productId,
-      quantity: item.quantity,
-      price: item.price,
-      totalPrice: item.price * item.quantity,
-    }));
-
-    return this.cartModel.insertMany(newItems);
-  }
-
-  // ADD TO CART
-  async addToCart(userId: string, addToCartDto: AddToCartDto) {
-    const product = await this.productModel.findById(addToCartDto.productId);
-
-    if (!product) {
-      throw new NotFoundException('Product not found');
-    }
-
-    // check existing cart item
-    const existingCart = await this.cartModel.findOne({
-      user: userId,
-      product: addToCartDto.productId,
     });
 
-    // update quantity
-    if (existingCart) {
-      existingCart.quantity += addToCartDto.quantity;
+    const newItems = [];
 
-      existingCart.totalPrice = existingCart.quantity * existingCart.price;
+    for (const item of items) {
+      const product =
+        await this.productModel.findById(
+          item.productId,
+        );
+
+      if (!product) continue;
+
+      let sellingPrice = product.price;
+
+      if (
+        product.isFlashSale &&
+        product.flashSalePrice > 0
+      ) {
+        sellingPrice =
+          product.flashSalePrice;
+      } else if (
+        product.discountPrice > 0
+      ) {
+        sellingPrice =
+          product.discountPrice;
+      }
+
+      newItems.push({
+        user: userId,
+        product: item.productId,
+        quantity: item.quantity,
+        price: sellingPrice,
+        totalPrice:
+          sellingPrice * item.quantity,
+      });
+    }
+
+    const result =
+      await this.cartModel.insertMany(
+        newItems,
+      );
+
+    await this.cacheCart(userId);
+
+    return result;
+  }
+
+  // =========================
+  // ADD TO CART
+  // =========================
+
+  async addToCart(
+    userId: string,
+    addToCartDto: AddToCartDto,
+  ) {
+    const product =
+      await this.productModel.findById(
+        addToCartDto.productId,
+      );
+
+    if (!product) {
+      throw new NotFoundException(
+        'Product not found',
+      );
+    }
+
+    // =========================
+    // SELLING PRICE
+    // =========================
+
+    let sellingPrice =
+      product.price;
+
+    if (
+      product.isFlashSale &&
+      product.flashSalePrice > 0
+    ) {
+      sellingPrice =
+        product.flashSalePrice;
+    } else if (
+      product.discountPrice > 0
+    ) {
+      sellingPrice =
+        product.discountPrice;
+    }
+
+    // =========================
+    // EXISTING CART
+    // =========================
+
+    const existingCart =
+      await this.cartModel.findOne({
+        user: userId,
+        product:
+          addToCartDto.productId,
+      });
+
+    if (existingCart) {
+      existingCart.quantity +=
+        addToCartDto.quantity;
+
+      existingCart.price =
+        sellingPrice;
+
+      existingCart.totalPrice =
+        sellingPrice *
+        existingCart.quantity;
 
       await existingCart.save();
 
@@ -67,98 +148,153 @@ export class CartService {
       return existingCart;
     }
 
-    // create cart item
-    const cart = await this.cartModel.create({
-      user: userId,
+    // =========================
+    // CREATE CART
+    // =========================
 
-      product: addToCartDto.productId,
+    const cart =
+      await this.cartModel.create({
+        user: userId,
 
-      quantity: addToCartDto.quantity,
+        product:
+          addToCartDto.productId,
 
-      price: product.price,
+        quantity:
+          addToCartDto.quantity,
 
-      totalPrice: product.price * addToCartDto.quantity,
-    });
+        price: sellingPrice,
+
+        totalPrice:
+          sellingPrice *
+          addToCartDto.quantity,
+      });
 
     await this.cacheCart(userId);
 
     return cart;
   }
 
+  // =========================
   // GET USER CART
-async getUserCart(userId: string) {
-  const cacheKey = `cart:${userId}`;
+  // =========================
 
-  const cached = await this.redisService.get(cacheKey);
+  async getUserCart(userId: string) {
+    const cacheKey = `cart:${userId}`;
 
-  if (cached) {
-    return typeof cached === 'string'
-      ? JSON.parse(cached)
-      : cached;
-  }
+    const cached =
+      await this.redisService.get(
+        cacheKey,
+      );
 
-  const cart = await this.cartModel
-    .find({ user: userId })
-    .populate('product');
-
-  await this.redisService.set(
-    cacheKey,
-    JSON.stringify(cart),
-    300,
-  );
-
-  return cart;
-}
-
-  // UPDATE CART QUANTITY
-  async updateQuantity(cartId: string, updateCartDto: UpdateCartDto) {
-    const cart = await this.cartModel.findById(cartId);
-
-    if (!cart) {
-      throw new NotFoundException('Cart item not found');
+    if (cached) {
+      return typeof cached ===
+        'string'
+        ? JSON.parse(cached)
+        : cached;
     }
 
-    cart.quantity = updateCartDto.quantity;
+    const cart =
+      await this.cartModel
+        .find({
+          user: userId,
+        })
+        .populate('product');
 
-    cart.totalPrice = cart.price * cart.quantity;
-
-    await cart.save();
-
-    await this.cacheCart(cart.user.toString());
+    await this.redisService.set(
+      cacheKey,
+      JSON.stringify(cart),
+      300,
+    );
 
     return cart;
   }
 
-  // REMOVE CART ITEM
-  async removeCartItem(cartId: string) {
-    const cart = await this.cartModel.findById(cartId);
+  // =========================
+  // UPDATE QUANTITY
+  // =========================
+
+  async updateQuantity(
+    cartId: string,
+    updateCartDto: UpdateCartDto,
+  ) {
+    const cart =
+      await this.cartModel.findById(
+        cartId,
+      );
 
     if (!cart) {
-      throw new NotFoundException('Cart item not found');
+      throw new NotFoundException(
+        'Cart item not found',
+      );
     }
 
-    const userId = cart.user.toString();
+    cart.quantity =
+      updateCartDto.quantity;
 
-    await this.cartModel.findByIdAndDelete(cartId);
+    cart.totalPrice =
+      cart.price * cart.quantity;
+
+    await cart.save();
+
+    await this.cacheCart(
+      cart.user.toString(),
+    );
+
+    return cart;
+  }
+
+  // =========================
+  // REMOVE ITEM
+  // =========================
+
+  async removeCartItem(
+    cartId: string,
+  ) {
+    const cart =
+      await this.cartModel.findById(
+        cartId,
+      );
+
+    if (!cart) {
+      throw new NotFoundException(
+        'Cart item not found',
+      );
+    }
+
+    const userId =
+      cart.user.toString();
+
+    await this.cartModel.findByIdAndDelete(
+      cartId,
+    );
 
     await this.cacheCart(userId);
 
     return {
       success: true,
-      message: 'Cart item removed',
+      message:
+        'Cart item removed',
     };
   }
 
-  // CACHE USER CART
-async cacheCart(userId: string) {
-  const cart = await this.cartModel
-    .find({ user: userId })
-    .populate('product');
+  // =========================
+  // CACHE CART
+  // =========================
 
-  await this.redisService.set(
-    `cart:${userId}`,
-    JSON.stringify(cart),
-    300,
-  );
-}
+  async cacheCart(
+    userId: string,
+  ) {
+    const cart =
+      await this.cartModel
+        .find({
+          user: userId,
+        })
+        .populate('product');
+
+    await this.redisService.set(
+      `cart:${userId}`,
+      JSON.stringify(cart),
+      300,
+    );
+  }
 }

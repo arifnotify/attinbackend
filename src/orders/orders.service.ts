@@ -60,96 +60,89 @@ export class OrdersService {
   // CREATE ORDER
   // =========================
 
-  async createOrder(userId: string, dto: CreateOrderDto) {
-    const user = await this.userModel.findById(userId);
+async createOrder(userId: string, dto: CreateOrderDto) {
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+  // =========================
+  // USER CHECK
+  // =========================
+  const user = await this.userModel.findById(userId);
+
+  if (!user) {
+    throw new NotFoundException('User not found');
   }
 
+  // =========================
+  // ADDRESS CHECK
+  // =========================
   const address = await this.addressModel.findOne({
-      _id: dto.shippingAddress,
-      user: userId,
-    });
+    _id: dto.shippingAddress,
+    user: userId,
+  });
 
   if (!address) {
     throw new NotFoundException('Address not found');
   }
-/////////////////////////////////////////////////////////////////////
-const cartItems = await this.cartModel
-  .find({ user: userId })
-  .populate('product');
 
-if (!cartItems.length) {
-  throw new NotFoundException('Cart is empty');
-}
+  // =========================
+  // CART ITEMS
+  // =========================
+  const cartItems = await this.cartModel
+    .find({ user: userId })
+    .populate('product');
 
-// ================= DEBUG =================
-console.log("========== CART ITEMS ==========");
+  if (!cartItems.length) {
+    throw new NotFoundException('Cart is empty');
+  }
 
-cartItems.forEach((item: any) => {
-  console.log({
-    product: item.product.title.en,
-    productPrice: item.product.price,
-    discountPrice: item.product.discountPrice,
-    flashSalePrice: item.product.flashSalePrice,
-    cartPrice: item.price,
-    qty: item.quantity,
+  // =========================
+  // SUBTOTAL CALCULATION
+  // =========================
+  const subTotal = cartItems.reduce(
+    (sum, item) => sum + item.totalPrice,
+    0,
+  );
+
+  const deliveryCharge = dto.deliveryCharge ?? 0;
+
+  const totalAmount = subTotal + deliveryCharge;
+
+  // =========================
+  // REWARD CALCULATION (SAFE)
+  // =========================
+  let rewardUsed = 0;
+  let finalAmount = totalAmount;
+
+  if (dto.useReward && dto.rewardAmount) {
+
+    const wallet = await this.rewardsService.getWallet(userId);
+
+    rewardUsed = Math.min(
+      dto.rewardAmount,
+      wallet.balance,
+      totalAmount,
+    );
+
+    finalAmount = totalAmount - rewardUsed;
+  }
+
+  // safety
+  finalAmount = Math.max(0, finalAmount);
+
+  // =========================
+  // ITEMS MAP
+  // =========================
+  const items = cartItems.map((item: any) => ({
+    product: item.product._id,
+    productName: item.product.title?.en,
+    productImage: item.product.images?.[0] || '',
+    quantity: item.quantity,
+    price: item.price,
     totalPrice: item.totalPrice,
-  });
-});
+  }));
 
-const totalAmount = cartItems.reduce(
-  (sum, item) => sum + item.totalPrice,
-  0,
-);
-
-console.log("Cart Total =", totalAmount);
-console.log("================================");
-/////////////////////////////////////////////////////////////////
-
-    let rewardUsed = 0;
-    let finalAmount: number = totalAmount;
-
-    // =========================
-    // APPLY REWARD
-    // =========================
-
-    if (dto.useReward && dto.rewardAmount) {
-      const wallet = await this.rewardsService.getWallet(userId);
-
-      if (dto.rewardAmount > wallet.balance) {
-        throw new BadRequestException('Insufficient reward balance');
-      }
-
-      rewardUsed = Math.min(dto.rewardAmount, finalAmount);
-      finalAmount -= rewardUsed;
-    }
-
-    if (finalAmount < 0) {
-      finalAmount = 0;
-    }
-
-    // =========================
-    // ITEMS MAP
-    // =========================
-
-    const items = cartItems.map((item) => ({
-      product: item.product._id,
-      productName:
-      typeof item.product.title === 'object'
-          ? item.product.title.en
-          : item.product.title,
-      productImage: item.product.images?.[0] || '',
-      quantity: item.quantity,
-      price: item.price,
-      totalPrice: item.totalPrice,
-    }));
-
-    // =========================
+  // =========================
   // ORDER NUMBER GENERATE
   // =========================
-
   let orderNumber = '';
   let exists = true;
 
@@ -167,18 +160,29 @@ console.log("================================");
     }
   }
 
-  // ❗❗ IMPORTANT FIX (THIS WAS YOUR ERROR)
+  // =========================
+  // CREATE ORDER
+  // =========================
   const order = await this.orderModel.create({
+
     orderNumber,
+
     user: userId,
     customerPhone: user.phone,
     shippingAddress: address._id,
+
     items,
+
+    subTotal,
+    deliveryCharge,
     totalAmount,
-      rewardUsed,
-      discountAmount: rewardUsed, // ✅ FIXED COMMA
-      finalAmount, // ✅ THIS WAS ERROR POINT BEFORE
-      paymentMethod: 'COD',
+
+    rewardUsed,
+    discountAmount: rewardUsed,
+
+    finalAmount,
+
+    paymentMethod: 'COD',
     orderStatus: OrderStatus.PENDING,
     isPaid: false,
     trackingEnabled: false,
@@ -187,8 +191,8 @@ console.log("================================");
   // =========================
   // REDEEM REWARD
   // =========================
-
   if (rewardUsed > 0) {
+
     await this.rewardsService.redeemReward(
       userId,
       rewardUsed,
@@ -201,6 +205,9 @@ console.log("================================");
     );
   }
 
+  // =========================
+  // CLEAR CART
+  // =========================
   await this.cartModel.deleteMany({ user: userId });
 
   return order;

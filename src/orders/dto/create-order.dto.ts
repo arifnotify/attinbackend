@@ -19,4 +19,8 @@ export class CreateOrderDto {
   @IsNumber()
   rewardAmount?: number;
 
+  // NEW
+  @IsOptional()
+  @IsNumber()
+  deliveryCharge?: number;
 }

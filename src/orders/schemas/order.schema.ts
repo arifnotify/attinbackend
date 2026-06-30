@@ -6,7 +6,9 @@ export type OrderDocument = Order & Document;
 
 @Schema({ timestamps: true })
 export class Order {
-
+  // =========================
+  // USER INFO
+  // =========================
   @Prop({
     type: Types.ObjectId,
     ref: 'User',
@@ -43,11 +45,17 @@ export class Order {
   items: any[];
 
   // =========================
-  // PRICING
+  // PRICING BREAKDOWN (IMPORTANT FIX)
   // =========================
 
-  @Prop({ required: true })
-  totalAmount: number;
+  @Prop({ default: 0 })
+  subTotal: number; // cart total (without delivery)
+
+  @Prop({ default: 0 })
+  deliveryCharge: number;
+
+  @Prop({ default: 0 })
+  totalAmount: number; // subTotal + deliveryCharge
 
   @Prop({ default: 0 })
   discountAmount: number; // reward + coupon combined
@@ -55,14 +63,12 @@ export class Order {
   @Prop({ default: 0 })
   rewardUsed: number;
 
-
   @Prop({ default: 0 })
-  finalAmount: number;
+  finalAmount: number; // FINAL PAYABLE AMOUNT
 
   // =========================
   // PAYMENT
   // =========================
-
   @Prop({ default: 'COD' })
   paymentMethod: string;
 
@@ -78,7 +84,6 @@ export class Order {
   // =========================
   // ORDER META
   // =========================
-
   @Prop({
     required: true,
     unique: true,
@@ -96,9 +101,8 @@ export class Order {
   trackingEnabled: boolean;
 
   // =========================
-  // DELIVERY + RETURN (NEW)
+  // RETURN / REFUND
   // =========================
-
   @Prop({ default: 0 })
   returnedAmount: number;
 
@@ -106,12 +110,10 @@ export class Order {
   refundAmount: number;
 
   // =========================
-  // REWARD SYSTEM (NEW)
+  // REWARD SYSTEM
   // =========================
-
   @Prop({ default: 0 })
   earnedReward: number;
-
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);
