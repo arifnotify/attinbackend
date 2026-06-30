@@ -75,59 +75,78 @@ export class OrdersService {
   if (!address) {
     throw new NotFoundException('Address not found');
   }
+/////////////////////////////////////////////////////////////////////
+const cartItems = await this.cartModel
+  .find({ user: userId })
+  .populate('product');
 
-  const cartItems = await this.cartModel
-    .find({ user: userId })
-    .populate('product');
+if (!cartItems.length) {
+  throw new NotFoundException('Cart is empty');
+}
 
-  if (!cartItems.length) {
-    throw new NotFoundException('Cart is empty');
-  }
+// ================= DEBUG =================
+console.log("========== CART ITEMS ==========");
 
-  const totalAmount = cartItems.reduce(
-    (sum, item) => sum + item.totalPrice,
-    0,
-  );
+cartItems.forEach((item: any) => {
+  console.log({
+    product: item.product.title.en,
+    productPrice: item.product.price,
+    discountPrice: item.product.discountPrice,
+    flashSalePrice: item.product.flashSalePrice,
+    cartPrice: item.price,
+    qty: item.quantity,
+    totalPrice: item.totalPrice,
+  });
+});
 
-  let rewardUsed = 0;
+const totalAmount = cartItems.reduce(
+  (sum, item) => sum + item.totalPrice,
+  0,
+);
+
+console.log("Cart Total =", totalAmount);
+console.log("================================");
+/////////////////////////////////////////////////////////////////
+
+    let rewardUsed = 0;
     let finalAmount: number = totalAmount;
 
-  // =========================
-  // APPLY REWARD
-  // =========================
+    // =========================
+    // APPLY REWARD
+    // =========================
 
-  if (dto.useReward && dto.rewardAmount) {
-    const wallet = await this.rewardsService.getWallet(userId);
+    if (dto.useReward && dto.rewardAmount) {
+      const wallet = await this.rewardsService.getWallet(userId);
 
-    if (dto.rewardAmount > wallet.balance) {
-      throw new BadRequestException('Insufficient reward balance');
-    }
+      if (dto.rewardAmount > wallet.balance) {
+        throw new BadRequestException('Insufficient reward balance');
+      }
 
       rewardUsed = Math.min(dto.rewardAmount, finalAmount);
       finalAmount -= rewardUsed;
-  }
+    }
 
-  if (finalAmount < 0) {
+    if (finalAmount < 0) {
       finalAmount = 0;
-  }
+    }
 
-  // =========================
-  // ITEMS MAP
-  // =========================
+    // =========================
+    // ITEMS MAP
+    // =========================
 
-  const items = cartItems.map((item) => ({
-    product: item.product._id,
-    productName:
+    const items = cartItems.map((item) => ({
+      product: item.product._id,
+      productName:
       typeof item.product.title === 'object'
-        ? item.product.title.en
-        : item.product.title,
-    productImage: item.product.images?.[0] || '',
-    quantity: item.quantity,
-    price: item.price,
-    totalPrice: item.totalPrice,
-  }));
+          ? item.product.title.en
+          : item.product.title,
+      productImage: item.product.images?.[0] || '',
+      quantity: item.quantity,
+      price: item.price,
+      totalPrice: item.totalPrice,
+    }));
 
-  // =========================
+    // =========================
   // ORDER NUMBER GENERATE
   // =========================
 
