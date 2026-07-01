@@ -60,159 +60,143 @@ export class OrdersService {
   // CREATE ORDER
   // =========================
 
-async createOrder(userId: string, dto: CreateOrderDto) {
+  async createOrder(userId: string, dto: CreateOrderDto) {
+    // =========================
+    // USER CHECK
+    // =========================
+    const user = await this.userModel.findById(userId);
 
-  // =========================
-  // USER CHECK
-  // =========================
-  const user = await this.userModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
-
-  // =========================
-  // ADDRESS CHECK
-  // =========================
-  const address = await this.addressModel.findOne({
-    _id: dto.shippingAddress,
-    user: userId,
-  });
-
-  if (!address) {
-    throw new NotFoundException('Address not found');
-  }
-
-  // =========================
-  // CART ITEMS
-  // =========================
-  const cartItems = await this.cartModel
-    .find({ user: userId })
-    .populate('product');
-
-  if (!cartItems.length) {
-    throw new NotFoundException('Cart is empty');
-  }
-
-  // =========================
-  // SUBTOTAL CALCULATION
-  // =========================
-  const subTotal = cartItems.reduce(
-    (sum, item) => sum + item.totalPrice,
-    0,
-  );
-
-  const deliveryCharge = dto.deliveryCharge ?? 0;
-
-  const totalAmount = subTotal + deliveryCharge;
-
-  // =========================
-  // REWARD CALCULATION (SAFE)
-  // =========================
-  let rewardUsed = 0;
-  let finalAmount = totalAmount;
-
-  if (dto.useReward && dto.rewardAmount) {
-
-    const wallet = await this.rewardsService.getWallet(userId);
-
-    rewardUsed = Math.min(
-      dto.rewardAmount,
-      wallet.balance,
-      totalAmount,
-    );
-
-    finalAmount = totalAmount - rewardUsed;
-  }
-
-  // safety
-  finalAmount = Math.max(0, finalAmount);
-
-  // =========================
-  // ITEMS MAP
-  // =========================
-  const items = cartItems.map((item: any) => ({
-    product: item.product._id,
-    productName: item.product.title?.en,
-    productImage: item.product.images?.[0] || '',
-    quantity: item.quantity,
-    price: item.price,
-    totalPrice: item.totalPrice,
-  }));
-
-  // =========================
-  // ORDER NUMBER GENERATE
-  // =========================
-  let orderNumber = '';
-  let exists = true;
-
-  while (exists) {
-    orderNumber = Math.floor(
-      10000000 + Math.random() * 90000000,
-    ).toString();
-
-    const check = await this.orderModel.findOne({
-      orderNumber,
+    // =========================
+    // ADDRESS CHECK
+    // =========================
+    const address = await this.addressModel.findOne({
+      _id: dto.shippingAddress,
+      user: userId,
     });
 
-    if (!check) {
-      exists = false;
+    if (!address) {
+      throw new NotFoundException('Address not found');
     }
-  }
 
-  // =========================
-  // CREATE ORDER
-  // =========================
-  const order = await this.orderModel.create({
-
-    orderNumber,
-
-    user: userId,
-    customerPhone: user.phone,
-    shippingAddress: address._id,
-
-    items,
-
-    subTotal,
-    deliveryCharge,
-    totalAmount,
-
-    rewardUsed,
-    discountAmount: rewardUsed,
-
-    finalAmount,
-
-    paymentMethod: 'COD',
-    orderStatus: OrderStatus.PENDING,
-    isPaid: false,
-    trackingEnabled: false,
-  });
-
-  // =========================
-  // REDEEM REWARD
-  // =========================
-  if (rewardUsed > 0) {
-
-    await this.rewardsService.redeemReward(
-      userId,
-      rewardUsed,
-      order._id.toString(),
-    );
-
-    await this.usersService.increaseRewardUsed(
-      userId,
-      rewardUsed,
-    );
-  }
-
-  // =========================
-  // CLEAR CART
-  // =========================
-  await this.cartModel.deleteMany({ user: userId });
-
-  return order;
-}
     // =========================
+    // CART ITEMS
+    // =========================
+    const cartItems = await this.cartModel
+      .find({ user: userId })
+      .populate('product');
+
+    if (!cartItems.length) {
+      throw new NotFoundException('Cart is empty');
+    }
+
+    // =========================
+    // SUBTOTAL CALCULATION
+    // =========================
+    const subTotal = cartItems.reduce((sum, item) => sum + item.totalPrice, 0);
+
+    const deliveryCharge = dto.deliveryCharge ?? 0;
+
+    const totalAmount = subTotal + deliveryCharge;
+
+    // =========================
+    // REWARD CALCULATION (SAFE)
+    // =========================
+    let rewardUsed = 0;
+    let finalAmount = totalAmount;
+
+    if (dto.useReward && dto.rewardAmount) {
+      const wallet = await this.rewardsService.getWallet(userId);
+
+      rewardUsed = Math.min(dto.rewardAmount, wallet.balance, totalAmount);
+
+      finalAmount = totalAmount - rewardUsed;
+    }
+
+    // safety
+    finalAmount = Math.max(0, finalAmount);
+
+    // =========================
+    // ITEMS MAP
+    // =========================
+    const items = cartItems.map((item: any) => ({
+      product: item.product._id,
+      productName: item.product.title?.en,
+      productImage: item.product.images?.[0] || '',
+      quantity: item.quantity,
+      price: item.price,
+      totalPrice: item.totalPrice,
+    }));
+
+    // =========================
+    // ORDER NUMBER GENERATE
+    // =========================
+    let orderNumber = '';
+    let exists = true;
+
+    while (exists) {
+      orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
+
+      const check = await this.orderModel.findOne({
+        orderNumber,
+      });
+
+      if (!check) {
+        exists = false;
+      }
+    }
+
+    // =========================
+    // CREATE ORDER
+    // =========================
+    const order = await this.orderModel.create({
+      orderNumber,
+
+      user: userId,
+      customerPhone: user.phone,
+      shippingAddress: address._id,
+
+      items,
+
+      subTotal,
+      deliveryCharge,
+      totalAmount,
+
+      rewardUsed,
+      discountAmount: rewardUsed,
+
+      finalAmount,
+
+      paymentMethod: 'COD',
+      orderStatus: OrderStatus.PENDING,
+      isPaid: false,
+      trackingEnabled: false,
+    });
+
+    // =========================
+    // REDEEM REWARD
+    // =========================
+    if (rewardUsed > 0) {
+      await this.rewardsService.redeemReward(
+        userId,
+        rewardUsed,
+        order._id.toString(),
+      );
+
+      await this.usersService.increaseRewardUsed(userId, rewardUsed);
+    }
+
+    // =========================
+    // CLEAR CART
+    // =========================
+    await this.cartModel.deleteMany({ user: userId });
+
+    return order;
+  }
+  // =========================
   // USER ORDERS
   // =========================
 
@@ -232,12 +216,9 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   // =========================
 
   async getAllOrders() {
-    return this.orderModel
-      .find()
-      .populate('shippingAddress')
-      .sort({
-        createdAt: -1,
-      });
+    return this.orderModel.find().populate('shippingAddress').sort({
+      createdAt: -1,
+    });
   }
 
   // =========================
@@ -245,15 +226,12 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   // =========================
 
   async getSingleOrder(id: string) {
-    const order =
-      await this.orderModel
-        .findById(id)
-        .populate('shippingAddress');
+    const order = await this.orderModel
+      .findById(id)
+      .populate('shippingAddress');
 
     if (!order) {
-      throw new NotFoundException(
-        'Order not found',
-      );
+      throw new NotFoundException('Order not found');
     }
 
     return order;
@@ -263,172 +241,165 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   // UPDATE ORDER STATUS
   // =========================
 
-// =========================
-// UPDATE STATUS
-// =========================
+  // =========================
+  // UPDATE STATUS
+  // =========================
 
-  async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
+async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   const order = await this.orderModel.findById(id);
 
   if (!order) {
     throw new NotFoundException('Order not found');
   }
 
+  // ❗ Prevent duplicate processing
+  if (order.orderStatus === dto.orderStatus) {
+    return order;
+  }
+
+  const previousStatus = order.orderStatus;
+
+  // =========================
+  // UPDATE ORDER STATUS FIRST
+  // =========================
   const updated = await this.orderModel.findByIdAndUpdate(
     id,
     {
       orderStatus: dto.orderStatus,
     },
-    {
-      new: true,
-    },
+    { new: true },
   );
 
-  // =========================
-  // DELIVERY COMPLETED
-  // =========================
+  const userId = order.user.toString();
 
-if (dto.orderStatus === OrderStatus.DELIVERED) {
-  await this.orderModel.findByIdAndUpdate(id, {
-    trackingEnabled: false,
-    assignedRider: null,
-  });
+  // ======================================================
+  // 1. DELIVERY COMPLETED FLOW
+  // ======================================================
+  if (dto.orderStatus === OrderStatus.DELIVERED) {
+    await this.orderModel.findByIdAndUpdate(id, {
+      trackingEnabled: false,
+      assignedRider: null,
+    });
 
-  const user = await this.userModel.findById(order.user);
+    const user = await this.userModel.findById(userId);
 
-  const customerType = user?.customerType ?? 'regular';
+    const customerType = user?.customerType ?? 'regular';
 
-  // =========================
-  // GIVE REWARD
-  // =========================
-
-  const earnedReward =
-    await this.rewardsService.rewardAfterOrder(
-      order.user.toString(),
+    // -------------------------
+    // GIVE REWARD
+    // -------------------------
+    const earnedReward = await this.rewardsService.rewardAfterOrder(
+      userId,
       customerType,
       order.totalAmount,
       order._id.toString(),
     );
 
-  // Save reward in Order
-  await this.orderModel.findByIdAndUpdate(order._id, {
-    earnedReward: earnedReward || 0,
-  });
+    await this.orderModel.findByIdAndUpdate(order._id, {
+      earnedReward: earnedReward || 0,
+    });
 
-  // =========================
-  // USER REWARD UPDATE
-  // =========================
+    if (earnedReward > 0) {
+      await this.usersService.increaseRewardEarned(
+        userId,
+        earnedReward,
+      );
+    }
 
-  if (earnedReward > 0) {
-    await this.usersService.increaseRewardEarned(
-      order.user.toString(),
-      earnedReward,
+    // -------------------------
+    // USER STATS UPDATE
+    // -------------------------
+    await this.usersService.increaseSpentAmount(
+      userId,
+      order.totalAmount,
     );
 
+    await this.usersService.increaseOrderCount(userId);
+
+    await this.usersService.checkCustomerLevel(userId);
   }
 
-  // =========================
-  // USER STATS UPDATE
-  // =========================
+  // ======================================================
+  // 2. CANCEL FLOW (🔥 FIXED REWARD REFUND)
+  // ======================================================
+  if (dto.orderStatus === OrderStatus.CANCELLED) {
+    const usedReward = order.rewardUsed || 0;
 
-  await this.usersService.increaseSpentAmount(
-    order.user.toString(),
-    order.totalAmount,
-  );
+    if (usedReward > 0) {
+      const wallet = await this.rewardsService.getWallet(userId);
 
-  await this.usersService.increaseOrderCount(
-    order.user.toString(),
-  );
+      // 🔥 refund reward back
+      wallet.balance += usedReward;
+      wallet.totalSpent = Math.max(0, wallet.totalSpent - usedReward);
 
-  // =========================
-  // CUSTOMER LEVEL CHECK
-  // =========================
+      await wallet.save();
 
-  await this.usersService.checkCustomerLevel(
-    order.user.toString(),
-  );
+      // 🔥 update user stats
+      await this.usersService.decreaseRewardUsed(userId, usedReward);
 
+      // 🔥 transaction log
+      await this.rewardsService.createTransaction({
+        user: userId,
+        amount: usedReward,
+        type: RewardTransactionType.EARN, // or REFUND type if available
+        order: id,
+        description: 'Reward refunded due to order cancellation',
+      });
+    }
 
+    // optional cleanup
+    await this.orderModel.findByIdAndUpdate(id, {
+      trackingEnabled: false,
+      assignedRider: null,
+    });
+  }
+
+  // ======================================================
+  // 3. RETURN UPDATED ORDER
+  // ======================================================
+  return updated;
 }
-
-    return updated;
-  }
   // =========================
   // RETURN ORDER ITEM
   // =========================
 
-  async returnOrderItem(
-    orderId: string,
-    returnAmount: number,
-  ) {
-    const order =
-      await this.orderModel.findById(
-        orderId,
-      );
+  async returnOrderItem(orderId: string, returnAmount: number) {
+    const order = await this.orderModel.findById(orderId);
 
     if (!order) {
-      throw new NotFoundException(
-        'Order not found',
-      );
+      throw new NotFoundException('Order not found');
     }
 
-    if (
-      (order.returnedAmount || 0) +
-        returnAmount >
-      order.totalAmount
-    ) {
-      throw new BadRequestException(
-        'Return exceeds order amount',
-      );
+    if ((order.returnedAmount || 0) + returnAmount > order.totalAmount) {
+      throw new BadRequestException('Return exceeds order amount');
     }
 
-    order.returnedAmount =
-      (order.returnedAmount || 0) +
-      returnAmount;
+    order.returnedAmount = (order.returnedAmount || 0) + returnAmount;
 
-    order.refundAmount =
-      (order.refundAmount || 0) +
-      returnAmount;
+    order.refundAmount = (order.refundAmount || 0) + returnAmount;
 
     await order.save();
 
-    const userId =
-      order.user.toString();
+    const userId = order.user.toString();
 
-    const wallet =
-      await this.rewardsService.getWallet(
-        userId,
-      );
+    const wallet = await this.rewardsService.getWallet(userId);
 
-    const ratio =
-      returnAmount / order.totalAmount;
+    const ratio = returnAmount / order.totalAmount;
 
-    const deductedReward =
-      (order.earnedReward || 0) *
-      ratio;
+    const deductedReward = (order.earnedReward || 0) * ratio;
 
-    wallet.balance = Math.max(
-      0,
-      wallet.balance - deductedReward,
-    );
+    wallet.balance = Math.max(0, wallet.balance - deductedReward);
 
-    wallet.totalEarned = Math.max(
-      0,
-      wallet.totalEarned -
-        deductedReward,
-    );
+    wallet.totalEarned = Math.max(0, wallet.totalEarned - deductedReward);
 
     await wallet.save();
 
     // Update User Reward Summary
-    await this.userModel.findByIdAndUpdate(
-      userId,
-      {
-        $inc: {
-          totalRewardEarned: -deductedReward,
-        },
+    await this.userModel.findByIdAndUpdate(userId, {
+      $inc: {
+        totalRewardEarned: -deductedReward,
       },
-    );
+    });
 
     await this.rewardsService.createTransaction({
       user: userId,
@@ -453,11 +424,9 @@ if (dto.orderStatus === OrderStatus.DELIVERED) {
     return this.orderModel.findByIdAndUpdate(
       orderId,
       {
-        assignedRider:
-          new Types.ObjectId(riderId),
+        assignedRider: new Types.ObjectId(riderId),
 
-        orderStatus:
-          OrderStatus.OUT_FOR_DELIVERY,
+        orderStatus: OrderStatus.OUT_FOR_DELIVERY,
 
         trackingEnabled: true,
       },
@@ -472,15 +441,12 @@ if (dto.orderStatus === OrderStatus.DELIVERED) {
   // =========================
 
   async getTracking(orderId: string) {
-    const order =
-      await this.orderModel
-        .findById(orderId)
-        .populate('shippingAddress');
+    const order = await this.orderModel
+      .findById(orderId)
+      .populate('shippingAddress');
 
     if (!order) {
-      throw new NotFoundException(
-        'Order not found',
-      );
+      throw new NotFoundException('Order not found');
     }
 
     if (!order.assignedRider) {
@@ -491,37 +457,28 @@ if (dto.orderStatus === OrderStatus.DELIVERED) {
       };
     }
 
-    const riderLocation =
-      await this.riderLocationModel.findOne(
-        {
-          riderId: order.assignedRider,
-        },
-      );
+    const riderLocation = await this.riderLocationModel.findOne({
+      riderId: order.assignedRider,
+    });
 
-    const address =
-      order.shippingAddress as any;
+    const address = order.shippingAddress as any;
 
     return {
       orderNumber: order.orderNumber,
       status: order.orderStatus,
-      trackingEnabled:
-        order.trackingEnabled,
+      trackingEnabled: order.trackingEnabled,
 
       destination: {
         lat: address.latitude,
         lng: address.longitude,
-        area:
-          address.areaOrVillage,
-        landmark:
-          address.landmark,
+        area: address.areaOrVillage,
+        landmark: address.landmark,
       },
 
       rider: {
         lat: riderLocation?.lat ?? null,
         lng: riderLocation?.lng ?? null,
-        updatedAt:
-          riderLocation?.updatedAt ??
-          null,
+        updatedAt: riderLocation?.updatedAt ?? null,
       },
     };
   }
