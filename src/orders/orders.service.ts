@@ -244,7 +244,6 @@ export class OrdersService {
   // =========================
   // UPDATE STATUS
   // =========================
-
 async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   const order = await this.orderModel.findById(id);
 
@@ -252,16 +251,13 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     throw new NotFoundException('Order not found');
   }
 
-  // ❗ Prevent duplicate processing
+  // 🔥 prevent duplicate update
   if (order.orderStatus === dto.orderStatus) {
     return order;
   }
 
-  const previousStatus = order.orderStatus;
+  const userId = order.user.toString();
 
-  // =========================
-  // UPDATE ORDER STATUS FIRST
-  // =========================
   const updated = await this.orderModel.findByIdAndUpdate(
     id,
     {
@@ -270,10 +266,8 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     { new: true },
   );
 
-  const userId = order.user.toString();
-
   // ======================================================
-  // 1. DELIVERY COMPLETED FLOW
+  // 🔵 DELIVERY COMPLETED FLOW
   // ======================================================
   if (dto.orderStatus === OrderStatus.DELIVERED) {
     await this.orderModel.findByIdAndUpdate(id, {
@@ -285,9 +279,9 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
 
     const customerType = user?.customerType ?? 'regular';
 
-    // -------------------------
+    // =========================
     // GIVE REWARD
-    // -------------------------
+    // =========================
     const earnedReward = await this.rewardsService.rewardAfterOrder(
       userId,
       customerType,
@@ -295,10 +289,14 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       order._id.toString(),
     );
 
+    // save earned reward in order
     await this.orderModel.findByIdAndUpdate(order._id, {
       earnedReward: earnedReward || 0,
     });
 
+    // =========================
+    // USER REWARD UPDATE
+    // =========================
     if (earnedReward > 0) {
       await this.usersService.increaseRewardEarned(
         userId,
@@ -306,9 +304,9 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       );
     }
 
-    // -------------------------
+    // =========================
     // USER STATS UPDATE
-    // -------------------------
+    // =========================
     await this.usersService.increaseSpentAmount(
       userId,
       order.totalAmount,
@@ -320,7 +318,7 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   }
 
   // ======================================================
-  // 2. CANCEL FLOW (🔥 FIXED REWARD REFUND)
+  // 🔴 CANCEL FLOW (NEW FIXED)
   // ======================================================
   if (dto.orderStatus === OrderStatus.CANCELLED) {
     const usedReward = order.rewardUsed || 0;
@@ -328,35 +326,32 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     if (usedReward > 0) {
       const wallet = await this.rewardsService.getWallet(userId);
 
-      // 🔥 refund reward back
+      // refund reward back
       wallet.balance += usedReward;
-      wallet.totalSpent = Math.max(0, wallet.totalSpent - usedReward);
-
       await wallet.save();
 
-      // 🔥 update user stats
-      await this.usersService.decreaseRewardUsed(userId, usedReward);
+      // rollback user reward usage safely
+      await this.usersService.increaseRewardUsed(
+        userId,
+        -usedReward,
+      );
 
-      // 🔥 transaction log
+      // transaction log
       await this.rewardsService.createTransaction({
         user: userId,
         amount: usedReward,
-        type: RewardTransactionType.EARN, // or REFUND type if available
+        type: RewardTransactionType.EARN,
         order: id,
         description: 'Reward refunded due to order cancellation',
       });
     }
 
-    // optional cleanup
     await this.orderModel.findByIdAndUpdate(id, {
       trackingEnabled: false,
       assignedRider: null,
     });
   }
 
-  // ======================================================
-  // 3. RETURN UPDATED ORDER
-  // ======================================================
   return updated;
 }
   // =========================
