@@ -6,24 +6,17 @@ export type OrderDocument = Order & Document;
 
 @Schema({ timestamps: true })
 export class Order {
+
   // =========================
-  // USER INFO
+  // USER
   // =========================
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'User',
-    required: true,
-  })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   user: Types.ObjectId;
 
   @Prop()
   customerPhone: string;
 
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'Address',
-    required: true,
-  })
+  @Prop({ type: Types.ObjectId, ref: 'Address', required: true })
   shippingAddress: Types.ObjectId;
 
   // =========================
@@ -31,10 +24,7 @@ export class Order {
   // =========================
   @Prop([
     {
-      product: {
-        type: Types.ObjectId,
-        ref: 'Product',
-      },
+      product: { type: Types.ObjectId, ref: 'Product' },
       productName: String,
       productImage: String,
       quantity: Number,
@@ -45,26 +35,22 @@ export class Order {
   items: any[];
 
   // =========================
-  // PRICING BREAKDOWN (IMPORTANT FIX)
+  // PRICING
   // =========================
-
   @Prop({ default: 0 })
-  subTotal: number; // cart total (without delivery)
+  subTotal: number;
 
   @Prop({ default: 0 })
   deliveryCharge: number;
 
   @Prop({ default: 0 })
-  totalAmount: number; // subTotal + deliveryCharge
-
-  @Prop({ default: 0 })
-  discountAmount: number; // reward + coupon combined
+  totalAmount: number;
 
   @Prop({ default: 0 })
   rewardUsed: number;
 
   @Prop({ default: 0 })
-  finalAmount: number; // FINAL PAYABLE AMOUNT
+  finalAmount: number;
 
   // =========================
   // PAYMENT
@@ -82,26 +68,19 @@ export class Order {
   isPaid: boolean;
 
   // =========================
-  // ORDER META
+  // META
   // =========================
-  @Prop({
-    required: true,
-    unique: true,
-  })
+  @Prop({ required: true, unique: true })
   orderNumber: string;
 
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'Rider',
-    default: null,
-  })
-  assignedRider: Types.ObjectId | null;
+  @Prop({ type: Types.ObjectId, ref: 'Rider', default: null })
+  assignedRider: Types.ObjectId;
 
   @Prop({ default: false })
   trackingEnabled: boolean;
 
   // =========================
-  // RETURN / REFUND
+  // REFUND
   // =========================
   @Prop({ default: 0 })
   returnedAmount: number;
@@ -110,7 +89,7 @@ export class Order {
   refundAmount: number;
 
   // =========================
-  // REWARD SYSTEM
+  // REWARD
   // =========================
   @Prop({ default: 0 })
   earnedReward: number;
