@@ -512,8 +512,8 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     });
   }
   //////////////////////////////////////////////////////////////////////////////////////////////
-async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
-  const order = await this.orderModel.findById(orderId);
+  async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
+    const order = await this.orderModel.findById(orderId);
 
   if (!order) {
     throw new NotFoundException('Order not found');
@@ -599,6 +599,5 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
   await order.save();
 
   return order;
-}
-
+  }
 }
