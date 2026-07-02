@@ -523,9 +523,6 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
     throw new BadRequestException('Delivered order cannot be edited');
   }
 
-  // =========================
-  // VALIDATION
-  // =========================
   if (!dto.items || dto.items.length === 0) {
     throw new BadRequestException('Items are required');
   }
@@ -564,38 +561,31 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
   // =========================
   // STEP 2: RECALCULATE TOTAL
   // =========================
-  const deliveryCharge = order.deliveryCharge || 0;
+  const deliveryCharge =
+    dto.deliveryCharge !== undefined
+      ? dto.deliveryCharge
+      : order.deliveryCharge || 0;
+
   const totalAmount = subTotal + deliveryCharge;
 
   // =========================
-  // STEP 3: REWARD (LOCKED - NO CHANGE)
+  // STEP 3: REWARD (LOCKED - NEVER CHANGE)
   // =========================
   const rewardUsed = order.rewardUsed || 0;
 
-  // =========================
-  // STEP 4: FINAL AMOUNT
-  // =========================
   const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
   // =========================
-  // STEP 5: WALLET UPDATE (ONLY PRICE DIFFERENCE)
+  // STEP 4: WALLET SAFE UPDATE (ONLY DIFFERENCE)
   // =========================
-  const userId = order.user?.toString();
-
-  if (!userId) {
-    throw new BadRequestException('Order user not found');
-  }
+  const userId = order.user.toString();
 
   const diff = totalAmount - order.totalAmount;
 
   if (diff !== 0) {
     const wallet = await this.rewardsService.getWallet(userId);
 
-    if (!wallet) {
-      throw new BadRequestException('Wallet not found');
-    }
-
-    wallet.balance = wallet.balance + diff;
+    wallet.balance += diff;
 
     if (wallet.balance < 0) {
       wallet.balance = 0;
@@ -607,7 +597,26 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
   }
 
   // =========================
-  // STEP 6: UPDATE ORDER
+  // STEP 5: OPTIONAL FIELDS UPDATE
+  // =========================
+  if (dto.shippingAddress) {
+    order.shippingAddress = dto.shippingAddress;
+  }
+
+  if (dto.paymentMethod) {
+    order.paymentMethod = dto.paymentMethod;
+  }
+
+  if (typeof dto.isPaid === 'boolean') {
+    order.isPaid = dto.isPaid;
+  }
+
+  if (dto.deliveryCharge !== undefined) {
+    order.deliveryCharge = dto.deliveryCharge;
+  }
+
+  // =========================
+  // STEP 6: SAVE ORDER
   // =========================
   order.subTotal = subTotal;
   order.totalAmount = totalAmount;
