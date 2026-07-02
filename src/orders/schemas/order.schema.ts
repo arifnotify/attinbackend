@@ -8,15 +8,23 @@ export type OrderDocument = Order & Document;
 export class Order {
 
   // =========================
-  // USER
+  // USER INFO
   // =========================
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'User',
+    required: true,
+  })
   user: Types.ObjectId;
 
   @Prop()
   customerPhone: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Address', required: true })
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Address',
+    required: true,
+  })
   shippingAddress: Types.ObjectId;
 
   // =========================
@@ -24,7 +32,10 @@ export class Order {
   // =========================
   @Prop([
     {
-      product: { type: Types.ObjectId, ref: 'Product' },
+      product: {
+        type: Types.ObjectId,
+        ref: 'Product',
+      },
       productName: String,
       productImage: String,
       quantity: Number,
@@ -32,10 +43,17 @@ export class Order {
       totalPrice: Number,
     },
   ])
-  items: any[];
+  items: {
+    product: Types.ObjectId;
+    productName: string;
+    productImage: string;
+    quantity: number;
+    price: number;
+    totalPrice: number;
+  }[];
 
   // =========================
-  // PRICING
+  // PRICING BREAKDOWN
   // =========================
   @Prop({ default: 0 })
   subTotal: number;
@@ -45,6 +63,10 @@ export class Order {
 
   @Prop({ default: 0 })
   totalAmount: number;
+
+  // 🔥 FIXED: (previous error fix)
+  @Prop({ default: 0 })
+  discountAmount: number;
 
   @Prop({ default: 0 })
   rewardUsed: number;
@@ -68,19 +90,26 @@ export class Order {
   isPaid: boolean;
 
   // =========================
-  // META
+  // ORDER META
   // =========================
-  @Prop({ required: true, unique: true })
+  @Prop({
+    required: true,
+    unique: true,
+  })
   orderNumber: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Rider', default: null })
-  assignedRider: Types.ObjectId;
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Rider',
+    default: null,
+  })
+  assignedRider: Types.ObjectId | null;
 
   @Prop({ default: false })
   trackingEnabled: boolean;
 
   // =========================
-  // REFUND
+  // RETURN / REFUND
   // =========================
   @Prop({ default: 0 })
   returnedAmount: number;
@@ -89,7 +118,7 @@ export class Order {
   refundAmount: number;
 
   // =========================
-  // REWARD
+  // REWARD SYSTEM
   // =========================
   @Prop({ default: 0 })
   earnedReward: number;

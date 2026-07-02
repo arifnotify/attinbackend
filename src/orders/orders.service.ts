@@ -33,6 +33,7 @@ import { UsersService } from 'src/users/users.service';
 
 import { RewardTransactionType } from 'src/rewards/schemas/reward-transaction.schema';
 import { AdminEditOrderDto } from './dto/admin-edit-order.dto';
+import { Product } from 'src/products/schemas/product.schema';
 
 @Injectable()
 export class OrdersService {
@@ -55,6 +56,9 @@ export class OrdersService {
     private rewardsService: RewardsService,
 
     private usersService: UsersService,
+
+    @InjectModel(Product.name)
+    private productModel: Model<Product>,
   ) {}
 
   // =========================
@@ -501,69 +505,72 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       });
   }
 
-  //////////////////////////////////////////////////////////////////////////
-
+  ////////////////////////////////////////////////////////////////////////////////////
+  async increaseSpentAmount(userId: string, amount: number) {
+    return this.userModel.findByIdAndUpdate(userId, {
+      $inc: { totalSpent: amount },
+    });
+  }
+  //////////////////////////////////////////////////////////////////////////////////////////////
   async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
     const order = await this.orderModel.findById(orderId);
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
+  if (!order) {
+    throw new NotFoundException('Order not found');
+  }
 
-    if (order.orderStatus === OrderStatus.DELIVERED) {
-      throw new BadRequestException('Delivered order cannot be edited');
-    }
+  if (order.orderStatus === OrderStatus.DELIVERED) {
+    throw new BadRequestException('Delivered order cannot be edited');
+  }
 
-    // ======================================================
-    // STEP 1 — ITEMS UPDATE
-    // ======================================================
-    let subTotal = 0;
+  // =========================
+  // STEP 1: UPDATE ITEMS
+  // =========================
+  let subTotal = 0;
 
-    const updatedItems = await Promise.all(
-      dto.items.map(async (item) => {
-        const product = await this.productModel.findById(item.product);
+  const updatedItems = await Promise.all(
+    dto.items.map(async (item) => {
+      const product = await this.productModel.findById(item.product);
 
-        if (!product) {
-          throw new BadRequestException('Product not found');
-        }
+      if (!product) {
+        throw new BadRequestException('Product not found');
+      }
 
-        const price = product.price;
-        const totalPrice = price * item.quantity;
+      const price = product.price;
+      const totalPrice = price * item.quantity;
 
-        subTotal += totalPrice;
+      subTotal += totalPrice;
 
-        return {
-          product: product._id,
-          productName: product.name,
-          productImage: product.images?.[0],
-          quantity: item.quantity,
-          price,
-          totalPrice,
-        };
-      }),
-    );
+      return {
+        product: product._id,
+        productName: product.title?.en,
+        productImage: product.images?.[0] || '',
+        quantity: item.quantity,
+        price,
+        totalPrice,
+      };
+    }),
+  );
 
-    order.items = updatedItems;
+  order.items = updatedItems;
 
-    // ======================================================
-    // STEP 2 — AUTO RECALCULATE
-    // ======================================================
-    const deliveryCharge = order.deliveryCharge || 0;
+  // =========================
+  // STEP 2: AUTO RECALCULATE
+  // =========================
+  const deliveryCharge = order.deliveryCharge || 0;
 
-    const totalAmount = subTotal + deliveryCharge;
+  const totalAmount = subTotal + deliveryCharge;
 
-  // ======================================================
-  // STEP 3 — REWARD RECALCULATE
-  // ======================================================
-  const oldReward = order.rewardUsed || 0;
-
-  const rewardUsed = Math.min(oldReward, totalAmount);
+  // =========================
+  // STEP 3: REWARD RECALCULATE
+  // =========================
+  const rewardUsed = Math.min(order.rewardUsed || 0, totalAmount);
 
   const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
-  // ======================================================
-  // STEP 4 — WALLET / USER UPDATE
-  // ======================================================
+  // =========================
+  // STEP 4: WALLET UPDATE
+  // =========================
   const userId = order.user.toString();
 
   const diff = totalAmount - order.totalAmount;
@@ -571,26 +578,24 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   if (diff !== 0) {
     const wallet = await this.rewardsService.getWallet(userId);
 
-    wallet.balance = wallet.balance + diff;
+    wallet.balance += diff;
 
     await wallet.save();
 
-    await this.usersService.updateUserOrderStats(userId, diff);
+    await this.usersService.increaseSpentAmount(userId, diff);
   }
 
-  // ======================================================
-  // STEP 5 — APPLY UPDATE
-  // ======================================================
+  // =========================
+  // STEP 5: SAVE ORDER
+  // =========================
   order.subTotal = subTotal;
   order.totalAmount = totalAmount;
   order.rewardUsed = rewardUsed;
   order.finalAmount = finalAmount;
 
-  // ======================================================
-  // STEP 6 — SAVE ORDER
-  // ======================================================
   await order.save();
 
   return order;
 }
+
 }
