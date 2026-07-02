@@ -512,8 +512,8 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     });
   }
   //////////////////////////////////////////////////////////////////////////////////////////////
-  async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
-    const order = await this.orderModel.findById(orderId);
+async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
+  const order = await this.orderModel.findById(orderId);
 
   if (!order) {
     throw new NotFoundException('Order not found');
@@ -521,6 +521,13 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
 
   if (order.orderStatus === OrderStatus.DELIVERED) {
     throw new BadRequestException('Delivered order cannot be edited');
+  }
+
+  // =========================
+  // VALIDATION
+  // =========================
+  if (!dto.items || dto.items.length === 0) {
+    throw new BadRequestException('Items are required');
   }
 
   // =========================
@@ -536,7 +543,7 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
         throw new BadRequestException('Product not found');
       }
 
-      const price = product.price;
+      const price = product.price || 0;
       const totalPrice = price * item.quantity;
 
       subTotal += totalPrice;
@@ -561,7 +568,7 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   const totalAmount = subTotal + deliveryCharge;
 
   // =========================
-  // STEP 3: REWARD (LOCKED ❌ NO CHANGE)
+  // STEP 3: REWARD (LOCKED - NO CHANGE)
   // =========================
   const rewardUsed = order.rewardUsed || 0;
 
@@ -571,18 +578,28 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
   // =========================
-  // STEP 5: WALLET UPDATE (ONLY PRICE DIFF)
+  // STEP 5: WALLET UPDATE (ONLY PRICE DIFFERENCE)
   // =========================
-  const userId = order.user.toString();
+  const userId = order.user?.toString();
+
+  if (!userId) {
+    throw new BadRequestException('Order user not found');
+  }
 
   const diff = totalAmount - order.totalAmount;
 
   if (diff !== 0) {
     const wallet = await this.rewardsService.getWallet(userId);
 
+    if (!wallet) {
+      throw new BadRequestException('Wallet not found');
+    }
+
     wallet.balance = wallet.balance + diff;
 
-    if (wallet.balance < 0) wallet.balance = 0;
+    if (wallet.balance < 0) {
+      wallet.balance = 0;
+    }
 
     await wallet.save();
 
@@ -590,7 +607,7 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   }
 
   // =========================
-  // STEP 6: SAVE ORDER
+  // STEP 6: UPDATE ORDER
   // =========================
   order.subTotal = subTotal;
   order.totalAmount = totalAmount;
@@ -599,5 +616,5 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   await order.save();
 
   return order;
-  }
+}
 }
