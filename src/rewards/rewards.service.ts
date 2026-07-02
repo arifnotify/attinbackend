@@ -28,34 +28,27 @@ export class RewardsService {
   ) {}
 
   // =========================
-  // GET OR CREATE WALLET (SAFE + RACE CONDITION FIX)
+  // GET OR CREATE WALLET (FIXED - NO NULL ISSUE)
   // =========================
-  async getWallet(userId: string) {
+  async getWallet(userId: string): Promise<RewardWalletDocument> {
     const userObjectId = new Types.ObjectId(userId);
 
     let wallet = await this.walletModel.findOne({ user: userObjectId });
 
     if (wallet) return wallet;
 
-    try {
-      wallet = await this.walletModel.create({
-        user: userObjectId,
-        balance: 0,
-        totalEarned: 0,
-        totalUsed: 0,
-      });
+    wallet = await this.walletModel.create({
+      user: userObjectId,
+      balance: 0,
+      totalEarned: 0,
+      totalUsed: 0,
+    });
 
-      return wallet;
-    } catch (err) {
-      if (err.code === 11000) {
-        return this.walletModel.findOne({ user: userObjectId });
-      }
-      throw err;
-    }
+    return wallet;
   }
 
   // =========================
-  // ADD REWARD (ONLY DELIVERY)
+  // ADD REWARD (DELIVERY ONLY)
   // =========================
   async addReward(
     userId: string,
@@ -119,8 +112,13 @@ export class RewardsService {
 
     let percentage = settings.regularPercentage;
 
-    if (customerType === 'premium') percentage = settings.premiumPercentage;
-    if (customerType === 'vip') percentage = settings.vipPercentage;
+    if (customerType === 'premium') {
+      percentage = settings.premiumPercentage;
+    }
+
+    if (customerType === 'vip') {
+      percentage = settings.vipPercentage;
+    }
 
     const reward = (orderAmount * percentage) / 100;
 
@@ -128,7 +126,7 @@ export class RewardsService {
   }
 
   // =========================
-  // DELIVERY REWARD ONLY
+  // ORDER DELIVERED REWARD (ONLY THIS GIVES REWARD)
   // =========================
   async rewardAfterOrder(
     userId: string,
@@ -138,7 +136,7 @@ export class RewardsService {
   ): Promise<number> {
     const reward = await this.calculateReward(customerType, orderAmount);
 
-    if (reward <= 0) return 0;
+    if (!reward || reward <= 0) return 0;
 
     await this.addReward(
       userId,
@@ -151,7 +149,7 @@ export class RewardsService {
   }
 
   // =========================
-  // REDEEM REWARD (CHECKOUT)
+  // REDEEM REWARD (CHECKOUT ONLY)
   // =========================
   async redeemReward(userId: string, amount: number, orderId: string) {
     const wallet = await this.getWallet(userId);
@@ -177,7 +175,7 @@ export class RewardsService {
   }
 
   // =========================
-  // CUSTOM TRANSACTION
+  // CUSTOM TRANSACTION (SAFE LOGGING)
   // =========================
   async createTransaction(data: {
     user: string;

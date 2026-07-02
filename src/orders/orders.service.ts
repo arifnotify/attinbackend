@@ -519,16 +519,13 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
     throw new NotFoundException('Order not found');
   }
 
+  // 🚫 Delivered order cannot edit
   if (order.orderStatus === OrderStatus.DELIVERED) {
     throw new BadRequestException('Delivered order cannot be edited');
   }
 
-  if (!dto.items || dto.items.length === 0) {
-    throw new BadRequestException('Items are required');
-  }
-
   // =========================
-  // STEP 1: UPDATE ITEMS
+  // STEP 1: UPDATE ITEMS + RECALCULATE SUBTOTAL
   // =========================
   let subTotal = 0;
 
@@ -540,7 +537,7 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
         throw new BadRequestException('Product not found');
       }
 
-      const price = product.price || 0;
+      const price = product.price;
       const totalPrice = price * item.quantity;
 
       subTotal += totalPrice;
@@ -561,69 +558,54 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
   // =========================
   // STEP 2: RECALCULATE TOTAL
   // =========================
-  const deliveryCharge =
-    dto.deliveryCharge !== undefined
-      ? dto.deliveryCharge
-      : order.deliveryCharge || 0;
+  const deliveryCharge = order.deliveryCharge || 0;
 
   const totalAmount = subTotal + deliveryCharge;
 
   // =========================
-  // STEP 3: REWARD (LOCKED - NEVER CHANGE)
+  // STEP 3: REWARD SAFE RECALCULATION (NO NEGATIVE BUG)
   // =========================
-  const rewardUsed = order.rewardUsed || 0;
-
-  const finalAmount = Math.max(0, totalAmount - rewardUsed);
+  const oldTotal = order.totalAmount || 0;
+  const diff = totalAmount - oldTotal;
 
   // =========================
-  // STEP 4: WALLET SAFE UPDATE (ONLY DIFFERENCE)
+  // STEP 4: WALLET SAFE UPDATE
   // =========================
   const userId = order.user.toString();
-
-  const diff = totalAmount - order.totalAmount;
 
   if (diff !== 0) {
     const wallet = await this.rewardsService.getWallet(userId);
 
-    wallet.balance += diff;
-
-    if (wallet.balance < 0) {
-      wallet.balance = 0;
+    // safety check (VERY IMPORTANT)
+    if (wallet) {
+      wallet.balance = Math.max(0, wallet.balance + diff);
+      await wallet.save();
     }
-
-    await wallet.save();
 
     await this.usersService.increaseSpentAmount(userId, diff);
   }
 
   // =========================
-  // STEP 5: OPTIONAL FIELDS UPDATE
+  // STEP 5: REWARD USED SAFE LIMIT
   // =========================
-  if (dto.shippingAddress) {
-    order.shippingAddress = dto.shippingAddress;
-  }
+  const rewardUsed = Math.min(order.rewardUsed || 0, totalAmount);
 
-  if (dto.paymentMethod) {
-    order.paymentMethod = dto.paymentMethod;
-  }
-
-  if (typeof dto.isPaid === 'boolean') {
-    order.isPaid = dto.isPaid;
-  }
-
-  if (dto.deliveryCharge !== undefined) {
-    order.deliveryCharge = dto.deliveryCharge;
-  }
+  const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
   // =========================
-  // STEP 6: SAVE ORDER
+  // STEP 6: UPDATE ORDER
   // =========================
   order.subTotal = subTotal;
   order.totalAmount = totalAmount;
+  order.rewardUsed = rewardUsed;
   order.finalAmount = finalAmount;
 
   await order.save();
 
-  return order;
+  return {
+    success: true,
+    message: 'Order updated successfully',
+    order,
+  };
 }
 }
