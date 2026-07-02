@@ -20,6 +20,7 @@ import { Address, AddressSchema } from '../address/schemas/address.schema';
 import { RedisModule } from '../redis/redis.module';
 import { RewardsModule } from 'src/rewards/rewards.module';
 import { UsersModule } from 'src/users/users.module';
+import { Product, ProductSchema } from 'src/products/schemas/product.schema';
 
 @Module({
   imports: [
@@ -49,6 +50,9 @@ import { UsersModule } from 'src/users/users.module';
         name: Address.name,
         schema: AddressSchema,
       },
+
+      // 🔥 THIS IS MISSING (IMPORTANT FIX)
+      { name: Product.name, schema: ProductSchema },
     ]),
 
     RedisModule,
