@@ -15,12 +15,11 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
+import { AdminEditOrderDto } from './dto/admin-edit-order.dto';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(
-    private readonly service: OrdersService,
-  ) {}
+  constructor(private readonly service: OrdersService) {}
 
   // =========================
   // CREATE ORDER
@@ -28,14 +27,8 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Post()
-  create(
-    @Req() req: any,
-    @Body() dto: CreateOrderDto,
-  ) {
-    return this.service.createOrder(
-      req.user.userId,
-      dto,
-    );
+  create(@Req() req: any, @Body() dto: CreateOrderDto) {
+    return this.service.createOrder(req.user.userId, dto);
   }
 
   // =========================
@@ -45,9 +38,7 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @Get('my-orders')
   getMyOrders(@Req() req: any) {
-    return this.service.getUserOrders(
-      req.user.userId,
-    );
+    return this.service.getUserOrders(req.user.userId);
   }
 
   // =========================
@@ -57,9 +48,7 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @Get('active')
   getActiveOrder(@Req() req: any) {
-    return this.service.getActiveOrder(
-      req.user.userId,
-    );
+    return this.service.getActiveOrder(req.user.userId);
   }
 
   // =========================
@@ -77,9 +66,7 @@ export class OrdersController {
   // =========================
 
   @Get(':id/tracking')
-  getTracking(
-    @Param('id') id: string,
-  ) {
+  getTracking(@Param('id') id: string) {
     return this.service.getTracking(id);
   }
 
@@ -89,9 +76,7 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Get(':id')
-  getOne(
-    @Param('id') id: string,
-  ) {
+  getOne(@Param('id') id: string) {
     return this.service.getSingleOrder(id);
   }
 
@@ -101,14 +86,8 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/status')
-  updateStatus(
-    @Param('id') id: string,
-    @Body() dto: UpdateOrderStatusDto,
-  ) {
-    return this.service.updateOrderStatus(
-      id,
-      dto,
-    );
+  updateStatus(@Param('id') id: string, @Body() dto: UpdateOrderStatusDto) {
+    return this.service.updateOrderStatus(id, dto);
   }
 
   // =========================
@@ -117,12 +96,13 @@ export class OrdersController {
 
   @UseGuards(JwtAuthGuard)
   @Put('assign-rider')
-  assignRider(
-    @Body() body: any,
-  ) {
-    return this.service.assignRider(
-      body.orderId,
-      body.riderId,
-    );
+  assignRider(@Body() body: any) {
+    return this.service.assignRider(body.orderId, body.riderId);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id')
+  adminEditOrder(@Param('id') id: string, @Body() dto: AdminEditOrderDto) {
+    return this.service.adminEditOrder(id, dto);
   }
 }
