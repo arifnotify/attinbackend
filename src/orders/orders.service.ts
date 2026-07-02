@@ -512,8 +512,8 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     });
   }
   //////////////////////////////////////////////////////////////////////////////////////////////
-  async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
-    const order = await this.orderModel.findById(orderId);
+async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
+  const order = await this.orderModel.findById(orderId);
 
   if (!order) {
     throw new NotFoundException('Order not found');
@@ -555,21 +555,23 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   order.items = updatedItems;
 
   // =========================
-  // STEP 2: AUTO RECALCULATE
+  // STEP 2: RECALCULATE TOTAL
   // =========================
   const deliveryCharge = order.deliveryCharge || 0;
-
   const totalAmount = subTotal + deliveryCharge;
 
   // =========================
-  // STEP 3: REWARD RECALCULATE
+  // STEP 3: REWARD (LOCKED ❌ NO CHANGE)
   // =========================
-  const rewardUsed = Math.min(order.rewardUsed || 0, totalAmount);
+  const rewardUsed = order.rewardUsed || 0;
 
+  // =========================
+  // STEP 4: FINAL AMOUNT
+  // =========================
   const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
   // =========================
-  // STEP 4: WALLET UPDATE
+  // STEP 5: WALLET UPDATE (ONLY PRICE DIFF)
   // =========================
   const userId = order.user.toString();
 
@@ -578,7 +580,9 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   if (diff !== 0) {
     const wallet = await this.rewardsService.getWallet(userId);
 
-    wallet.balance += diff;
+    wallet.balance = wallet.balance + diff;
+
+    if (wallet.balance < 0) wallet.balance = 0;
 
     await wallet.save();
 
@@ -586,11 +590,10 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   }
 
   // =========================
-  // STEP 5: SAVE ORDER
+  // STEP 6: SAVE ORDER
   // =========================
   order.subTotal = subTotal;
   order.totalAmount = totalAmount;
-  order.rewardUsed = rewardUsed;
   order.finalAmount = finalAmount;
 
   await order.save();
