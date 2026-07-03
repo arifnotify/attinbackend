@@ -34,5 +34,8 @@ import { RedisModule } from '../redis/redis.module';
   controllers: [CartController],
 
   providers: [CartService],
+
+    // ✅ এটা যোগ করুন
+  exports: [CartService],
 })
 export class CartModule {}
