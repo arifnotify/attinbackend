@@ -98,7 +98,7 @@ export class RewardsService {
   // =========================
 async history(userId: string) {
   return this.transactionModel
-    .find({ user: new Types.ObjectId(userId) })
+    .find({ user: userId })
     .sort({ createdAt: -1 });
 }
 
