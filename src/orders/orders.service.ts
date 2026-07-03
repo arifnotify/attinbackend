@@ -140,14 +140,19 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   // =========================
   // ITEMS MAP
   // =========================
-  const items = cartItems.map((item: any) => ({
+const items = cartItems.map((item: any) => {
+  const price = item.price || 0;
+  const qty = item.quantity || 1;
+
+  return {
     product: item.product._id,
     productName: item.product.title?.en,
     productImage: item.product.images?.[0] || '',
-    quantity: item.quantity,
-    price: item.price,
-    totalPrice: price * item.quantity,
-  }));
+    quantity: qty,
+    price,
+    totalPrice: price * qty,
+  };
+});
 
   // =========================
   // ORDER NUMBER GENERATE
