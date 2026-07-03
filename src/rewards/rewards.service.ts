@@ -128,25 +128,25 @@ export class RewardsService {
   // =========================
   // ORDER DELIVERED REWARD (ONLY THIS GIVES REWARD)
   // =========================
-  async rewardAfterOrder(
-    userId: string,
-    customerType: string,
-    orderAmount: number,
-    orderId: string,
-  ): Promise<number> {
-    const reward = await this.calculateReward(customerType, orderAmount);
+ async rewardAfterOrder(
+  userId: string,
+  customerType: string,
+  subTotal: number, // ❗ ONLY PRODUCT PRICE
+  orderId: string,
+): Promise<number> {
+  const reward = await this.calculateReward(customerType, subTotal);
 
-    if (!reward || reward <= 0) return 0;
+  if (!reward || reward <= 0) return 0;
 
-    await this.addReward(
-      userId,
-      reward,
-      orderId,
-      `Reward earned from order ৳${orderAmount}`,
-    );
+  await this.addReward(
+    userId,
+    reward,
+    orderId,
+    `Reward earned from product amount ৳${subTotal}`,
+  );
 
-    return reward;
-  }
+  return reward;
+}
 
   // =========================
   // REDEEM REWARD (CHECKOUT ONLY)

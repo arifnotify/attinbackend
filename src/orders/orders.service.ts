@@ -73,10 +73,7 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   // USER CHECK
   // =========================
   const user = await this.userModel.findById(userId);
-
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
+  if (!user) throw new NotFoundException('User not found');
 
   // =========================
   // ADDRESS CHECK
@@ -86,9 +83,7 @@ async createOrder(userId: string, dto: CreateOrderDto) {
     user: userId,
   });
 
-  if (!address) {
-    throw new NotFoundException('Address not found');
-  }
+  if (!address) throw new NotFoundException('Address not found');
 
   // =========================
   // CART ITEMS
@@ -97,44 +92,50 @@ async createOrder(userId: string, dto: CreateOrderDto) {
     .find({ user: userId })
     .populate('product');
 
-  if (!cartItems.length) {
-    throw new NotFoundException('Cart is empty');
-  }
+  if (!cartItems.length) throw new NotFoundException('Cart is empty');
 
   // =========================
-  // SUBTOTAL
+  // SUBTOTAL (PRODUCT ONLY SAFE)
   // =========================
-  const subTotal = cartItems.reduce(
-    (sum, item) => sum + item.totalPrice,
-    0,
-  );
+  const subTotal = cartItems.reduce((sum, item: any) => {
+    const price = item.price || 0;
+    const qty = item.quantity || 1;
 
+    return sum + price * qty;
+  }, 0);
+
+  // =========================
+  // DELIVERY CHARGE
+  // =========================
   const deliveryCharge = dto.deliveryCharge ?? 0;
 
   // =========================
-  // REWARD CALCULATION (FIXED)
+  // WALLET
+  // =========================
+  const wallet = await this.rewardsService.getWallet(userId);
+
+  // =========================
+  // REWARD (ONLY SUBTOTAL)
   // =========================
   let rewardUsed = 0;
 
-  if (dto.useReward && dto.rewardAmount) {
-    const wallet = await this.rewardsService.getWallet(userId);
-
-    // reward ONLY applies on product price (NOT delivery)
+  if (dto.useReward) {
     rewardUsed = Math.min(
-      dto.rewardAmount,
+      dto.rewardAmount || 0,
       wallet.balance,
-      subTotal,
+      subTotal, // ❗ ONLY PRODUCT PRICE
     );
   }
 
   // =========================
-  // FINAL AMOUNT
+  // TOTAL CALCULATION
   // =========================
-  const finalAmount =
-    subTotal + deliveryCharge - rewardUsed;
+  const totalAmount = subTotal + deliveryCharge;
 
-  // safety
-  const safeFinalAmount = Math.max(0, finalAmount);
+  const finalAmount = Math.max(
+    0,
+    totalAmount - rewardUsed,
+  );
 
   // =========================
   // ITEMS MAP
@@ -145,11 +146,11 @@ async createOrder(userId: string, dto: CreateOrderDto) {
     productImage: item.product.images?.[0] || '',
     quantity: item.quantity,
     price: item.price,
-    totalPrice: item.totalPrice,
+    totalPrice: price * item.quantity,
   }));
 
   // =========================
-  // ORDER NUMBER
+  // ORDER NUMBER GENERATE
   // =========================
   let orderNumber = '';
   let exists = true;
@@ -159,13 +160,9 @@ async createOrder(userId: string, dto: CreateOrderDto) {
       10000000 + Math.random() * 90000000,
     ).toString();
 
-    const check = await this.orderModel.findOne({
-      orderNumber,
-    });
+    const check = await this.orderModel.findOne({ orderNumber });
 
-    if (!check) {
-      exists = false;
-    }
+    if (!check) exists = false;
   }
 
   // =========================
@@ -173,7 +170,6 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   // =========================
   const order = await this.orderModel.create({
     orderNumber,
-
     user: userId,
     customerPhone: user.phone,
     shippingAddress: address._id,
@@ -186,8 +182,8 @@ async createOrder(userId: string, dto: CreateOrderDto) {
     rewardUsed,
     discountAmount: rewardUsed,
 
-    totalAmount: subTotal + deliveryCharge,
-    finalAmount: safeFinalAmount,
+    totalAmount,
+    finalAmount,
 
     paymentMethod: 'COD',
     orderStatus: OrderStatus.PENDING,
@@ -215,7 +211,6 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   // CLEAR CART
   // =========================
   await this.cartModel.deleteMany({ user: userId });
-
   await this.cartService.cacheCart(userId);
 
   return order;
