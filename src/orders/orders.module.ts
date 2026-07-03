@@ -21,6 +21,7 @@ import { RedisModule } from '../redis/redis.module';
 import { RewardsModule } from 'src/rewards/rewards.module';
 import { UsersModule } from 'src/users/users.module';
 import { Product, ProductSchema } from 'src/products/schemas/product.schema';
+import { CartModule } from 'src/cart/cart.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { Product, ProductSchema } from 'src/products/schemas/product.schema';
 
     RewardsModule,
     UsersModule, // ✅ ADD THIS (UsersService জন্য)
+    CartModule, // 🔥 MUST
   ],
 
   controllers: [OrdersController],
