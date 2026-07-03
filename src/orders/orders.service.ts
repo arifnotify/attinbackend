@@ -34,6 +34,7 @@ import { UsersService } from 'src/users/users.service';
 import { RewardTransactionType } from 'src/rewards/schemas/reward-transaction.schema';
 import { AdminEditOrderDto } from './dto/admin-edit-order.dto';
 import { Product } from 'src/products/schemas/product.schema';
+import { CartService } from 'src/cart/cart.service';
 
 @Injectable()
 export class OrdersService {
@@ -59,6 +60,8 @@ export class OrdersService {
 
     @InjectModel(Product.name)
     private productModel: Model<Product>,
+
+    private readonly cartService: CartService,
   ) {}
 
   // =========================
@@ -198,6 +201,9 @@ export class OrdersService {
     // CLEAR CART
     // =========================
     await this.cartModel.deleteMany({ user: userId });
+
+    // ✅ Redis Cache Update
+    await this.cartService.cacheCart(userId);
 
     return order;
   }
