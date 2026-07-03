@@ -309,7 +309,7 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     const earnedReward = await this.rewardsService.rewardAfterOrder(
       userId,
       customerType,
-      order.totalAmount,
+      order.subTotal,
       order._id.toString(),
     );
 
@@ -403,7 +403,7 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
 
     const wallet = await this.rewardsService.getWallet(userId);
 
-    const ratio = returnAmount / order.totalAmount;
+    const ratio = returnAmount / order.subTotal;
 
     const deductedReward = (order.earnedReward || 0) * ratio;
 
