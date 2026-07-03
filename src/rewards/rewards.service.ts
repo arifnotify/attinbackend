@@ -96,11 +96,11 @@ export class RewardsService {
   // =========================
   // HISTORY
   // =========================
-  async history(userId: string) {
-    return this.transactionModel
-      .find({ user: userId })
-      .sort({ createdAt: -1 });
-  }
+async history(userId: string) {
+  return this.transactionModel
+    .find({ user: new Types.ObjectId(userId) })
+    .sort({ createdAt: -1 });
+}
 
   // =========================
   // CALCULATE REWARD
