@@ -74,6 +74,11 @@ export class CreateProductDto {
   @IsBoolean()
   isFlashSale: boolean;
 
+ // ⭐ নতুন যোগ করুন
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+
   @IsOptional()
   @IsString()
   productType: string;

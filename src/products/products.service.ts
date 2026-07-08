@@ -171,6 +171,7 @@ async findAll(search?: string) {
     }
 
     await this.redisService.del('all_products');
+    await this.redisService.del('admin_products');
 
     // 🔥 SOCKET EVENT
     this.socketGateway.emitHomeUpdated();
@@ -359,5 +360,24 @@ async searchProducts(searchDto: SearchProductDto) {
       perPage,
     },
   };
+}
+
+// =========================
+// ADMIN ALL PRODUCTS
+// =========================
+
+async findAllAdmin() {
+
+  const products =
+    await this.productModel
+      .find()
+      .populate('category')
+      .sort({
+        createdAt:-1,
+      });
+
+
+  return products;
+
 }
 }
