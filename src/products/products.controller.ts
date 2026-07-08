@@ -78,4 +78,11 @@ export class ProductsController {
   remove(@Param('id') id: string) {
     return this.productsService.remove(id);
   }
+//////////////////////////////////////////////////////////////////
+@Get('admin/all')
+  async findAllAdmin() {
+
+ return this.productsService.findAllAdmin();
+
+}
 }
