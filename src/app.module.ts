@@ -24,7 +24,7 @@ import { SocketModule } from './socket/socket.module';
 import { SupportLinksModule } from './support-links/support-links.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { RewardSettingsModule } from './reward-settings/reward-settings.module';
-import { SettingsModule } from './setting/settings.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
