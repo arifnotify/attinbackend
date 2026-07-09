@@ -532,99 +532,165 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   }
   //////////////////////////////////////////////////////////////////////////////////////////////
 async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
+
   const order = await this.orderModel.findById(orderId);
 
   if (!order) {
     throw new NotFoundException('Order not found');
   }
 
+
   // 🚫 Delivered order cannot edit
   if (order.orderStatus === OrderStatus.DELIVERED) {
-    throw new BadRequestException('Delivered order cannot be edited');
+    throw new BadRequestException(
+      'Delivered order cannot be edited'
+    );
   }
 
+
   // =========================
-  // STEP 1: UPDATE ITEMS + RECALCULATE SUBTOTAL
+  // STEP 1: UPDATE ITEMS + CURRENT PRICE SAVE
   // =========================
+
   let subTotal = 0;
 
-  const updatedItems = await Promise.all(
-    dto.items.map(async (item) => {
-      const product = await this.productModel.findById(item.product);
 
-      if (!product) {
-        throw new BadRequestException('Product not found');
-      }
+  const updatedItems = dto.items.map((item)=>{
 
-      const price = product.price;
-      const totalPrice = price * item.quantity;
 
-      subTotal += totalPrice;
+    const price = item.price;
 
-      return {
-        product: product._id,
-        productName: product.title?.en,
-        productImage: product.images?.[0] || '',
-        quantity: item.quantity,
-        price,
-        totalPrice,
-      };
-    }),
-  );
 
-  order.items = updatedItems;
+    const totalPrice = price * item.quantity;
+
+
+    subTotal += totalPrice;
+
+
+
+    return {
+
+      product: new Types.ObjectId(item.product),
+
+      productName:item.productName || '',
+
+      productImage:item.productImage || '',
+
+      quantity:item.quantity,
+
+      price,
+
+      totalPrice,
+
+    };
+
+
+  });
+
+
+
+  order.items = updatedItems as any;
+
+
 
   // =========================
   // STEP 2: RECALCULATE TOTAL
   // =========================
+
   const deliveryCharge = order.deliveryCharge || 0;
+
 
   const totalAmount = subTotal + deliveryCharge;
 
+
+
   // =========================
-  // STEP 3: REWARD SAFE RECALCULATION (NO NEGATIVE BUG)
+  // STEP 3: PRICE DIFFERENCE
   // =========================
+
   const oldTotal = order.totalAmount || 0;
+
   const diff = totalAmount - oldTotal;
 
+
+
   // =========================
-  // STEP 4: WALLET SAFE UPDATE
+  // STEP 4: UPDATE USER WALLET SAFE
   // =========================
+
   const userId = order.user.toString();
 
-  if (diff !== 0) {
-    const wallet = await this.rewardsService.getWallet(userId);
 
-    // safety check (VERY IMPORTANT)
-    if (wallet) {
-      wallet.balance = Math.max(0, wallet.balance + diff);
+
+  if(diff !== 0){
+
+
+    const wallet =
+      await this.rewardsService.getWallet(userId);
+
+
+
+    if(wallet){
+
+      wallet.balance = Math.max(
+        0,
+        wallet.balance + diff
+      );
+
       await wallet.save();
+
     }
 
-    await this.usersService.increaseSpentAmount(userId, diff);
+
+
+    await this.usersService.increaseSpentAmount(
+      userId,
+      diff
+    );
+
+
   }
 
-  // =========================
-  // STEP 5: REWARD USED SAFE LIMIT
-  // =========================
-  const rewardUsed = Math.min(order.rewardUsed || 0, totalAmount);
 
-  const finalAmount = Math.max(0, totalAmount - rewardUsed);
+
 
   // =========================
-  // STEP 6: UPDATE ORDER
+  // STEP 5: REWARD SAFE
   // =========================
+
+  const rewardUsed = Math.min(
+    order.rewardUsed || 0,
+    totalAmount
+  );
+
+
+  const finalAmount = Math.max(
+    0,
+    totalAmount - rewardUsed
+  );
+
+
+
+
+  // =========================
+  // STEP 6: SAVE ORDER
+  // =========================
+
   order.subTotal = subTotal;
+
   order.totalAmount = totalAmount;
+
   order.rewardUsed = rewardUsed;
+
   order.finalAmount = finalAmount;
 
   await order.save();
-
   return {
-    success: true,
-    message: 'Order updated successfully',
+    success:true,
+    message:'Order updated successfully',
     order,
+
   };
+
 }
 }
