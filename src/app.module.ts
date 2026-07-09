@@ -24,6 +24,7 @@ import { SocketModule } from './socket/socket.module';
 import { SupportLinksModule } from './support-links/support-links.module';
 import { RewardsModule } from './rewards/rewards.module';
 import { RewardSettingsModule } from './reward-settings/reward-settings.module';
+import { SettingsModule } from './setting/settings.module';
 
 @Module({
   imports: [
@@ -64,7 +65,7 @@ import { RewardSettingsModule } from './reward-settings/reward-settings.module';
     OrdersModule,
 
     AddressModule,
-    
+
     AnalyticsModule,
 
     LocationsModule,
@@ -80,6 +81,8 @@ import { RewardSettingsModule } from './reward-settings/reward-settings.module';
     RewardsModule,
 
     RewardSettingsModule, // 👈 এটা MUST
+
+    SettingsModule,
   ],
   controllers: [HealthController],
 })

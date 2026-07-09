@@ -191,24 +191,16 @@ export class UsersService {
 
     let customerType = CustomerType.REGULAR;
 
-  if ((user.totalSpent || 0) >=
-    vipAmount
-  ) {
-    customerType =
-      CustomerType.VIP;
-  } else if (
-    (user.totalSpent || 0) >=
-    premiumAmount
-  ) {
-    customerType =
-      CustomerType.PREMIUM;
+    if ((user.totalSpent || 0) >= vipAmount) {
+      customerType = CustomerType.VIP;
+    } else if ((user.totalSpent || 0) >= premiumAmount) {
+      customerType = CustomerType.PREMIUM;
+    }
+
+    user.customerType = customerType;
+
+    await user.save();
+
+    return user;
   }
-
-  user.customerType =
-    customerType;
-
-  await user.save();
-
-  return user;
-}
 }

@@ -1,13 +1,8 @@
-import {
-  Prop,
-  Schema,
-  SchemaFactory,
-} from '@nestjs/mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
 import { Document } from 'mongoose';
 
-export type SettingDocument =
-  Setting & Document;
+export type SettingDocument = Setting & Document;
 
 @Schema({
   timestamps: true,
