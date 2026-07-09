@@ -107,6 +107,4 @@ export class RewardSettings {
 
 
 export const RewardSettingsSchema =
-  SchemaFactory.createForClass(
-    RewardSettings,
-  );
+  SchemaFactory.createForClass(RewardSettings);
