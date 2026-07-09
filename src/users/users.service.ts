@@ -8,6 +8,7 @@ import { User, UserDocument, CustomerType } from './schemas/user.schema';
 
 @Injectable()
 export class UsersService {
+  [x: string]: any;
   constructor(
     @InjectModel(User.name)
     private userModel: Model<UserDocument>,
@@ -182,19 +183,32 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
+    const settings = await this.settingModel.findOne();
+
+    const premiumAmount = settings?.premiumAmount || 10000;
+
+    const vipAmount = settings?.vipAmount || 50000;
+
     let customerType = CustomerType.REGULAR;
 
-    if ((user.totalSpent || 0) >= 50000) {
-      customerType = CustomerType.VIP;
-    } else if ((user.totalSpent || 0) >= 10000) {
-      customerType = CustomerType.PREMIUM;
-    }
-
-    if (customerType !== user.customerType) {
-      user.customerType = customerType;
-      await user.save();
-    }
-
-    return customerType;
+  if ((user.totalSpent || 0) >=
+    vipAmount
+  ) {
+    customerType =
+      CustomerType.VIP;
+  } else if (
+    (user.totalSpent || 0) >=
+    premiumAmount
+  ) {
+    customerType =
+      CustomerType.PREMIUM;
   }
+
+  user.customerType =
+    customerType;
+
+  await user.save();
+
+  return user;
+}
 }
