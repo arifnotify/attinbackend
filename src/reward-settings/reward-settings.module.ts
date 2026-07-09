@@ -24,6 +24,6 @@ import {
 
   providers: [RewardSettingsService],
 
-  exports: [RewardSettingsService],
+  exports: [MongooseModule, RewardSettingsService],
 })
 export class RewardSettingsModule {}

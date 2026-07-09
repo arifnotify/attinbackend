@@ -1,8 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
-export type RewardSettingsDocument =
-  HydratedDocument<RewardSettings>;
+export type RewardSettingsDocument = HydratedDocument<RewardSettings>;
 
 @Schema({
   timestamps: true,
