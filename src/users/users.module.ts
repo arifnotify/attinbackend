@@ -7,7 +7,7 @@ import { UsersController } from './users.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { User, UserSchema } from './schemas/user.schema';
-import { SettingsModule } from 'src/settings/settings.module';
+import { RewardSettingsModule } from 'src/reward-settings/reward-settings.module';
 
 @Module({
   imports: [
@@ -17,7 +17,7 @@ import { SettingsModule } from 'src/settings/settings.module';
         schema: UserSchema,
       },
     ]),
-    SettingsModule,
+    RewardSettingsModule,
   ],
 
   controllers: [UsersController],

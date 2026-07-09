@@ -11,40 +11,130 @@ import {
   RewardSettings,
   RewardSettingsDocument,
 } from './schemas/reward-setting.schema';
-import { CreateRewardSettingsDto } from './dto/create-reward-settings.dto';
-import { UpdateRewardSettingsDto } from './dto/update-reward-settings.dto';
+
+import {
+  CreateRewardSettingsDto,
+} from './dto/create-reward-settings.dto';
+
+import {
+  UpdateRewardSettingsDto,
+} from './dto/update-reward-settings.dto';
+
 
 @Injectable()
 export class RewardSettingsService {
+
   constructor(
     @InjectModel(RewardSettings.name)
-    private rewardSettingsModel: Model<RewardSettingsDocument>,
+    private rewardSettingsModel:
+      Model<RewardSettingsDocument>,
   ) {}
 
-  // CREATE (ONLY ONCE)
-  async create(dto: CreateRewardSettingsDto) {
-    const exists = await this.rewardSettingsModel.findOne();
+
+
+  // ===========================
+  // CREATE SETTINGS
+  // ===========================
+  async create(
+    dto: CreateRewardSettingsDto,
+  ) {
+
+    const exists =
+      await this.rewardSettingsModel.findOne();
+
 
     if (exists) {
-      throw new BadRequestException('Reward settings already exist');
+      throw new BadRequestException(
+        'Reward settings already exist',
+      );
     }
 
-    return this.rewardSettingsModel.create(dto);
+
+    return this.rewardSettingsModel.create(
+      dto,
+    );
   }
 
+
+
+  // ===========================
   // GET SETTINGS
+  // ===========================
   async getSettings() {
-    return this.rewardSettingsModel.findOne();
-  }
 
-  // UPDATE (SINGLETON FIX)
-  async update(dto: UpdateRewardSettingsDto) {
-    const settings = await this.rewardSettingsModel.findOne();
+    let settings =
+      await this.rewardSettingsModel.findOne();
+
+
+    // যদি database এ না থাকে
+    // default settings create করবে
 
     if (!settings) {
-      throw new NotFoundException('Reward settings not found');
+
+      settings =
+        await this.rewardSettingsModel.create({
+          premiumAmount: 10000,
+          vipAmount: 50000,
+
+          regularPercentage: 2,
+          premiumPercentage: 5,
+          vipPercentage: 8,
+
+          perAmount: 100,
+
+          minimumRedeem: 50,
+          maximumRedeem: 300,
+
+          expireDays: 365,
+
+          isActive: true,
+        });
+
     }
 
-    return this.rewardSettingsModel.findByIdAndUpdate(settings._id, dto,{ new: true },);
+
+    return settings;
   }
+
+
+
+
+  // ===========================
+  // UPDATE SETTINGS
+  // ===========================
+  async update(
+    dto: UpdateRewardSettingsDto,
+  ) {
+
+
+    const settings =
+      await this.rewardSettingsModel.findOne();
+
+
+
+    if (!settings) {
+
+      throw new NotFoundException(
+        'Reward settings not found',
+      );
+
+    }
+
+
+
+    return this.rewardSettingsModel.findByIdAndUpdate(
+
+      settings._id,
+
+      dto,
+
+      {
+        new: true,
+      },
+
+    );
+
+  }
+
+
 }

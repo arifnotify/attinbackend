@@ -5,14 +5,21 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { User, UserDocument, CustomerType } from './schemas/user.schema';
+import {
+  RewardSettings,
+  RewardSettingsDocument,
+} from 'src/reward-settings/schemas/reward-setting.schema';
 
 @Injectable()
 export class UsersService {
   [x: string]: any;
   constructor(
-    @InjectModel(User.name)
-    private userModel: Model<UserDocument>,
-  ) {}
+  @InjectModel(User.name)
+  private userModel: Model<UserDocument>,
+
+  @InjectModel(RewardSettings.name)
+    private rewardSettingsModel: Model<RewardSettingsDocument>,
+) {}
 
   // ===========================
   // GET ALL USERS
@@ -176,31 +183,105 @@ export class UsersService {
   // ===========================
   // CHANGE CUSTOMER TYPE
   // ===========================
-  async checkCustomerLevel(userId: string) {
-    const user = await this.userModel.findById(userId);
+// ===========================
+// CHECK CUSTOMER LEVEL
+// ===========================
+async checkCustomerLevel(
+  userId: string,
+) {
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+  const user =
+    await this.userModel.findById(
+      userId,
+    );
 
-    const settings = await this.settingModel.findOne();
 
-    const premiumAmount = settings?.premiumAmount || 10000;
+  if (!user) {
+    throw new NotFoundException(
+      'User not found',
+    );
+  }
 
-    const vipAmount = settings?.vipAmount || 50000;
 
-    let customerType = CustomerType.REGULAR;
 
-    if ((user.totalSpent || 0) >= vipAmount) {
-      customerType = CustomerType.VIP;
-    } else if ((user.totalSpent || 0) >= premiumAmount) {
-      customerType = CustomerType.PREMIUM;
-    }
+  // GET ADMIN SETTINGS
 
-    user.customerType = customerType;
+  const settings =
+    await this.rewardSettingsModel.findOne();
+
+
+
+  const premiumAmount =
+    settings?.premiumAmount || 10000;
+
+
+
+  const vipAmount =
+    settings?.vipAmount || 50000;
+
+
+
+  let customerType =
+    CustomerType.REGULAR;
+
+
+
+  // ===========================
+  // VIP CHECK
+  // ===========================
+
+  if (
+    (user.totalSpent || 0)
+    >= vipAmount
+  ) {
+
+    customerType =
+      CustomerType.VIP;
+
+  }
+
+
+  // ===========================
+  // PREMIUM CHECK
+  // ===========================
+
+  else if (
+    (user.totalSpent || 0)
+    >= premiumAmount
+  ) {
+
+    customerType =
+      CustomerType.PREMIUM;
+
+  }
+
+
+
+  // ===========================
+  // UPDATE USER LEVEL
+  // ===========================
+
+  if (
+    user.customerType !== customerType
+  ) {
+
+    user.customerType =
+      customerType;
+
 
     await user.save();
 
-    return user;
   }
+
+
+
+  return {
+    userId: user._id,
+    totalSpent: user.totalSpent,
+    customerType,
+    premiumLimit: premiumAmount,
+    vipLimit: vipAmount,
+  };
+
+}
 }
