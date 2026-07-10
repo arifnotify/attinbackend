@@ -65,6 +65,7 @@ await product.populate([
     path: 'locations',
   },
 ]);
+return product;
   }
 
   // =========================
