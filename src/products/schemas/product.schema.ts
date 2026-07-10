@@ -73,8 +73,16 @@ export class Product {
   @Prop()
   brand: string;
 
-  @Prop()
-  location: string;
+@Prop({
+  type: [
+    {
+      type: Types.ObjectId,
+      ref: 'Location',
+    },
+  ],
+  default: [],
+})
+locations: Types.ObjectId[];
 
   @Prop({
     default: 'pcs',

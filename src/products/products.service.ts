@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
+
 import { Model, Types } from 'mongoose';
 
 import { Product, ProductDocument } from './schemas/product.schema';
@@ -13,6 +14,7 @@ import { RedisService } from '../redis/redis.service';
 
 import { formatExpiryDate } from 'src/common/utils/expiry.util';
 import { getFreshTime } from 'src/common/utils/fresh-time.util';
+
 import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
@@ -29,151 +31,238 @@ export class ProductsService {
   // =========================
   // CREATE PRODUCT
   // =========================
-  async create(createProductDto: CreateProductDto) {
-    const product = await this.productModel.create({
-      ...createProductDto,
-      category: new Types.ObjectId(createProductDto.category),
-    });
 
-    await this.redisService.del('all_products');
+  async create(
+    createProductDto: CreateProductDto,
+  ) {
+    const product =
+      await this.productModel.create({
+        ...createProductDto,
 
-    // 🔥 SOCKET EVENT
+        category:
+          new Types.ObjectId(
+            createProductDto.category,
+          ),
+
+        locations:
+          createProductDto.locations.map(
+            (id) =>
+              new Types.ObjectId(id),
+          ),
+      });
+
+    await this.redisService.del(
+      'all_products',
+    );
+
     this.socketGateway.emitHomeUpdated();
 
-    return product.populate('category');
+    return product
+      .populate('category')
+      .populate('locations');
   }
 
   // =========================
-  // GET ALL PRODUCTS (CACHE)
+  // GET ALL PRODUCTS
   // =========================
-async findAll(search?: string) {
-  const cacheKey = 'all_products';
 
-  const cached = await this.redisService.get(cacheKey);
+  async findAll(
+    search?: string,
+    location?: string,
+  ) {
+    const cacheKey =
+      `products_${location || 'all'}_${
+        search || ''
+      }`;
 
-  if (cached) {
-    return typeof cached === 'string'
-      ? JSON.parse(cached)
-      : cached;
-  }
+    const cached =
+      await this.redisService.get(
+        cacheKey,
+      );
 
-  const query: any = {
-    isActive: true,
-  };
-
-  if (search) {
-    query.$or = [
-      {
-        'title.en': {
-          $regex: search,
-          $options: 'i',
-        },
-      },
-      {
-        'title.bn': {
-          $regex: search,
-          $options: 'i',
-        },
-      },
-      {
-        'description.en': {
-          $regex: search,
-          $options: 'i',
-        },
-      },
-      {
-        'description.bn': {
-          $regex: search,
-          $options: 'i',
-        },
-      },
-    ];
-  }
-
-  const products = await this.productModel
-    .find(query)
-    .populate('category')
-    .sort({ createdAt: -1 });
-
-  const formatted = products.map((product) => {
-    const data: any = product.toObject();
-
-    if (data.productType === 'fresh') {
-      data.freshText = getFreshTime(data.createdAt);
+    if (cached) {
+      return typeof cached === 'string'
+        ? JSON.parse(cached)
+        : cached;
     }
 
-    if (
-      data.productType === 'regular' &&
-      data.expiryDate
-    ) {
-      data.expiryText = `Exp: ${formatExpiryDate(
-        data.expiryDate,
-      )}`;
+    const query: any = {
+      isActive: true,
+    };
+
+    if (location) {
+      query.locations = {
+        $in: [
+          new Types.ObjectId(location),
+        ],
+      };
     }
 
-    return data;
-  });
+    if (search) {
+      query.$or = [
+        {
+          'title.en': {
+            $regex: search,
+            $options: 'i',
+          },
+        },
+        {
+          'title.bn': {
+            $regex: search,
+            $options: 'i',
+          },
+        },
+        {
+          'description.en': {
+            $regex: search,
+            $options: 'i',
+          },
+        },
+        {
+          'description.bn': {
+            $regex: search,
+            $options: 'i',
+          },
+        },
+      ];
+    }
 
-  await this.redisService.set(
-    cacheKey,
-    JSON.stringify(formatted),
-    300,
-  );
+    const products =
+      await this.productModel
+        .find(query)
+        .populate('category')
+        .populate('locations')
+        .sort({
+          createdAt: -1,
+        });
 
-  return formatted;
-}
+    const formatted =
+      products.map((product) => {
+        const data: any =
+          product.toObject();
+
+        if (
+          data.productType ===
+          'fresh'
+        ) {
+          data.freshText =
+            getFreshTime(
+              data.createdAt,
+            );
+        }
+
+        if (
+          data.productType ===
+            'regular' &&
+          data.expiryDate
+        ) {
+          data.expiryText =
+            `Exp: ${formatExpiryDate(
+              data.expiryDate,
+            )}`;
+        }
+
+        return data;
+      });
+
+    await this.redisService.set(
+      cacheKey,
+      JSON.stringify(formatted),
+      300,
+    );
+
+    return formatted;
+  }
 
   // =========================
   // SINGLE PRODUCT
   // =========================
+
   async findOne(id: string) {
-    const product = await this.productModel
-      .findById(id)
-      .populate('category');
+    const product =
+      await this.productModel
+        .findById(id)
+        .populate('category')
+        .populate('locations');
 
     if (!product) {
-      throw new NotFoundException('Product not found');
+      throw new NotFoundException(
+        'Product not found',
+      );
     }
 
-    const data: any = product.toObject();
+    const data: any =
+      product.toObject();
 
-    if (data.productType === 'fresh') {
-      data.freshText = getFreshTime(data.createdAt);
+    if (
+      data.productType ===
+      'fresh'
+    ) {
+      data.freshText =
+        getFreshTime(
+          data.createdAt,
+        );
     }
 
     if (
-      data.productType === 'regular' &&
+      data.productType ===
+        'regular' &&
       data.expiryDate
     ) {
-      data.expiryText = `Expiry: ${formatExpiryDate(
-        data.expiryDate,
-      )}`;
+      data.expiryText =
+        `Expiry: ${formatExpiryDate(
+          data.expiryDate,
+        )}`;
     }
 
     return data;
   }
-
   // =========================
   // UPDATE PRODUCT
   // =========================
+
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
   ) {
-    const product = await this.productModel
-      .findByIdAndUpdate(id, updateProductDto, {
-        new: true,
-      })
-      .populate('category');
+    const updateData: any = {
+      ...updateProductDto,
+    };
 
-    if (!product) {
-      throw new NotFoundException('Product not found');
+    if (updateProductDto.locations) {
+      updateData.locations =
+        updateProductDto.locations.map(
+          (id) =>
+            new Types.ObjectId(id),
+        );
     }
 
-    await this.redisService.del('all_products');
-    await this.redisService.del('admin_products');
+    const product =
+      await this.productModel
+        .findByIdAndUpdate(
+          id,
+          updateData,
+          {
+            new: true,
+          },
+        )
+        .populate('category')
+        .populate('locations');
 
-    // 🔥 SOCKET EVENT
+    if (!product) {
+      throw new NotFoundException(
+        'Product not found',
+      );
+    }
+
+    await this.redisService.del(
+      'all_products',
+    );
+
+    await this.redisService.del(
+      'admin_products',
+    );
+
     this.socketGateway.emitHomeUpdated();
 
     return product;
@@ -182,201 +271,265 @@ async findAll(search?: string) {
   // =========================
   // DELETE PRODUCT
   // =========================
+
   async remove(id: string) {
-    const product = await this.productModel.findByIdAndDelete(id);
+    const product =
+      await this.productModel.findByIdAndDelete(
+        id,
+      );
 
     if (!product) {
-      throw new NotFoundException('Product not found');
+      throw new NotFoundException(
+        'Product not found',
+      );
     }
 
-    await this.redisService.del('all_products');
+    await this.redisService.del(
+      'all_products',
+    );
 
-    // 🔥 SOCKET EVENT
     this.socketGateway.emitHomeUpdated();
 
     return {
       success: true,
-      message: 'Product deleted successfully',
+      message:
+        'Product deleted successfully',
     };
   }
 
   // =========================
   // CATEGORY PRODUCTS
   // =========================
-  async findByCategory(categoryId: string) {
-    const products = await this.productModel
-      .find({
-        category: new Types.ObjectId(categoryId),
-        isActive: true,
-      })
-      .populate('category')
-      .sort({ createdAt: -1 });
 
-    return products.map((product) => {
-      const data: any = product.toObject();
+  async findByCategory(
+    categoryId: string,
+  ) {
+    const products =
+      await this.productModel
+        .find({
+          category:
+            new Types.ObjectId(
+              categoryId,
+            ),
+          isActive: true,
+        })
+        .populate('category')
+        .populate('locations')
+        .sort({
+          createdAt: -1,
+        });
 
-      if (data.productType === 'fresh') {
-        data.freshText = getFreshTime(data.createdAt);
-      }
+    return products.map(
+      (product) => {
+        const data: any =
+          product.toObject();
 
-      if (
-        data.productType === 'regular' &&
-        data.expiryDate
-      ) {
-        data.expiryText = `Expiry: ${formatExpiryDate(
-          data.expiryDate,
-        )}`;
-      }
+        if (
+          data.productType ===
+          'fresh'
+        ) {
+          data.freshText =
+            getFreshTime(
+              data.createdAt,
+            );
+        }
 
-      return data;
-    });
+        if (
+          data.productType ===
+            'regular' &&
+          data.expiryDate
+        ) {
+          data.expiryText =
+            `Expiry: ${formatExpiryDate(
+              data.expiryDate,
+            )}`;
+        }
+
+        return data;
+      },
+    );
   }
+
   // =========================
   // SEARCH PRODUCTS
   // =========================
+
+  async searchProducts(
+    searchDto: SearchProductDto,
+  ) {
+    const {
+      keyword,
+      category,
+      location,
+      minPrice,
+      maxPrice,
+      sort,
+      page = '1',
+      limit = '10',
+    } = searchDto;
+
+    const filter: any = {
+      isActive: true,
+    };
+
+    // KEYWORD SEARCH
+
+    if (keyword) {
+      filter.$or = [
+        {
+          'title.en': {
+            $regex: keyword,
+            $options: 'i',
+          },
+        },
+        {
+          'title.bn': {
+            $regex: keyword,
+            $options: 'i',
+          },
+        },
+        {
+          'description.en': {
+            $regex: keyword,
+            $options: 'i',
+          },
+        },
+        {
+          'description.bn': {
+            $regex: keyword,
+            $options: 'i',
+          },
+        },
+        {
+          brand: {
+            $regex: keyword,
+            $options: 'i',
+          },
+        },
+      ];
+    }
+
+    // CATEGORY FILTER
+
+    if (category) {
+      filter.category =
+        new Types.ObjectId(
+          category,
+        );
+    }
+
+    // LOCATION FILTER
+
+    if (location) {
+      filter.locations = {
+        $in: [
+          new Types.ObjectId(
+            location,
+          ),
+        ],
+      };
+    }
+
+    // PRICE FILTER
+
+    if (
+      minPrice ||
+      maxPrice
+    ) {
+      filter.price = {};
+
+      if (minPrice) {
+        filter.price.$gte =
+          Number(minPrice);
+      }
+
+      if (maxPrice) {
+        filter.price.$lte =
+          Number(maxPrice);
+      }
+    }
+
+    const currentPage =
+      Number(page);
+
+    const perPage =
+      Number(limit);
+
+    const skip =
+      (currentPage - 1) *
+      perPage;
+
+    // SORT
+
+    let sortOption: any = {
+      createdAt: -1,
+    };
+
+    if (
+      sort ===
+      'lowToHigh'
+    ) {
+      sortOption = {
+        price: 1,
+      };
+    }
+
+    if (
+      sort ===
+      'highToLow'
+    ) {
+      sortOption = {
+        price: -1,
+      };
+    }
+
+    const products =
+      await this.productModel
+        .find(filter)
+        .populate('category')
+        .populate('locations')
+        .sort(sortOption)
+        .skip(skip)
+        .limit(perPage);
+
+    const total =
+      await this.productModel.countDocuments(
+        filter,
+      );
+
+    return {
+      products,
+
+      pagination: {
+        total,
+
+        currentPage,
+
+        totalPages:
+          Math.ceil(
+            total /
+              perPage,
+          ),
+
+        perPage,
+      },
+    };
+  }
+
   // =========================
-// SEARCH PRODUCTS
-// =========================
-async searchProducts(searchDto: SearchProductDto) {
-  const {
-    keyword,
-    category,
-    minPrice,
-    maxPrice,
-    sort,
-    page = '1',
-    limit = '10',
-  } = searchDto;
+  // ADMIN ALL PRODUCTS
+  // =========================
 
-  const filter: any = {
-    isActive: true,
-  };
+  async findAllAdmin() {
+    const products =
+      await this.productModel
+        .find()
+        .populate('category')
+        .populate('locations')
+        .sort({
+          createdAt: -1,
+        });
 
-  // SEARCH BY TITLE / DESCRIPTION / BRAND / LOCATION
-  if (keyword) {
-    filter.$or = [
-      {
-        'title.en': {
-          $regex: keyword,
-          $options: 'i',
-        },
-      },
-      {
-        'title.bn': {
-          $regex: keyword,
-          $options: 'i',
-        },
-      },
-      {
-        'description.en': {
-          $regex: keyword,
-          $options: 'i',
-        },
-      },
-      {
-        'description.bn': {
-          $regex: keyword,
-          $options: 'i',
-        },
-      },
-      {
-        brand: {
-          $regex: keyword,
-          $options: 'i',
-        },
-      },
-      {
-        location: {
-          $regex: keyword,
-          $options: 'i',
-        },
-      },
-    ];
+    return products;
   }
-
-  // CATEGORY FILTER
-  if (category) {
-    filter.category = new Types.ObjectId(category);
-  }
-
-  // PRICE FILTER
-  if (minPrice || maxPrice) {
-    filter.price = {};
-
-    if (minPrice) {
-      filter.price.$gte = Number(minPrice);
-    }
-
-    if (maxPrice) {
-      filter.price.$lte = Number(maxPrice);
-    }
-  }
-
-  const currentPage = Number(page);
-  const perPage = Number(limit);
-
-  const skip =
-    (currentPage - 1) * perPage;
-
-  // SORT
-  let sortOption: any = {
-    createdAt: -1,
-  };
-
-  if (sort === 'lowToHigh') {
-    sortOption = {
-      price: 1,
-    };
-  }
-
-  if (sort === 'highToLow') {
-    sortOption = {
-      price: -1,
-    };
-  }
-
-  const products =
-    await this.productModel
-      .find(filter)
-      .populate('category')
-      .sort(sortOption)
-      .skip(skip)
-      .limit(perPage);
-
-  const total =
-    await this.productModel.countDocuments(
-      filter,
-    );
-
-  return {
-    products,
-    pagination: {
-      total,
-      currentPage,
-      totalPages: Math.ceil(
-        total / perPage,
-      ),
-      perPage,
-    },
-  };
-}
-
-// =========================
-// ADMIN ALL PRODUCTS
-// =========================
-
-async findAllAdmin() {
-
-  const products =
-    await this.productModel
-      .find()
-      .populate('category')
-      .sort({
-        createdAt:-1,
-      });
-
-
-  return products;
-
-}
 }

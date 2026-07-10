@@ -1,4 +1,9 @@
-import { IsNumberString, IsOptional, IsString } from 'class-validator';
+import {
+  IsMongoId,
+  IsNumberString,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class SearchProductDto {
   @IsOptional()
@@ -28,4 +33,8 @@ export class SearchProductDto {
   @IsOptional()
   @IsNumberString()
   limit?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  location?: string;
 }
