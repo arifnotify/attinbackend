@@ -57,9 +57,14 @@ export class ProductsService {
 
     this.socketGateway.emitHomeUpdated();
 
-    return product
-      .populate('category')
-      .populate('locations');
+await product.populate([
+  {
+    path: 'category',
+  },
+  {
+    path: 'locations',
+  },
+]);
   }
 
   // =========================
