@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 
@@ -93,15 +92,7 @@ export class CategoriesController {
   // CATEGORY PRODUCTS
   // =========================
   @Get(':category/products')
-getCategoryProducts(
-  @Param('category') category: string,
-
-  @Query('location')
-  location?: string,
-) {
-  return this.productsService.findByCategory(
-    category,
-    location,
-  );
-}
+  getCategoryProducts(@Param('category') category: string) {
+    return this.productsService.findByCategory(category);
+  }
 }
