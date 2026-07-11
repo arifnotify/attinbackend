@@ -307,54 +307,48 @@ return product;
   // CATEGORY PRODUCTS
   // =========================
 
-  async findByCategory(
-    categoryId: string,
-  ) {
-    const products =
-      await this.productModel
-        .find({
-          category:
-            new Types.ObjectId(
-              categoryId,
-            ),
-          isActive: true,
-        })
-        .populate('category')
-        .populate('locations')
-        .sort({
-          createdAt: -1,
-        });
+async findByCategory(
+  categoryId: string,
+  location?: string,
+) {
+  const filter: any = {
+    category: new Types.ObjectId(categoryId),
+    isActive: true,
+  };
 
-    return products.map(
-      (product) => {
-        const data: any =
-          product.toObject();
-
-        if (
-          data.productType ===
-          'fresh'
-        ) {
-          data.freshText =
-            getFreshTime(
-              data.createdAt,
-            );
-        }
-
-        if (
-          data.productType ===
-            'regular' &&
-          data.expiryDate
-        ) {
-          data.expiryText =
-            `Expiry: ${formatExpiryDate(
-              data.expiryDate,
-            )}`;
-        }
-
-        return data;
-      },
-    );
+  if (location) {
+    filter.locations = {
+      $in: [new Types.ObjectId(location)],
+    };
   }
+
+  const products = await this.productModel
+    .find(filter)
+    .populate('category')
+    .populate('locations')
+    .sort({
+      createdAt: -1,
+    });
+
+  return products.map((product) => {
+    const data: any = product.toObject();
+
+    if (data.productType === 'fresh') {
+      data.freshText = getFreshTime(data.createdAt);
+    }
+
+    if (
+      data.productType === 'regular' &&
+      data.expiryDate
+    ) {
+      data.expiryText = `Expiry: ${formatExpiryDate(
+        data.expiryDate,
+      )}`;
+    }
+
+    return data;
+  });
+}
 
   // =========================
   // SEARCH PRODUCTS
