@@ -51,9 +51,9 @@ export class ProductsService {
           ),
       });
 
-    await this.redisService.del(
-      'all_products',
-    );
+await this.redisService.delPattern(
+  'products_*',
+);
 
     this.socketGateway.emitHomeUpdated();
 
@@ -261,7 +261,7 @@ async update(
     throw new NotFoundException('Product not found');
   }
 
-  await this.redisService.del('all_products');
+  await this.redisService.delPattern('products_*',);
   await this.redisService.del('admin_products');
 
   this.socketGateway.emitHomeUpdated();
@@ -285,9 +285,9 @@ async update(
       );
     }
 
-    await this.redisService.del(
-      'all_products',
-    );
+await this.redisService.delPattern(
+  'products_*',
+);
 
     this.socketGateway.emitHomeUpdated();
 
