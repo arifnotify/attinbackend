@@ -17,16 +17,11 @@ import { getFreshTime } from 'src/common/utils/fresh-time.util';
 
 import { SocketGateway } from 'src/socket/socket.gateway';
 
-import { Category, CategoryDocument } from '../categories/schemas/category.schema';
-
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
-
-      @InjectModel(Category.name)
-  private readonly categoryModel: Model<CategoryDocument>,
 
     private readonly redisService: RedisService,
 
@@ -232,52 +227,47 @@ return product;
   // UPDATE PRODUCT
   // =========================
 
-  async update(
-    id: string,
-    updateProductDto: UpdateProductDto,
-  ) {
-    const updateData: any = {
-      ...updateProductDto,
-    };
+async update(
+  id: string,
+  updateProductDto: UpdateProductDto,
+) {
+  const updateData: any = {
+    ...updateProductDto,
+  };
 
-    if (updateProductDto.locations) {
-      updateData.locations =
-        updateProductDto.locations.map(
-          (id) =>
-            new Types.ObjectId(id),
-        );
-    }
-
-    const product =
-      await this.productModel
-        .findByIdAndUpdate(
-          id,
-          updateData,
-          {
-            new: true,
-          },
-        )
-        .populate('category')
-        .populate('locations');
-
-    if (!product) {
-      throw new NotFoundException(
-        'Product not found',
-      );
-    }
-
-    await this.redisService.del(
-      'all_products',
+  // Category কে ObjectId বানান
+  if (updateProductDto.category) {
+    updateData.category = new Types.ObjectId(
+      updateProductDto.category,
     );
-
-    await this.redisService.del(
-      'admin_products',
-    );
-
-    this.socketGateway.emitHomeUpdated();
-
-    return product;
   }
+
+  // Locations কে ObjectId[] বানান
+  if (updateProductDto.locations) {
+    updateData.locations = updateProductDto.locations.map(
+      (locationId) => new Types.ObjectId(locationId),
+    );
+  }
+
+  const product = await this.productModel
+    .findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    })
+    .populate('category')
+    .populate('locations');
+
+  if (!product) {
+    throw new NotFoundException('Product not found');
+  }
+
+  await this.redisService.del('all_products');
+  await this.redisService.del('admin_products');
+
+  this.socketGateway.emitHomeUpdated();
+
+  return product;
+}
 
   // =========================
   // DELETE PRODUCT
@@ -312,11 +302,7 @@ return product;
   // CATEGORY PRODUCTS
   // =========================
 
-async findByCategory(
- categoryId:string,
- location?:string,
-)
-{
+  async findByCategory(categoryId: string, location?: string) {
 
  const query:any={
 
