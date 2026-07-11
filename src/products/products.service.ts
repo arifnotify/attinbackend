@@ -17,11 +17,16 @@ import { getFreshTime } from 'src/common/utils/fresh-time.util';
 
 import { SocketGateway } from 'src/socket/socket.gateway';
 
+import { Category, CategoryDocument } from '../categories/schemas/category.schema';
+
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
+
+      @InjectModel(Category.name)
+  private readonly categoryModel: Model<CategoryDocument>,
 
     private readonly redisService: RedisService,
 
@@ -308,46 +313,53 @@ return product;
   // =========================
 
 async findByCategory(
-  categoryId: string,
-  location?: string,
-) {
-  const filter: any = {
-    category: new Types.ObjectId(categoryId),
-    isActive: true,
-  };
+  categoryId:string,
+  location?:string,
+){
 
-  if (location) {
-    filter.locations = {
-      $in: [new Types.ObjectId(location)],
-    };
-  }
+const categories = [
+  new Types.ObjectId(categoryId)
+];
 
-  const products = await this.productModel
-    .find(filter)
-    .populate('category')
-    .populate('locations')
-    .sort({
-      createdAt: -1,
-    });
 
-  return products.map((product) => {
-    const data: any = product.toObject();
+const subCategories =
+await this.categoryModel
+.find({
+ parentCategory: categoryId,
+})
+.select("_id");
 
-    if (data.productType === 'fresh') {
-      data.freshText = getFreshTime(data.createdAt);
-    }
 
-    if (
-      data.productType === 'regular' &&
-      data.expiryDate
-    ) {
-      data.expiryText = `Expiry: ${formatExpiryDate(
-        data.expiryDate,
-      )}`;
-    }
+subCategories.forEach((item)=>{
+ categories.push(item._id);
+});
 
-    return data;
-  });
+
+const filter:any={
+ category:{
+   $in:categories
+ },
+ isActive:true
+};
+
+
+if(location){
+ filter.locations={
+   $in:[
+    new Types.ObjectId(location)
+   ]
+ };
+}
+
+
+return this.productModel
+.find(filter)
+.populate('category')
+.populate('locations')
+.sort({
+ createdAt:-1
+});
+
 }
 
   // =========================
