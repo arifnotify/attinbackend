@@ -92,16 +92,19 @@ export class CategoriesController {
   // =========================
   // CATEGORY PRODUCTS
   // =========================
-  @Get(':category/products')
-getCategoryProducts(
-  @Param('category') category: string,
+@Get(':category/products')
+  getCategoryProducts(
+    @Param('category') category: string,
 
-  @Query('location')
-  location?: string,
-) {
-  return this.productsService.findByCategory(
-    category,
-    location,
-  );
+    @Query('location') location: string,
+
+)
+{
+
+ return this.productsService.findByCategory(
+   category,
+   location,
+ );
+
 }
 }

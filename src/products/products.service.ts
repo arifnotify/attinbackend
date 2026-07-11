@@ -313,52 +313,45 @@ return product;
   // =========================
 
 async findByCategory(
-  categoryId:string,
-  location?:string,
-){
+ categoryId:string,
+ location?:string,
+)
+{
 
-const categories = [
-  new Types.ObjectId(categoryId)
-];
+ const query:any={
 
+   category:
+   new Types.ObjectId(categoryId),
 
-const subCategories =
-await this.categoryModel
-.find({
- parentCategory: categoryId,
-})
-.select("_id");
+   isActive:true,
 
-
-subCategories.forEach((item)=>{
- categories.push(item._id);
-});
-
-
-const filter:any={
- category:{
-   $in:categories
- },
- isActive:true
-};
-
-
-if(location){
- filter.locations={
-   $in:[
-    new Types.ObjectId(location)
-   ]
  };
-}
 
 
-return this.productModel
-.find(filter)
-.populate('category')
-.populate('locations')
-.sort({
- createdAt:-1
-});
+ if(location){
+
+   query.locations={
+     $in:[
+       new Types.ObjectId(location)
+     ]
+   };
+
+ }
+
+
+
+ const products =
+ await this.productModel
+ .find(query)
+ .populate('category')
+ .populate('locations')
+ .sort({
+   createdAt:-1
+ });
+
+
+
+ return products;
 
 }
 
