@@ -308,53 +308,46 @@ return product;
   // =========================
 
 async findByCategory(
-  categoryId:string,
-  location?:string,
-){
+  categoryId: string,
+  location?: string,
+) {
+  const filter: any = {
+    category: new Types.ObjectId(categoryId),
+    isActive: true,
+  };
 
-const categories = [
-  new Types.ObjectId(categoryId)
-];
+  if (location) {
+    filter.locations = {
+      $in: [new Types.ObjectId(location)],
+    };
+  }
 
+  const products = await this.productModel
+    .find(filter)
+    .populate('category')
+    .populate('locations')
+    .sort({
+      createdAt: -1,
+    });
 
-const subCategories =
-await this.categoryModel
-.find({
- parentCategory: categoryId,
-})
-.select("_id");
+  return products.map((product) => {
+    const data: any = product.toObject();
 
+    if (data.productType === 'fresh') {
+      data.freshText = getFreshTime(data.createdAt);
+    }
 
-subCategories.forEach((item)=>{
- categories.push(item._id);
-});
+    if (
+      data.productType === 'regular' &&
+      data.expiryDate
+    ) {
+      data.expiryText = `Expiry: ${formatExpiryDate(
+        data.expiryDate,
+      )}`;
+    }
 
-
-const filter:any={
- category:{
-   $in:categories
- },
- isActive:true
-};
-
-
-if(location){
- filter.locations={
-   $in:[
-    new Types.ObjectId(location)
-   ]
- };
-}
-
-
-return this.productModel
-.find(filter)
-.populate('category')
-.populate('locations')
-.sort({
- createdAt:-1
-});
-
+    return data;
+  });
 }
 
   // =========================
