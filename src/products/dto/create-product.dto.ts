@@ -44,7 +44,7 @@ export class CreateProductDto {
 
   @IsOptional()
   @IsNumber()
-  flashDiscountPrice: number;
+  flashSalePrice: number;
 
   @IsOptional()
   @IsNumber()
