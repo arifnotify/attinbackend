@@ -70,10 +70,7 @@ export class CartController {
   @Get('refresh')
 @UseGuards(JwtAuthGuard)
   refreshCart(@Req() req: any) {
-
-return this.cartService.refreshCart(
- req.user.userId
-);
+    return this.cartService.refreshProductCart(req.user.userId);
 
 }
 }
