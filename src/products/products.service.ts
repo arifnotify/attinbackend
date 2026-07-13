@@ -16,6 +16,7 @@ import { formatExpiryDate } from 'src/common/utils/expiry.util';
 import { getFreshTime } from 'src/common/utils/fresh-time.util';
 
 import { SocketGateway } from 'src/socket/socket.gateway';
+import { CartService } from 'src/cart/cart.service';
 
 @Injectable()
 export class ProductsService {
@@ -26,6 +27,8 @@ export class ProductsService {
     private readonly redisService: RedisService,
 
     private readonly socketGateway: SocketGateway,
+
+    private cartService: CartService,
   ) {}
 
   // =========================
@@ -264,6 +267,11 @@ async update(
 
   await this.redisService.delPattern('products_*',);
   await this.redisService.del('admin_products');
+
+  await this.cartService
+  .syncCartAfterProductUpdate(id);
+  await this.cartService
+  .updateCartAvailability(id);
 
   this.socketGateway.emitHomeUpdated();
   this.socketGateway.emitProductUpdated();
