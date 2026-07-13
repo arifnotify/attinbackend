@@ -28,7 +28,8 @@ export class ProductsService {
 
     private readonly socketGateway: SocketGateway,
 
-    private cartService: CartService,
+        // 🔥 ADD THIS
+    private readonly cartService: CartService,
   ) {}
 
   // =========================
@@ -267,14 +268,15 @@ async update(
 
   await this.redisService.delPattern('products_*',);
   await this.redisService.del('admin_products');
+  
+  // 🔥 ADMIN PRODUCT UPDATE হলে CART UPDATE হবে
 
-  await this.cartService
-  .syncCartAfterProductUpdate(id);
-  await this.cartService
-  .updateCartAvailability(id);
-
+  await this.cartService.updateCartProduct(
+    id,
+    product,
+);
   this.socketGateway.emitHomeUpdated();
-  this.socketGateway.emitProductUpdated();
+  this.socketGateway.emitProductUpdated(product);
 
   return product;
 }

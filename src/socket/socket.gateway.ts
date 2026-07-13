@@ -53,11 +53,17 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // PRODUCT UPDATE
   // ==========================
 
-  emitProductUpdated() {
-    this.server.emit('product_updated', {
-      success: true,
-    });
+  // PRODUCT UPDATE
+
+  emitProductUpdated(product:any){
+
+    this.server.emit(
+      "product_updated",
+      product
+    );
+
   }
+
 
   // ==========================
   // BANNER UPDATE

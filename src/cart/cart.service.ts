@@ -183,6 +183,47 @@ export class CartService {
     };
   }
 
+  /////////////////////////////////////////////////////////////////////
+async updateCartProduct(
+ productId:string,
+ product:any,
+){
+
+const carts =
+await this.cartModel.find({
+ product:productId,
+});
+
+
+for(const cart of carts){
+
+
+const price =
+this.getSellingPrice(product);
+
+
+
+cart.price = price;
+
+
+cart.totalPrice =
+price * cart.quantity;
+
+
+
+await cart.save();
+
+
+await this.cacheCart(
+cart.user.toString()
+);
+
+
+}
+
+
+}
+
   // =========================
   // CACHE CART
   // =========================
@@ -197,109 +238,4 @@ export class CartService {
       300,
     );
   }
-
-  // =========================
-// SYNC CART WHEN PRODUCT UPDATE
-// =========================
-
-async syncCartAfterProductUpdate(
- productId:string
-){
-
-
-const product =
-await this.productModel.findById(
- productId
-);
-
-
-
-if(!product){
- return;
-}
-
-
-
-const carts =
-await this.cartModel.find({
- product:productId
-});
-
-
-
-for(const cart of carts){
-
-
-const price =
-this.getSellingPrice(product);
-
-
-
-cart.price =
-price;
-
-
-
-cart.totalPrice =
-price * cart.quantity;
-
-
-
-await cart.save();
-
-
-
-await this.cacheCart(
- cart.user.toString()
-);
-
-
-
-}
-
-
-
-}
-//////////////////////////////////////////////////////////////
-// =========================
-// PRODUCT ACTIVE CHECK
-// =========================
-
-async updateCartAvailability(
-productId:string
-){
-
-
-const product =
-await this.productModel.findById(
-productId
-);
-
-
-
-if(!product){
-return;
-}
-
-
-
-const carts =
-await this.cartModel.find({
-product:productId
-});
-
-
-
-for(const cart of carts){
-
-
-await this.cacheCart(
-cart.user.toString()
-);
-
-
-}
-
-
-}
 }
