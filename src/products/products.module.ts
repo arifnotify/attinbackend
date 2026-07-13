@@ -15,6 +15,7 @@ import { ProductsService } from './products.service';
 
 import { RedisModule } from '../redis/redis.module';
 import { SocketModule } from 'src/socket/socket.module';
+import { CartModule } from 'src/cart/cart.module';
 
 @Module({
   imports: [
@@ -32,7 +33,7 @@ import { SocketModule } from 'src/socket/socket.module';
 
     RedisModule,
     SocketModule,
-    CartModule
+    CartModule,
   ],
 
   controllers: [ProductsController],
