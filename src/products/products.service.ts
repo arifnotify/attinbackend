@@ -60,7 +60,7 @@ await this.redisService.delPattern(
 );
 
     this.socketGateway.emitHomeUpdated();
-    this.socketGateway.emitProductUpdated();
+    this.socketGateway.emitProductUpdated(product);
 
 await product.populate([
   {
@@ -302,7 +302,7 @@ await this.redisService.delPattern(
 );
 
     this.socketGateway.emitHomeUpdated();
-    this.socketGateway.emitProductUpdated();
+    this.socketGateway.emitProductUpdated(product);
 
     return {
       success: true,
