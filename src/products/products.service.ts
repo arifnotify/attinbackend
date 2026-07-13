@@ -268,6 +268,10 @@ async update(
 
   await this.redisService.delPattern('products_*',);
   await this.redisService.del('admin_products');
+
+  await this.cartService.refreshProductCart(
+  id
+  );
   
   // 🔥 ADMIN PRODUCT UPDATE হলে CART UPDATE হবে
 
