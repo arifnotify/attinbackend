@@ -65,12 +65,4 @@ export class CartController {
   removeCartItem(@Param('id') id: string) {
     return this.cartService.removeCartItem(id);
   }
-
-  //////////////////////////////////////////////
-  @Get('refresh')
-@UseGuards(JwtAuthGuard)
-  refreshCart(@Req() req: any) {
-    return this.cartService.refreshProductCart(req.user.userId);
-
-}
 }
