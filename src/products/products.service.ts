@@ -16,6 +16,7 @@ import { formatExpiryDate } from 'src/common/utils/expiry.util';
 import { getFreshTime } from 'src/common/utils/fresh-time.util';
 
 import { SocketGateway } from 'src/socket/socket.gateway';
+import { CartService } from 'src/cart/cart.service';
 
 @Injectable()
 export class ProductsService {
@@ -26,6 +27,9 @@ export class ProductsService {
     private readonly redisService: RedisService,
 
     private readonly socketGateway: SocketGateway,
+
+        // 🔥 ADD THIS
+    private readonly cartService: CartService,
   ) {}
 
   // =========================
@@ -56,7 +60,7 @@ await this.redisService.delPattern(
 );
 
     this.socketGateway.emitHomeUpdated();
-    this.socketGateway.emitProductUpdated();
+    this.socketGateway.emitProductUpdated(product);
 
 await product.populate([
   {
@@ -265,8 +269,18 @@ async update(
   await this.redisService.delPattern('products_*',);
   await this.redisService.del('admin_products');
 
+  await this.cartService.refreshProductCart(
+  id
+  );
+  
+  // 🔥 ADMIN PRODUCT UPDATE হলে CART UPDATE হবে
+
+  await this.cartService.updateCartProduct(
+    id,
+    product,
+);
   this.socketGateway.emitHomeUpdated();
-  this.socketGateway.emitProductUpdated();
+  this.socketGateway.emitProductUpdated(product);
 
   return product;
 }
@@ -292,7 +306,7 @@ await this.redisService.delPattern(
 );
 
     this.socketGateway.emitHomeUpdated();
-    this.socketGateway.emitProductUpdated();
+    this.socketGateway.emitProductUpdated(product);
 
     return {
       success: true,

@@ -183,6 +183,96 @@ export class CartService {
     };
   }
 
+  /////////////////////////////////////////////////////////////////////
+async updateCartProduct(
+ productId:string,
+ product:any,
+){
+
+const carts =
+await this.cartModel.find({
+ product:productId,
+});
+
+
+for(const cart of carts){
+
+
+const price =
+this.getSellingPrice(product);
+
+
+
+cart.price = price;
+
+
+cart.totalPrice =
+price * cart.quantity;
+
+
+
+await cart.save();
+
+
+await this.cacheCart(
+cart.user.toString()
+);
+
+
+}
+
+
+}
+
+//////////////////////////////////////////////////////////////////////
+// =========================
+// REFRESH ALL CARTS WHEN PRODUCT UPDATED
+// =========================
+
+async refreshProductCart(productId:string) {
+
+
+  const carts =
+    await this.cartModel.find({
+      product: productId,
+    });
+
+
+  for(const cart of carts){
+
+    const product =
+      await this.productModel.findById(
+        productId
+      );
+
+
+    if(product){
+
+      const price =
+        this.getSellingPrice(product);
+
+
+      cart.price = price;
+
+      cart.totalPrice =
+        price * cart.quantity;
+
+
+      await cart.save();
+
+
+      await this.cacheCart(
+        cart.user.toString()
+      );
+
+    }
+
+  }
+
+
+}
+
+
   // =========================
   // CACHE CART
   // =========================
