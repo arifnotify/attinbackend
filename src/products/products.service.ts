@@ -282,39 +282,59 @@ async update(
 // DELETE PRODUCT
 // =========================
 
+// =========================
+// DELETE PRODUCT
+// =========================
+
 async remove(id: string) {
 
-  const product = await this.productModel.findById(id);
+  const product =
+    await this.productModel.findById(id);
+
 
   if (!product) {
+
     throw new NotFoundException(
       'Product not found',
     );
+
   }
 
-  // Cart থেকে এই Product remove করুন
-  await this.cartModel.deleteMany({
-    product: product._id,
-  });
 
-  // এরপর Product delete করুন
   await this.productModel.findByIdAndDelete(id);
 
-  // Cache Clear
-  await this.redisService.delPattern('products_*');
 
-  // Cart Cache Clear
-  await this.redisService.delPattern('cart:*');
 
-  // Socket Event
+  // Product cache clear
+  await this.redisService.delPattern(
+    'products_*',
+  );
+
+
+  // Cart cache clear
+  await this.redisService.delPattern(
+    'cart:*',
+  );
+
+
+
   this.socketGateway.emitHomeUpdated();
+
   this.socketGateway.emitProductUpdated();
+
   this.socketGateway.emitCartUpdated();
 
+
+
   return {
-    success: true,
-    message: 'Product deleted successfully',
+
+    success:true,
+
+    message:
+    'Product deleted successfully',
+
   };
+
 }
 
   // =========================
