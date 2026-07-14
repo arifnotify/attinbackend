@@ -15,6 +15,7 @@ import { ProductsService } from './products.service';
 
 import { RedisModule } from '../redis/redis.module';
 import { SocketModule } from 'src/socket/socket.module';
+import { Cart, CartSchema } from 'src/cart/schemas/cart.schema';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { SocketModule } from 'src/socket/socket.module';
         name: Category.name,
         schema: CategorySchema,
       },
+      { name: Cart.name, schema: CartSchema },
     ]),
 
     RedisModule,

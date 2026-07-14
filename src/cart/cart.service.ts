@@ -119,64 +119,70 @@ export class CartService {
   // =========================
   // GET USER CART
   // =========================
-  async getUserCart(userId: string) {
-    const cacheKey = `cart:${userId}`;
+ // =========================
+// GET USER CART
+// =========================
+async getUserCart(userId: string) {
 
-    const cached = await this.redisService.get(cacheKey);
+  const cacheKey = `cart:${userId}`;
 
-    if (cached) {
-      return typeof cached === 'string'
-        ? JSON.parse(cached)
-        : cached;
+  // =========================
+  // DATABASE থেকে Cart Load
+  // =========================
+
+  const cart = await this.cartModel
+    .find({ user: userId })
+    .populate('product');
+
+  // =========================
+  // Deleted / Inactive Product বের করুন
+  // =========================
+
+  const invalidItems = cart.filter(
+    (item: any) =>
+      !item.product ||
+      item.product.isActive === false,
+  );
+
+  // =========================
+  // Cart Collection থেকে Remove
+  // =========================
+
+  if (invalidItems.length > 0) {
+
+    await this.cartModel.deleteMany({
+      _id: {
+        $in: invalidItems.map(
+          (item) => item._id,
+        ),
+      },
     }
-
-const cart = await this.cartModel
-.find({ user: userId })
-.populate('product');
-
-
-// REMOVE INACTIVE PRODUCTS
-
-const invalidItems = cart.filter(
-  (item:any)=>
-    !item.product ||
-    item.product.isActive === false
-);
-
-
-if(invalidItems.length){
-
-  await this.cartModel.deleteMany({
-    _id:{
-      $in:
-      invalidItems.map(
-        item=>item._id
-      )
-    }
-  });
-
-
-}
-
-
-const validCart =
-cart.filter(
-(item:any)=>
- item.product &&
- item.product.isActive !== false
-);
-
-
-return validCart;
-
-    await this.redisService.set(
-      cacheKey,
-      JSON.stringify(cart),
-      300,
     );
-
-    return cart;
   }
+  }
+
+  // =========================
+  // শুধু Valid Product রাখুন
+  // =========================
+
+  const validCart = cart.filter(
+    (item: any) =>
+      item.product &&
+      item.product.isActive !== false,
+  );
+
+  // =========================
+  // Redis Cache Update
+  // =========================
+
+  await this.redisService.set(
+    cacheKey,
+    JSON.stringify(validCart),
+    300,
+  );
+
+  return validCart;
+}
 
   // =========================
   // UPDATE QUANTITY

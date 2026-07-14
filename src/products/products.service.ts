@@ -23,6 +23,9 @@ export class ProductsService {
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
 
+    @InjectModel(Cart.name)
+private readonly cartModel: Model<CartDocument>,
+
     private readonly redisService: RedisService,
 
     private readonly socketGateway: SocketGateway,
@@ -277,32 +280,44 @@ async update(
   // DELETE PRODUCT
   // =========================
 
-  async remove(id: string) {
-    const product =
-      await this.productModel.findByIdAndDelete(
-        id,
-      );
+// =========================
+// DELETE PRODUCT
+// =========================
 
-    if (!product) {
-      throw new NotFoundException(
-        'Product not found',
-      );
-    }
+async remove(id: string) {
 
-await this.redisService.delPattern(
-  'products_*',
-);
+  const product = await this.productModel.findById(id);
 
-    this.socketGateway.emitHomeUpdated();
-    this.socketGateway.emitProductUpdated();
-    this.socketGateway.emitCartUpdated();
-
-    return {
-      success: true,
-      message:
-        'Product deleted successfully',
-    };
+  if (!product) {
+    throw new NotFoundException(
+      'Product not found',
+    );
   }
+
+  // Cart থেকে এই Product remove করুন
+  await this.cartModel.deleteMany({
+    product: product._id,
+  });
+
+  // এরপর Product delete করুন
+  await this.productModel.findByIdAndDelete(id);
+
+  // Cache Clear
+  await this.redisService.delPattern('products_*');
+
+  // Cart Cache Clear
+  await this.redisService.delPattern('cart:*');
+
+  // Socket Event
+  this.socketGateway.emitHomeUpdated();
+  this.socketGateway.emitProductUpdated();
+  this.socketGateway.emitCartUpdated();
+
+  return {
+    success: true,
+    message: 'Product deleted successfully',
+  };
+}
 
   // =========================
   // CATEGORY PRODUCTS
