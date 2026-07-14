@@ -23,9 +23,6 @@ export class ProductsService {
     @InjectModel(Product.name)
     private readonly productModel: Model<ProductDocument>,
 
-    @InjectModel(Cart.name)
-private readonly cartModel: Model<CartDocument>,
-
     private readonly redisService: RedisService,
 
     private readonly socketGateway: SocketGateway,
