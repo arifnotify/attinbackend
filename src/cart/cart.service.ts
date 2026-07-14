@@ -124,29 +124,19 @@ export class CartService {
 // =========================
 async getUserCart(userId: string) {
 
-  const cacheKey = `cart:${userId}`;
-
-  // =========================
-  // DATABASE থেকে Cart Load
-  // =========================
-
   const cart = await this.cartModel
     .find({ user: userId })
-    .populate('product');
+    .populate({
+      path: 'product',
+      match: {
+        isActive: true,
+      },
+    });
 
-  // =========================
-  // Deleted / Inactive Product বের করুন
-  // =========================
-
+  // যেগুলোর product null হয়ে গেছে সেগুলো delete
   const invalidItems = cart.filter(
-    (item: any) =>
-      !item.product ||
-      item.product.isActive === false,
+    (item: any) => !item.product,
   );
-
-  // =========================
-  // Cart Collection থেকে Remove
-  // =========================
 
   if (invalidItems.length > 0) {
 
@@ -156,10 +146,16 @@ async getUserCart(userId: string) {
           (item) => item._id,
         ),
       },
-    }
-    );
+    });
+
   }
-  }
+
+  const validCart = cart.filter(
+    (item: any) => item.product,
+  );
+
+  return validCart;
+}
 
   // =========================
   // শুধু Valid Product রাখুন
