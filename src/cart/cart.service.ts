@@ -130,9 +130,44 @@ export class CartService {
         : cached;
     }
 
-    const cart = await this.cartModel
-      .find({ user: userId })
-      .populate('product');
+const cart = await this.cartModel
+.find({ user: userId })
+.populate('product');
+
+
+// REMOVE INACTIVE PRODUCTS
+
+const invalidItems = cart.filter(
+  (item:any)=>
+    !item.product ||
+    item.product.isActive === false
+);
+
+
+if(invalidItems.length){
+
+  await this.cartModel.deleteMany({
+    _id:{
+      $in:
+      invalidItems.map(
+        item=>item._id
+      )
+    }
+  });
+
+
+}
+
+
+const validCart =
+cart.filter(
+(item:any)=>
+ item.product &&
+ item.product.isActive !== false
+);
+
+
+return validCart;
 
     await this.redisService.set(
       cacheKey,

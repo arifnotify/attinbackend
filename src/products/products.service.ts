@@ -57,6 +57,7 @@ await this.redisService.delPattern(
 
     this.socketGateway.emitHomeUpdated();
     this.socketGateway.emitProductUpdated();
+    this.socketGateway.emitCartUpdated();
 
 await product.populate([
   {
@@ -267,6 +268,7 @@ async update(
 
   this.socketGateway.emitHomeUpdated();
   this.socketGateway.emitProductUpdated();
+  this.socketGateway.emitCartUpdated();
 
   return product;
 }
@@ -293,6 +295,7 @@ await this.redisService.delPattern(
 
     this.socketGateway.emitHomeUpdated();
     this.socketGateway.emitProductUpdated();
+    this.socketGateway.emitCartUpdated();
 
     return {
       success: true,

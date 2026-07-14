@@ -102,6 +102,18 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   emitOrderAssigned(riderId: string, order: any) {
     this.server.to(`rider_${riderId}`).emit('order_assigned', order);
   }
+  
+  ///////////////////////////////////////////////
+  emitCartUpdated(){
+
+  this.server.emit(
+    "cartUpdated",
+    {
+      message:"Cart product updated"
+    }
+  );
+
+}
 
 
 }
