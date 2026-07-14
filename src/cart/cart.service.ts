@@ -119,57 +119,40 @@ export class CartService {
   // =========================
   // GET USER CART
   // =========================
- // =========================
-// GET USER CART
-// =========================
 async getUserCart(userId: string) {
+  const cacheKey = `cart:${userId}`;
+
+  // Cache delete করে দিচ্ছি যাতে সবসময় latest DB পড়ে
+  await this.redisService.del(cacheKey);
 
   const cart = await this.cartModel
     .find({ user: userId })
-    .populate({
-      path: 'product',
-      match: {
-        isActive: true,
-      },
-    });
+    .populate('product');
 
-  // যেগুলোর product null হয়ে গেছে সেগুলো delete
+  // যেসব product delete হয়েছে বা inactive হয়েছে
   const invalidItems = cart.filter(
-    (item: any) => !item.product,
+    (item: any) =>
+      !item.product ||
+      item.product.isActive === false,
   );
 
+  // Cart থেকেও delete
   if (invalidItems.length > 0) {
-
     await this.cartModel.deleteMany({
       _id: {
         $in: invalidItems.map(
-          (item) => item._id,
+          (i: any) => i._id,
         ),
       },
     });
-
   }
 
-  const validCart = cart.filter(
-    (item: any) => item.product,
-  );
-
-  return validCart;
-}
-
-  // =========================
-  // শুধু Valid Product রাখুন
-  // =========================
-
+  // শুধু valid cart
   const validCart = cart.filter(
     (item: any) =>
       item.product &&
       item.product.isActive !== false,
   );
-
-  // =========================
-  // Redis Cache Update
-  // =========================
 
   await this.redisService.set(
     cacheKey,

@@ -267,6 +267,7 @@ async update(
   }
 
   await this.redisService.delPattern('products_*',);
+  await this.redisService.delPattern('cart:*');
   await this.redisService.del('admin_products');
 
   this.socketGateway.emitHomeUpdated();
