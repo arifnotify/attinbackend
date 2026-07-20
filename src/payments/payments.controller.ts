@@ -1,24 +1,38 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 
-import { PaymentsService }
-from './payments.service';
+import { PaymentsService } from './payments.service';
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly service: PaymentsService) {}
+  constructor(private readonly paymentsService: PaymentsService) {}
 
-  @Get('success')
-  success(@Query() query: any) {
-    return this.service.handleSuccess(query);
+  @Post('success')
+  success(
+    @Body() body:any,
+  ){
+    return this.paymentsService
+      .markSuccess(
+        body.paymentId,
+      );
   }
 
-  @Get('fail')
-  fail(@Query() query: any) {
-    return this.service.handleFail(query);
+  @Post('fail')
+  fail(
+    @Body() body:any,
+  ){
+    return this.paymentsService
+      .markFailed(
+        body.paymentId,
+      );
   }
 
-  @Get('cancel')
-  cancel(@Query() query: any) {
-    return this.service.handleCancel(query);
+  @Post('cancel')
+  cancel(
+    @Body() body:any,
+  ){
+    return this.paymentsService
+      .markCancelled(
+        body.paymentId,
+      );
   }
 }

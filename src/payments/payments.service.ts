@@ -33,25 +33,26 @@ export class PaymentsService {
   // ====================================
 
   async createOrderPayment(data: {
-    userId: string;
-    orderId: string;
-    amount: number;
-    paymentMethod: PaymentMethod;
+  userId:string;
+  orderId:string;
+  amount:number;
+  paymentMethod:PaymentMethod;
+  customerPhone:string;
   }) {
     let gatewayResponse: any;
 
     switch (data.paymentMethod) {
       case PaymentMethod.COD:
-
-        gatewayResponse =
-          await this.codProvider.createPayment();
+        gatewayResponse = await this.codProvider.createPayment();
 
         break;
 
       case PaymentMethod.SSLCOMMERZ:
-
-        gatewayResponse =
-          await this.sslProvider.createPayment();
+        gatewayResponse = await this.sslProvider.createPayment({
+          amount: data.amount,
+          orderId: data.orderId,
+          customerPhone: data.customerPhone,
+});
 
         break;
 
@@ -219,4 +220,121 @@ async markCancelled(
         createdAt: -1,
       });
   }
+
+
+  // ====================================
+// SSL SUCCESS
+// ====================================
+
+async handleSuccess(
+  query:any,
+){
+
+  const transactionId =
+    query.tran_id;
+
+  const payment =
+    await this.paymentModel.findOne({
+      transactionId,
+    });
+
+  if(!payment){
+
+    return {
+      success:false,
+      message:'Payment not found',
+    };
+
+  }
+
+  payment.paymentStatus =
+    PaymentStatus.SUCCESS;
+
+  await payment.save();
+
+  await this.orderModel
+    .findByIdAndUpdate(
+      payment.order,
+      {
+        isPaid:true,
+      },
+    );
+
+  return {
+    success:true,
+    message:'Payment Successful',
+  };
+}
+
+// ====================================
+// SSL FAIL
+// ====================================
+
+async handleFail(
+  query:any,
+){
+
+  const transactionId =
+    query.tran_id;
+
+  const payment =
+    await this.paymentModel.findOne({
+      transactionId,
+    });
+
+  if(!payment){
+
+    return {
+      success:false,
+      message:'Payment not found',
+    };
+
+  }
+
+  payment.paymentStatus =
+    PaymentStatus.FAILED;
+
+  await payment.save();
+
+  return {
+    success:false,
+    message:'Payment Failed',
+  };
+}
+
+// ====================================
+// SSL CANCEL
+// ====================================
+
+async handleCancel(
+  query:any,
+){
+
+  const transactionId =
+    query.tran_id;
+
+  const payment =
+    await this.paymentModel.findOne({
+      transactionId,
+    });
+
+  if(!payment){
+
+    return {
+      success:false,
+      message:'Payment not found',
+    };
+
+  }
+
+  payment.paymentStatus =
+    PaymentStatus.CANCELLED;
+
+  await payment.save();
+
+  return {
+    success:false,
+    message:'Payment Cancelled',
+  };
+}
 }

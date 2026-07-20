@@ -221,6 +221,8 @@ await this.paymentsService
   paymentMethod:
   dto.paymentMethod,
 
+  customerPhone:
+  user.phone,
 });
 
 // =========================
@@ -288,9 +290,9 @@ await order.save();
 
   async getSingleOrder(id: string) {
     const order = await this.orderModel
-      .findById(id)
-      .populate('shippingAddress');
-      .populate('payment');
+  .findById(id)
+  .populate('shippingAddress')
+  .populate('payment');
 
     if (!order) {
       throw new NotFoundException('Order not found');
