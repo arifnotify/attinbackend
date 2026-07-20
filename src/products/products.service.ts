@@ -521,29 +521,55 @@ async remove(id: string) {
         .sort(sortOption)
         .skip(skip)
         .limit(perPage);
+        const formattedProducts =
+  products.map((product) => {
 
+    const data: any =
+      product.toObject();
+
+    if (
+      data.productType ===
+      'fresh'
+    ) {
+      data.freshText =
+        getFreshTime(
+          data.createdAt,
+        );
+    }
+
+    if (
+      data.productType ===
+        'regular' &&
+      data.expiryDate
+    ) {
+      data.expiryText =
+        `Exp: ${formatExpiryDate(
+          data.expiryDate,
+        )}`;
+    }
+
+    return data;
+  });
+    
+    
     const total =
       await this.productModel.countDocuments(
         filter,
       );
 
-    return {
-      products,
+return {
+  products: formattedProducts,
 
-      pagination: {
-        total,
-
-        currentPage,
-
-        totalPages:
-          Math.ceil(
-            total /
-              perPage,
-          ),
-
-        perPage,
-      },
-    };
+  pagination: {
+    total,
+    currentPage,
+    totalPages:
+      Math.ceil(
+        total / perPage,
+      ),
+    perPage,
+  },
+};
   }
 
   // =========================
