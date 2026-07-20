@@ -35,6 +35,9 @@ import { RewardTransactionType } from 'src/rewards/schemas/reward-transaction.sc
 import { AdminEditOrderDto } from './dto/admin-edit-order.dto';
 import { Product } from 'src/products/schemas/product.schema';
 import { CartService } from 'src/cart/cart.service';
+import { PaymentsService } from '../payments/payments.service';
+
+import { PaymentMethod } from '../payments/enums/payment-method.enum';
 
 @Injectable()
 export class OrdersService {
@@ -62,6 +65,8 @@ export class OrdersService {
     private productModel: Model<Product>,
 
     private readonly cartService: CartService,
+
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   // =========================
@@ -173,28 +178,59 @@ const items = cartItems.map((item: any) => {
   // =========================
   // CREATE ORDER
   // =========================
-  const order = await this.orderModel.create({
-    orderNumber,
-    user: userId,
-    customerPhone: user.phone,
-    shippingAddress: address._id,
+const order = await this.orderModel.create({
+  orderNumber,
+  user: userId,
+  customerPhone: user.phone,
+  shippingAddress: address._id,
 
-    items,
+  items,
 
-    subTotal,
-    deliveryCharge,
+  subTotal,
+  deliveryCharge,
 
-    rewardUsed,
-    discountAmount: rewardUsed,
+  rewardUsed,
+  discountAmount: rewardUsed,
 
-    totalAmount,
-    finalAmount,
+  totalAmount,
+  finalAmount,
 
-    paymentMethod: 'COD',
-    orderStatus: OrderStatus.PENDING,
-    isPaid: false,
-    trackingEnabled: false,
-  });
+  paymentMethod: dto.paymentMethod,
+
+  orderStatus: OrderStatus.PENDING,
+  isPaid: false,
+  trackingEnabled: false,
+});
+
+// =========================
+// CREATE PAYMENT
+// =========================
+
+const payment =
+await this.paymentsService
+.createOrderPayment({
+
+  userId,
+
+  orderId:
+  order._id.toString(),
+
+  amount:
+  order.finalAmount,
+
+  paymentMethod:
+  dto.paymentMethod,
+
+});
+
+// =========================
+// SAVE PAYMENT ID
+// =========================
+
+order.payment =
+payment._id as any;
+
+await order.save();
 
   // =========================
   // REDEEM REWARD
@@ -230,6 +266,7 @@ const items = cartItems.map((item: any) => {
         user: userId,
       })
       .populate('shippingAddress')
+      .populate('payment')
       .sort({
         createdAt: -1,
       });
@@ -240,7 +277,7 @@ const items = cartItems.map((item: any) => {
   // =========================
 
   async getAllOrders() {
-    return this.orderModel.find().populate('shippingAddress').sort({
+    return this.orderModel.find().populate('shippingAddress').populate('payment').sort({
       createdAt: -1,
     });
   }
@@ -253,6 +290,7 @@ const items = cartItems.map((item: any) => {
     const order = await this.orderModel
       .findById(id)
       .populate('shippingAddress');
+      .populate('payment');
 
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -298,6 +336,15 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       trackingEnabled: false,
       assignedRider: null,
     });
+
+    if (order.payment) {
+
+  await this.paymentsService
+  .markSuccess(
+    order.payment.toString(),
+  );
+
+}
 
     const user = await this.userModel.findById(userId);
 
@@ -345,6 +392,14 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   // 🔴 CANCEL FLOW (NEW FIXED)
   // ======================================================
   if (dto.orderStatus === OrderStatus.CANCELLED) {
+    if (order.payment) {
+
+  await this.paymentsService
+  .markCancelled(
+    order.payment.toString(),
+  );
+
+}
     const usedReward = order.rewardUsed || 0;
 
     if (usedReward > 0) {

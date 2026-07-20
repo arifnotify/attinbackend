@@ -22,6 +22,7 @@ import { RewardsModule } from 'src/rewards/rewards.module';
 import { UsersModule } from 'src/users/users.module';
 import { Product, ProductSchema } from 'src/products/schemas/product.schema';
 import { CartModule } from 'src/cart/cart.module';
+import { PaymentsModule } from 'src/payments/payments.module';
 
 @Module({
   imports: [
@@ -57,7 +58,7 @@ import { CartModule } from 'src/cart/cart.module';
     ]),
 
     RedisModule,
-
+    PaymentsModule,
     RewardsModule,
     UsersModule, // ✅ ADD THIS (UsersService জন্য)
     CartModule, // 🔥 MUST

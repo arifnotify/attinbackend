@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { OrderStatus } from '../enums/order-status.enum';
+import { PaymentMethod } from 'src/payments/enums/payment-method.enum';
 
 export type OrderDocument = Order & Document;
 
@@ -77,8 +78,19 @@ export class Order {
   // =========================
   // PAYMENT
   // =========================
-  @Prop({ default: 'COD' })
-  paymentMethod: string;
+@Prop({
+  enum: Object.values(PaymentMethod),
+  default: PaymentMethod.COD,
+})
+paymentMethod: PaymentMethod;
+
+    // 🔥 NEW
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Payment',
+    default: null,
+  })
+  payment: Types.ObjectId | null;
 
   @Prop({
     enum: Object.values(OrderStatus),

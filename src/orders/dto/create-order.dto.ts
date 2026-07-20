@@ -4,9 +4,13 @@ import {
   IsOptional,
   IsBoolean,
   IsNumber,
+  IsEnum,
 } from 'class-validator';
 
+import { PaymentMethod } from '../../payments/enums/payment-method.enum';
+
 export class CreateOrderDto {
+
   @IsNotEmpty()
   @IsMongoId()
   shippingAddress: string;
@@ -19,8 +23,12 @@ export class CreateOrderDto {
   @IsNumber()
   rewardAmount?: number;
 
-  // NEW
   @IsOptional()
   @IsNumber()
   deliveryCharge?: number;
+
+  // PAYMENT METHOD
+  @IsNotEmpty()
+  @IsEnum(PaymentMethod)
+  paymentMethod: PaymentMethod;
 }
