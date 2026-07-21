@@ -155,7 +155,7 @@ return product;
         ) {
           data.freshText =
             getFreshTime(
-              data.createdAt,
+              data.updatedAt || data.createdAt,
             );
         }
 
@@ -208,7 +208,7 @@ return product;
     ) {
       data.freshText =
         getFreshTime(
-          data.createdAt,
+          data.updatedAt || data.createdAt,
         );
     }
 
@@ -533,7 +533,7 @@ async remove(id: string) {
     ) {
       data.freshText =
         getFreshTime(
-          data.createdAt,
+          data.updatedAt || data.createdAt,
         );
     }
 
