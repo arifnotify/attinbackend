@@ -109,6 +109,16 @@ locations: Types.ObjectId[];
   })
   productType: string;
 
+  @Prop({
+  default: false,
+  })
+  isFeatured: boolean;
+  
+  @Prop({
+    default: 0,
+  })
+  homePriority: number;
+
   @Prop()
   expiryDate: Date;
 
