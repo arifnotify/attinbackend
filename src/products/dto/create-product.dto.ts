@@ -86,6 +86,14 @@ export class CreateProductDto {
   productType: string;
 
   @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
+  
+  @IsOptional()
+  @IsNumber()
+  homePriority?: number;
+
+  @IsOptional()
   @IsDateString()
   expiryDate: Date;
 }
