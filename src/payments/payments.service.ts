@@ -34,7 +34,29 @@ export class PaymentsService {
   ) {}
 
   // ====================================
-  // CREATE PAYMENT
+  // INITIATE ONLINE PAYMENT (For OrdersService Build Fix)
+  // ====================================
+  async initiateOnlinePayment(data: {
+    userId: string;
+    amount: number;
+    customerPhone: string;
+  }) {
+    const tempOrderId = new Types.ObjectId().toString();
+
+    const gatewayResponse = await this.sslProvider.createPayment({
+      amount: data.amount,
+      orderId: tempOrderId,
+      customerPhone: data.customerPhone,
+    });
+
+    return {
+      paymentUrl: gatewayResponse?.paymentUrl || null,
+      transactionId: gatewayResponse?.transactionId || null,
+    };
+  }
+
+  // ====================================
+  // CREATE PAYMENT (For COD / Direct Payment)
   // ====================================
   async createOrderPayment(data: {
     userId: string;
@@ -158,10 +180,13 @@ export class PaymentsService {
   }
 
   // ====================================
-  // SSL SUCCESS HANDLER (পেমেন্ট সফল হলে অর্ডার এক্টিভ হবে)
+  // SSL SUCCESS HANDLER (پেমেন্ট সফল হলে অর্ডার এক্টিভ, রিওয়ার্ড কাটবে ও কার্ট ক্লিয়ার হবে)
   // ====================================
-  async handleSuccess(query: any) {
-    const transactionId = query.tran_id;
+  // ====================================
+  // SSL SUCCESS HANDLER
+  // ====================================
+  async handleSuccess(query: Record<string, any>) {
+    const transactionId = query.tran_id as string;
     const payment = await this.paymentModel.findOne({ transactionId });
 
     if (!payment) {
@@ -178,27 +203,27 @@ export class PaymentsService {
     const order = await this.orderModel.findById(payment.order);
 
     if (order) {
-      const userId = order.user.toString();
+      const userId: string = order.user.toString();
 
       order.isPaid = true;
       order.orderStatus = OrderStatus.PENDING;
       await order.save();
 
-      // পেমেন্ট সফল হওয়ার পরই কেবল রিওয়ার্ড কাটা হবে
+      // রিওয়ার্ড ডিডাক্ট করা
       if (order.rewardUsed > 0) {
         await this.rewardsService.redeemReward(
           userId,
-          order.rewardUsed,
-          order._id.toString(),
+          order.rewardUsed as number,
+          (order._id as Types.ObjectId).toString(),
         );
 
         await this.usersService.increaseRewardUsed(
           userId,
-          order.rewardUsed,
+          order.rewardUsed as number,
         );
       }
 
-      // পেমেন্ট সফল হওয়ার পরই কেবল কার্ট ডিলিট হবে
+      // কার্ট ক্লিয়ার করা
       await this.cartModel.deleteMany({ user: userId });
       await this.cartService.cacheCart(userId);
     }
@@ -207,17 +232,20 @@ export class PaymentsService {
   }
 
   // ====================================
-  // SSL FAIL HANDLER (পেমেন্ট ফেইল করলে DB থেকে অর্ডার ডিলিট)
+  // SSL FAIL HANDLER
   // ====================================
-  async handleFail(query: any) {
-    const transactionId = query.tran_id;
+  async handleFail(query: Record<string, any>) {
+    const transactionId = query.tran_id as string;
     const payment = await this.paymentModel.findOne({ transactionId });
 
-    if (payment) {
-      payment.paymentStatus = PaymentStatus.FAILED;
-      await payment.save();
+    if (!payment) {
+      return { success: false, message: 'Payment not found' };
+    }
 
-      // 🔴 পেমেন্ট ফেইল হলে ব্যাকএন্ড থেকে আনপেইড অর্ডারটি সম্পূর্ণ ডিলিট করে দেওয়া
+    payment.paymentStatus = PaymentStatus.FAILED;
+    await payment.save();
+
+    if (payment.order) {
       await this.orderModel.findByIdAndDelete(payment.order);
     }
 
@@ -225,17 +253,20 @@ export class PaymentsService {
   }
 
   // ====================================
-  // SSL CANCEL HANDLER (পেমেন্ট ক্যানসেল করলে DB থেকে অর্ডার ডিলিট)
+  // SSL CANCEL HANDLER
   // ====================================
-  async handleCancel(query: any) {
-    const transactionId = query.tran_id;
+  async handleCancel(query: Record<string, any>) {
+    const transactionId = query.tran_id as string;
     const payment = await this.paymentModel.findOne({ transactionId });
 
-    if (payment) {
-      payment.paymentStatus = PaymentStatus.CANCELLED;
-      await payment.save();
+    if (!payment) {
+      return { success: false, message: 'Payment not found' };
+    }
 
-      // 🔴 ইউজার ক্যানসেল করলে ব্যাকএন্ড থেকে আনপেইড অর্ডারটি সম্পূর্ণ ডিলিট করে দেওয়া
+    payment.paymentStatus = PaymentStatus.CANCELLED;
+    await payment.save();
+
+    if (payment.order) {
       await this.orderModel.findByIdAndDelete(payment.order);
     }
 

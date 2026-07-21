@@ -77,8 +77,9 @@ export class OrdersService {
 // =========================
 // CREATE ORDER (PRODUCTION READY)
 // =========================
+// orders.service.ts
+
 async createOrder(userId: string, dto: CreateOrderDto) {
-  // 1. USER & ADDRESS CHECK
   const user = await this.userModel.findById(userId);
   if (!user) throw new NotFoundException('User not found');
 
@@ -88,14 +89,12 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   });
   if (!address) throw new NotFoundException('Address not found');
 
-  // 2. CART ITEMS CHECK
   const cartItems = await this.cartModel
     .find({ user: userId })
     .populate('product');
 
   if (!cartItems.length) throw new NotFoundException('Cart is empty');
 
-  // 3. CALCULATIONS
   const subTotal = cartItems.reduce((sum, item: any) => {
     const price = item.price || 0;
     const qty = item.quantity || 1;
@@ -117,31 +116,25 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   const totalAmount = subTotal + deliveryCharge;
   const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
-  // =========================================================================
-  // 🔵 FLOW A: SSLCOMMERZ (অর্ডার তৈরি হবে না, শুধু পেমেন্ট লিংক জেনারেট হবে)
-  // =========================================================================
+  // ==========================================
+  // 🔵 SSLCOMMERZ FLOW (অর্ডার ক্রিয়েট হবে না)
+  // ==========================================
   if (dto.paymentMethod === 'SSLCOMMERZ') {
-    // পেমেন্ট সেশনের জন্য পেমেন্ট সার্ভিসকে ডেটা পাঠানো (এখানে Order ক্রিয়েট হবে না)
     const payment = await this.paymentsService.initiateOnlinePayment({
       userId,
       amount: finalAmount,
       customerPhone: user.phone,
-      shippingAddressId: address._id,
-      rewardUsed,
-      deliveryCharge,
-      subTotal,
-      totalAmount,
     });
 
     return {
       paymentMethod: 'SSLCOMMERZ',
-      paymentUrl: payment.paymentUrl, // ফ্লটারে শুধু পেমেন্ট ইউআরএল পাঠানো হচ্ছে
+      paymentUrl: payment.paymentUrl,
     };
   }
 
-  // =========================================================================
-  // 🟢 FLOW B: COD (সরাসরি অর্ডার তৈরি হবে)
-  // =========================================================================
+  // ==========================================
+  // 🟢 COD FLOW (অর্ডার সরাসরি ক্রিয়েট হবে)
+  // ==========================================
   let orderNumber = '';
   let exists = true;
   while (exists) {
@@ -188,7 +181,6 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   order.payment = payment._id as any;
   await order.save();
 
-  // রিওয়ার্ড কাটা এবং কার্ট ক্লিয়ার করা
   if (rewardUsed > 0) {
     await this.rewardsService.redeemReward(userId, rewardUsed, order._id.toString());
     await this.usersService.increaseRewardUsed(userId, rewardUsed);
