@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 
 import { InjectModel } from '@nestjs/mongoose';
@@ -37,8 +39,6 @@ import { Product } from 'src/products/schemas/product.schema';
 import { CartService } from 'src/cart/cart.service';
 import { PaymentsService } from '../payments/payments.service';
 
-import { PaymentMethod } from '../payments/enums/payment-method.enum';
-
 @Injectable()
 export class OrdersService {
   constructor(
@@ -66,6 +66,7 @@ export class OrdersService {
 
     private readonly cartService: CartService,
 
+    @Inject(forwardRef(() => PaymentsService))
     private readonly paymentsService: PaymentsService,
   ) {}
 
@@ -256,7 +257,17 @@ await order.save();
   await this.cartModel.deleteMany({ user: userId });
   await this.cartService.cacheCart(userId);
 
-  return order;
+  return {
+  ...order.toObject(),
+
+  paymentMethod: payment.paymentMethod,
+
+  paymentStatus: payment.paymentStatus,
+
+  paymentUrl: payment.paymentUrl,
+
+  paymentId: payment._id,
+};
 }
   // =========================
   // USER ORDERS

@@ -1,79 +1,87 @@
-import { Injectable } from '@nestjs/common';
-
+import { Injectable, BadRequestException } from '@nestjs/common';
 import axios from 'axios';
+import * as qs from 'qs';
 
 @Injectable()
 export class SSLCommerzProvider {
-
   async createPayment(data: {
     amount: number;
     orderId: string;
     customerPhone: string;
   }) {
+    try {
+      const isLive = process.env.SSL_IS_LIVE === 'true';
 
-    const url =
-      process.env.SSL_IS_LIVE === 'true'
-        ? 'https://securepay.sslcommerz.com/gwprocess/v4/api.php'
-        : 'https://sandbox.sslcommerz.com/gwprocess/v4/api.php';
+      const url = isLive
+          ? 'https://securepay.sslcommerz.com/gwprocess/v4/api.php'
+          : 'https://sandbox.sslcommerz.com/gwprocess/v4/api.php';
 
-    const payload = {
+      const payload = {
+        store_id: process.env.SSL_STORE_ID,
+        store_passwd: process.env.SSL_STORE_PASSWORD,
 
-      store_id:
-        process.env.SSL_STORE_ID,
+        total_amount: data.amount,
+        currency: 'BDT',
 
-      store_passwd:
-        process.env.SSL_STORE_PASSWORD,
+        tran_id: data.orderId,
 
-      total_amount:
-        data.amount,
+        success_url: process.env.SSL_SUCCESS_URL,
+        fail_url: process.env.SSL_FAIL_URL,
+        cancel_url: process.env.SSL_CANCEL_URL,
 
-      currency: 'BDT',
+        ipn_url: process.env.SSL_IPN_URL,
 
-      tran_id:
-        data.orderId,
+        shipping_method: 'NO',
 
-      success_url:
-        process.env.SSL_SUCCESS_URL,
+        product_name: 'Ecommerce Order',
+        product_category: 'General',
+        product_profile: 'general',
 
-      fail_url:
-        process.env.SSL_FAIL_URL,
+        cus_name: 'Customer',
+        cus_email: 'customer@example.com',
+        cus_add1: 'Bangladesh',
+        cus_city: 'Dhaka',
+        cus_country: 'Bangladesh',
+        cus_phone: data.customerPhone,
 
-      cancel_url:
-        process.env.SSL_CANCEL_URL,
+        value_a: data.orderId,
+      };
 
-      product_name:
-        'Ecommerce Order',
-
-      product_category:
-        'General',
-
-      product_profile:
-        'general',
-
-      cus_name:
-        'Customer',
-
-      cus_phone:
-        data.customerPhone,
-
-      shipping_method:
-        'NO',
-
-      num_of_item: 1,
-    };
-
-    const response =
-      await axios.post(
+      const response = await axios.post(
         url,
-        payload,
+        qs.stringify(payload),
+        {
+          headers: {
+            'Content-Type':
+                'application/x-www-form-urlencoded',
+          },
+        },
       );
 
-    return {
-      transactionId:
-        data.orderId,
+      if (
+        response.data.status !== 'SUCCESS' ||
+        !response.data.GatewayPageURL
+      ) {
+        throw new BadRequestException(
+          response.data.failedreason ||
+              'SSLCommerz Session Failed',
+        );
+      }
 
-      paymentUrl:
-        response.data.GatewayPageURL,
-    };
+      return {
+        transactionId: data.orderId,
+        paymentUrl: response.data.GatewayPageURL,
+        sessionKey: response.data.sessionkey,
+      };
+    } catch (e: any) {
+      console.log(
+        'SSL Error:',
+        e.response?.data || e.message,
+      );
+
+      throw new BadRequestException(
+        'Unable to create SSL payment session',
+      );
+    }
   }
 }

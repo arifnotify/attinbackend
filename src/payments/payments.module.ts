@@ -1,55 +1,41 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 
 import { MongooseModule } from '@nestjs/mongoose';
 
-import { Payment, PaymentSchema }
-from './schemas/payment.schema';
+import { Payment, PaymentSchema } from './schemas/payment.schema';
 
-import { PaymentsService }
-from './payments.service';
+import { Order, OrderSchema } from '../orders/schemas/order.schema';
 
-import { PaymentsController }
-from './payments.controller';
+import { PaymentsController } from './payments.controller';
 
-import { CodProvider }
-from './providers/cod.provider';
+import { PaymentsService } from './payments.service';
 
-import { SSLCommerzProvider }
-from './providers/sslcommerz.provider';
+import { CodProvider } from './providers/cod.provider';
 
-import {
-  Order,
-  OrderSchema,
-} from '../orders/schemas/order.schema';
+import { SSLCommerzProvider } from './providers/sslcommerz.provider';
+
+import { OrdersModule } from '../orders/orders.module';
 
 @Module({
-  imports:[
+  imports: [
     MongooseModule.forFeature([
       {
         name: Payment.name,
         schema: PaymentSchema,
       },
-
-      // 🔥 NEW
       {
         name: Order.name,
         schema: OrderSchema,
       },
     ]),
+
+    forwardRef(() => OrdersModule),
   ],
 
-  controllers:[
-    PaymentsController,
-  ],
+  controllers: [PaymentsController],
 
-  providers:[
-    PaymentsService,
-    CodProvider,
-    SSLCommerzProvider,
-  ],
+  providers: [PaymentsService, CodProvider, SSLCommerzProvider],
 
-  exports:[
-    PaymentsService,
-  ],
+  exports: [PaymentsService],
 })
 export class PaymentsModule {}

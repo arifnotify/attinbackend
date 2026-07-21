@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { OrdersController } from './orders.controller';
@@ -17,12 +17,13 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 
 import { Address, AddressSchema } from '../address/schemas/address.schema';
 
+import { Product, ProductSchema } from '../products/schemas/product.schema';
+
 import { RedisModule } from '../redis/redis.module';
-import { RewardsModule } from 'src/rewards/rewards.module';
-import { UsersModule } from 'src/users/users.module';
-import { Product, ProductSchema } from 'src/products/schemas/product.schema';
-import { CartModule } from 'src/cart/cart.module';
-import { PaymentsModule } from 'src/payments/payments.module';
+import { RewardsModule } from '../rewards/rewards.module';
+import { UsersModule } from '../users/users.module';
+import { CartModule } from '../cart/cart.module';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
@@ -31,37 +32,36 @@ import { PaymentsModule } from 'src/payments/payments.module';
         name: Order.name,
         schema: OrderSchema,
       },
-
       {
         name: RiderLocation.name,
         schema: RiderLocationSchema,
       },
-
       {
         name: Cart.name,
         schema: CartSchema,
       },
-
       {
         name: User.name,
         schema: UserSchema,
       },
-
-      // 🔥 ADD THIS
       {
         name: Address.name,
         schema: AddressSchema,
       },
-
-      // 🔥 THIS IS MISSING (IMPORTANT FIX)
-      { name: Product.name, schema: ProductSchema },
+      {
+        name: Product.name,
+        schema: ProductSchema,
+      },
     ]),
 
     RedisModule,
-    PaymentsModule,
+
+    // ✅ FIX
+    forwardRef(() => PaymentsModule),
+
     RewardsModule,
-    UsersModule, // ✅ ADD THIS (UsersService জন্য)
-    CartModule, // 🔥 MUST
+    UsersModule,
+    CartModule,
   ],
 
   controllers: [OrdersController],
