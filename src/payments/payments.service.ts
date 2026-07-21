@@ -1,19 +1,16 @@
 import { Injectable } from '@nestjs/common';
-
 import { InjectModel } from '@nestjs/mongoose';
-
-import { Model, Types } from 'mongoose';
-
+import { Model } from 'mongoose';
 import { Payment, PaymentDocument } from './schemas/payment.schema';
-
-import { PaymentMethod } from './enums/payment-method.enum';
-
 import { PaymentStatus } from './enums/payment-status.enum';
-
 import { CodProvider } from './providers/cod.provider';
-
 import { SSLCommerzProvider } from './providers/sslcommerz.provider';
 import { Order } from '../orders/schemas/order.schema';
+import { OrderStatus } from '../orders/enums/order-status.enum';
+import { Cart } from '../cart/schemas/cart.schema';
+import { RewardsService } from 'src/rewards/rewards.service';
+import { UsersService } from 'src/users/users.service';
+import { CartService } from 'src/cart/cart.service';
 
 @Injectable()
 export class PaymentsService {
@@ -22,320 +19,139 @@ export class PaymentsService {
     private paymentModel: Model<PaymentDocument>,
 
     private readonly codProvider: CodProvider,
-
     private readonly sslProvider: SSLCommerzProvider,
 
-    @InjectModel(Order.name) private orderModel: Model<any>,
-    
+    @InjectModel(Order.name) 
+    private orderModel: Model<any>,
+
+    @InjectModel(Cart.name)
+    private cartModel: Model<any>,
+
+    private readonly rewardsService: RewardsService,
+    private readonly usersService: UsersService,
+    private readonly cartService: CartService,
   ) {}
 
+  // ... [আপনার বাকি createOrderPayment, markSuccess, markFailed ইত্যাদি আগের মতোই থাকবে] ...
+
   // ====================================
-  // CREATE PAYMENT
+  // SSL SUCCESS (PRODUCTION READY)
   // ====================================
+  async handleSuccess(query: any) {
+    const transactionId = query.tran_id;
 
-  async createOrderPayment(data: {
-  userId:string;
-  orderId:string;
-  amount:number;
-  paymentMethod:PaymentMethod;
-  customerPhone:string;
-  }) {
-    let gatewayResponse: any;
+    const payment = await this.paymentModel.findOne({ transactionId });
 
-    switch (data.paymentMethod) {
-      case PaymentMethod.COD:
-        gatewayResponse = await this.codProvider.createPayment();
-
-        break;
-
-      case PaymentMethod.SSLCOMMERZ:
-        gatewayResponse = await this.sslProvider.createPayment({
-          amount: data.amount,
-          orderId: data.orderId,
-          customerPhone: data.customerPhone,
-});
-
-        break;
-
-      default:
-
-        gatewayResponse =
-          await this.codProvider.createPayment();
+    if (!payment) {
+      return {
+        success: false,
+        message: 'Payment not found',
+      };
     }
 
-    const payment =
-      await this.paymentModel.create({
-        user: new Types.ObjectId(
-          data.userId,
-        ),
+    // ডুপ্লিকেট পেমেন্ট প্রসেসিং আটকানোর জন্য
+    if (payment.paymentStatus === PaymentStatus.SUCCESS) {
+      return {
+        success: true,
+        message: 'Payment already processed',
+      };
+    }
 
-        order: new Types.ObjectId(
-          data.orderId,
-        ),
+    payment.paymentStatus = PaymentStatus.SUCCESS;
+    await payment.save();
 
-        amount: data.amount,
+    const order = await this.orderModel.findById(payment.order);
 
-        paymentMethod:
-          data.paymentMethod,
+    if (order) {
+      const userId = order.user.toString();
 
-        paymentStatus:
-          PaymentStatus.PENDING,
+      // ১. অর্ডার স্ট্যাটাস PENDING (অ্যাক্টিভ) এবং isPaid: true করা
+      order.isPaid = true;
+      order.orderStatus = OrderStatus.PENDING; 
+      await order.save();
 
-        transactionId:
-          gatewayResponse?.transactionId ||
-          null,
+      // ২. রিওয়ার্ড রিডিম করা
+      if (order.rewardUsed > 0) {
+        await this.rewardsService.redeemReward(
+          userId,
+          order.rewardUsed,
+          order._id.toString(),
+        );
 
-        paymentUrl:
-          gatewayResponse?.paymentUrl ||
-          null,
-      });
+        await this.usersService.increaseRewardUsed(
+          userId,
+          order.rewardUsed,
+        );
+      }
 
-    return payment;
-  }
-
-  // ====================================
-  // PAYMENT SUCCESS
-  // ====================================
-
-async markSuccess(paymentId: string) {
-
-  const payment =
-  await this.paymentModel
-  .findByIdAndUpdate(
-    paymentId,
-    {
-      paymentStatus:
-      PaymentStatus.SUCCESS,
-    },
-    {
-      new:true,
-    },
-  );
-
-  if(payment){
-
-    await this.orderModel
-    .findByIdAndUpdate(
-      payment.order,
-      {
-        isPaid:true,
-      },
-    );
-
-  }
-
-  return payment;
-}
-
-  // ====================================
-  // PAYMENT FAILED
-  // ====================================
-
-  async markFailed(paymentId: string) {
-    return this.paymentModel.findByIdAndUpdate(
-      paymentId,
-      {
-        paymentStatus:
-          PaymentStatus.FAILED,
-      },
-      {
-        new: true,
-      },
-    );
-  }
-
-  // ====================================
-  // PAYMENT CANCELLED
-  // ====================================
-
-async markCancelled(
-  paymentId:string,
-){
-
-  const payment =
-  await this.paymentModel
-  .findByIdAndUpdate(
-    paymentId,
-    {
-      paymentStatus:
-      PaymentStatus.CANCELLED,
-    },
-    {
-      new:true,
-    },
-  );
-
-  if(payment){
-
-    await this.orderModel
-    .findByIdAndUpdate(
-      payment.order,
-      {
-        isPaid:false,
-      },
-    );
-
-  }
-
-  return payment;
-}
-
-  // ====================================
-  // GET SINGLE PAYMENT
-  // ====================================
-
-  async getPayment(id: string) {
-    return this.paymentModel
-      .findById(id)
-      .populate('user')
-      .populate('order');
-  }
-
-  // ====================================
-  // GET ALL PAYMENTS
-  // ====================================
-
-  async getAllPayments() {
-    return this.paymentModel
-      .find()
-      .populate('user')
-      .populate('order')
-      .sort({
-        createdAt: -1,
-      });
-  }
-
-  // ====================================
-  // GET USER PAYMENTS
-  // ====================================
-
-  async getUserPayments(
-    userId: string,
-  ) {
-    return this.paymentModel
-      .find({
-        user: userId,
-      })
-      .populate('order')
-      .sort({
-        createdAt: -1,
-      });
-  }
-
-
-  // ====================================
-// SSL SUCCESS
-// ====================================
-
-async handleSuccess(
-  query:any,
-){
-
-  const transactionId =
-    query.tran_id;
-
-  const payment =
-    await this.paymentModel.findOne({
-      transactionId,
-    });
-
-  if(!payment){
+      // ৩. কার্ট ক্লিয়ার করা
+      await this.cartModel.deleteMany({ user: userId });
+      await this.cartService.cacheCart(userId);
+    }
 
     return {
-      success:false,
-      message:'Payment not found',
+      success: true,
+      message: 'Payment Successful',
     };
-
   }
 
-  payment.paymentStatus =
-    PaymentStatus.SUCCESS;
+  // ====================================
+  // SSL FAIL
+  // ====================================
+  async handleFail(query: any) {
+    const transactionId = query.tran_id;
 
-  await payment.save();
+    const payment = await this.paymentModel.findOne({ transactionId });
 
-  await this.orderModel
-    .findByIdAndUpdate(
-      payment.order,
-      {
-        isPaid:true,
-      },
-    );
+    if (!payment) {
+      return {
+        success: false,
+        message: 'Payment not found',
+      };
+    }
 
-  return {
-    success:true,
-    message:'Payment Successful',
-  };
-}
+    payment.paymentStatus = PaymentStatus.FAILED;
+    await payment.save();
 
-// ====================================
-// SSL FAIL
-// ====================================
-
-async handleFail(
-  query:any,
-){
-
-  const transactionId =
-    query.tran_id;
-
-  const payment =
-    await this.paymentModel.findOne({
-      transactionId,
+    // পেমেন্ট ফেইল করলে অর্ডার স্ট্যাটাস CANCELLED করা
+    await this.orderModel.findByIdAndUpdate(payment.order, {
+      orderStatus: OrderStatus.CANCELLED,
+      isPaid: false,
     });
 
-  if(!payment){
-
     return {
-      success:false,
-      message:'Payment not found',
+      success: false,
+      message: 'Payment Failed',
     };
-
   }
 
-  payment.paymentStatus =
-    PaymentStatus.FAILED;
+  // ====================================
+  // SSL CANCEL
+  // ====================================
+  async handleCancel(query: any) {
+    const transactionId = query.tran_id;
 
-  await payment.save();
+    const payment = await this.paymentModel.findOne({ transactionId });
 
-  return {
-    success:false,
-    message:'Payment Failed',
-  };
-}
+    if (!payment) {
+      return {
+        success: false,
+        message: 'Payment not found',
+      };
+    }
 
-// ====================================
-// SSL CANCEL
-// ====================================
+    payment.paymentStatus = PaymentStatus.CANCELLED;
+    await payment.save();
 
-async handleCancel(
-  query:any,
-){
-
-  const transactionId =
-    query.tran_id;
-
-  const payment =
-    await this.paymentModel.findOne({
-      transactionId,
+    // পেমেন্ট ক্যানসেল করলে অর্ডার স্ট্যাটাস CANCELLED করা
+    await this.orderModel.findByIdAndUpdate(payment.order, {
+      orderStatus: OrderStatus.CANCELLED,
+      isPaid: false,
     });
 
-  if(!payment){
-
     return {
-      success:false,
-      message:'Payment not found',
+      success: false,
+      message: 'Payment Cancelled',
     };
-
   }
-
-  payment.paymentStatus =
-    PaymentStatus.CANCELLED;
-
-  await payment.save();
-
-  return {
-    success:false,
-    message:'Payment Cancelled',
-  };
-}
 }

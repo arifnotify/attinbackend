@@ -74,200 +74,122 @@ export class OrdersService {
   // CREATE ORDER
   // =========================
 
+// =========================
+// CREATE ORDER (PRODUCTION READY)
+// =========================
 async createOrder(userId: string, dto: CreateOrderDto) {
-  // =========================
-  // USER CHECK
-  // =========================
+  // USER & ADDRESS CHECK
   const user = await this.userModel.findById(userId);
   if (!user) throw new NotFoundException('User not found');
 
-  // =========================
-  // ADDRESS CHECK
-  // =========================
   const address = await this.addressModel.findOne({
     _id: dto.shippingAddress,
     user: userId,
   });
-
   if (!address) throw new NotFoundException('Address not found');
 
-  // =========================
-  // CART ITEMS
-  // =========================
+  // CART ITEMS CHECK
   const cartItems = await this.cartModel
     .find({ user: userId })
     .populate('product');
 
   if (!cartItems.length) throw new NotFoundException('Cart is empty');
 
-  // =========================
-  // SUBTOTAL (PRODUCT ONLY SAFE)
-  // =========================
+  // SUBTOTAL CALCULATION
   const subTotal = cartItems.reduce((sum, item: any) => {
     const price = item.price || 0;
     const qty = item.quantity || 1;
-
     return sum + price * qty;
   }, 0);
 
-  // =========================
-  // DELIVERY CHARGE
-  // =========================
   const deliveryCharge = dto.deliveryCharge ?? 0;
-
-  // =========================
-  // WALLET
-  // =========================
   const wallet = await this.rewardsService.getWallet(userId);
 
-  // =========================
-  // REWARD (ONLY SUBTOTAL)
-  // =========================
+  // REWARD CALCULATION
   let rewardUsed = 0;
-
   if (dto.useReward) {
     rewardUsed = Math.min(
       dto.rewardAmount || 0,
       wallet.balance,
-      subTotal, // ❗ ONLY PRODUCT PRICE
+      subTotal,
     );
   }
 
-  // =========================
-  // TOTAL CALCULATION
-  // =========================
   const totalAmount = subTotal + deliveryCharge;
+  const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
-  const finalAmount = Math.max(
-    0,
-    totalAmount - rewardUsed,
-  );
-
-  // =========================
   // ITEMS MAP
-  // =========================
-const items = cartItems.map((item: any) => {
-  const price = item.price || 0;
-  const qty = item.quantity || 1;
-
-  return {
+  const items = cartItems.map((item: any) => ({
     product: item.product._id,
     productName: item.product.title?.en,
     productImage: item.product.images?.[0] || '',
-    quantity: qty,
-    price,
-    totalPrice: price * qty,
-  };
-});
+    quantity: item.quantity || 1,
+    price: item.price || 0,
+    totalPrice: (item.price || 0) * (item.quantity || 1),
+  }));
 
-  // =========================
-  // ORDER NUMBER GENERATE
-  // =========================
+  // UNIQUE ORDER NUMBER GENERATOR
   let orderNumber = '';
   let exists = true;
-
   while (exists) {
-    orderNumber = Math.floor(
-      10000000 + Math.random() * 90000000,
-    ).toString();
-
+    orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
     const check = await this.orderModel.findOne({ orderNumber });
-
     if (!check) exists = false;
   }
 
-  // =========================
-  // CREATE ORDER
-  // =========================
-const order = await this.orderModel.create({
-  orderNumber,
-  user: userId,
-  customerPhone: user.phone,
-  shippingAddress: address._id,
+  const isOnlinePayment = dto.paymentMethod === 'SSLCOMMERZ';
 
-  items,
+  // CREATE ORDER DOCUMENT
+  const order = await this.orderModel.create({
+    orderNumber,
+    user: userId,
+    customerPhone: user.phone,
+    shippingAddress: address._id,
+    items,
+    subTotal,
+    deliveryCharge,
+    rewardUsed,
+    discountAmount: rewardUsed,
+    totalAmount,
+    finalAmount,
+    paymentMethod: dto.paymentMethod,
+    // 💡 অনলাইন পেমেন্টের ক্ষেত্রে স্ট্যাটাস থাকবে UNPAID/PENDING_PAYMENT
+    orderStatus: isOnlinePayment ? OrderStatus.PENDING_PAYMENT : OrderStatus.PENDING,
+    isPaid: false,
+    trackingEnabled: false,
+  });
 
-  subTotal,
-  deliveryCharge,
+  // CREATE PAYMENT RECORD
+  const payment = await this.paymentsService.createOrderPayment({
+    userId,
+    orderId: order._id.toString(),
+    amount: order.finalAmount,
+    paymentMethod: dto.paymentMethod,
+    customerPhone: user.phone,
+  });
 
-  rewardUsed,
-  discountAmount: rewardUsed,
+  order.payment = payment._id as any;
+  await order.save();
 
-  totalAmount,
-  finalAmount,
-
-  paymentMethod: dto.paymentMethod,
-
-  orderStatus: OrderStatus.PENDING,
-  isPaid: false,
-  trackingEnabled: false,
-});
-
-// =========================
-// CREATE PAYMENT
-// =========================
-
-const payment =
-await this.paymentsService
-.createOrderPayment({
-
-  userId,
-
-  orderId:
-  order._id.toString(),
-
-  amount:
-  order.finalAmount,
-
-  paymentMethod:
-  dto.paymentMethod,
-
-  customerPhone:
-  user.phone,
-});
-
-// =========================
-// SAVE PAYMENT ID
-// =========================
-
-order.payment =
-payment._id as any;
-
-await order.save();
-
-  // =========================
-  // REDEEM REWARD
-  // =========================
-  if (rewardUsed > 0) {
-    await this.rewardsService.redeemReward(
-      userId,
-      rewardUsed,
-      order._id.toString(),
-    );
-
-    await this.usersService.increaseRewardUsed(
-      userId,
-      rewardUsed,
-    );
+  // ==========================================
+  // COD FLOW: কার্ট ডিলিট ও রিওয়ার্ড কেটে নেওয়া হবে
+  // ==========================================
+  if (!isOnlinePayment) {
+    if (rewardUsed > 0) {
+      await this.rewardsService.redeemReward(userId, rewardUsed, order._id.toString());
+      await this.usersService.increaseRewardUsed(userId, rewardUsed);
+    }
+    await this.cartModel.deleteMany({ user: userId });
+    await this.cartService.cacheCart(userId);
   }
 
-  // =========================
-  // CLEAR CART
-  // =========================
-  await this.cartModel.deleteMany({ user: userId });
-  await this.cartService.cacheCart(userId);
-
   return {
-  ...order.toObject(),
-
-  paymentMethod: payment.paymentMethod,
-
-  paymentStatus: payment.paymentStatus,
-
-  paymentUrl: payment.paymentUrl,
-
-  paymentId: payment._id,
-};
+    ...order.toObject(),
+    paymentMethod: payment.paymentMethod,
+    paymentStatus: payment.paymentStatus,
+    paymentUrl: payment.paymentUrl,
+    paymentId: payment._id,
+  };
 }
   // =========================
   // USER ORDERS
@@ -761,4 +683,5 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
   };
 
 }
+
 }
