@@ -78,7 +78,7 @@ export class OrdersService {
 // CREATE ORDER (PRODUCTION READY)
 // =========================
 async createOrder(userId: string, dto: CreateOrderDto) {
-  // USER & ADDRESS CHECK
+  // 1. USER & ADDRESS CHECK
   const user = await this.userModel.findById(userId);
   if (!user) throw new NotFoundException('User not found');
 
@@ -88,14 +88,14 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   });
   if (!address) throw new NotFoundException('Address not found');
 
-  // CART ITEMS CHECK
+  // 2. CART ITEMS CHECK
   const cartItems = await this.cartModel
     .find({ user: userId })
     .populate('product');
 
   if (!cartItems.length) throw new NotFoundException('Cart is empty');
 
-  // SUBTOTAL CALCULATION
+  // 3. CALCULATIONS
   const subTotal = cartItems.reduce((sum, item: any) => {
     const price = item.price || 0;
     const qty = item.quantity || 1;
@@ -105,7 +105,6 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   const deliveryCharge = dto.deliveryCharge ?? 0;
   const wallet = await this.rewardsService.getWallet(userId);
 
-  // REWARD CALCULATION
   let rewardUsed = 0;
   if (dto.useReward) {
     rewardUsed = Math.min(
@@ -118,7 +117,39 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   const totalAmount = subTotal + deliveryCharge;
   const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
-  // ITEMS MAP
+  // =========================================================================
+  // 🔵 FLOW A: SSLCOMMERZ (অর্ডার তৈরি হবে না, শুধু পেমেন্ট লিংক জেনারেট হবে)
+  // =========================================================================
+  if (dto.paymentMethod === 'SSLCOMMERZ') {
+    // পেমেন্ট সেশনের জন্য পেমেন্ট সার্ভিসকে ডেটা পাঠানো (এখানে Order ক্রিয়েট হবে না)
+    const payment = await this.paymentsService.initiateOnlinePayment({
+      userId,
+      amount: finalAmount,
+      customerPhone: user.phone,
+      shippingAddressId: address._id,
+      rewardUsed,
+      deliveryCharge,
+      subTotal,
+      totalAmount,
+    });
+
+    return {
+      paymentMethod: 'SSLCOMMERZ',
+      paymentUrl: payment.paymentUrl, // ফ্লটারে শুধু পেমেন্ট ইউআরএল পাঠানো হচ্ছে
+    };
+  }
+
+  // =========================================================================
+  // 🟢 FLOW B: COD (সরাসরি অর্ডার তৈরি হবে)
+  // =========================================================================
+  let orderNumber = '';
+  let exists = true;
+  while (exists) {
+    orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
+    const check = await this.orderModel.findOne({ orderNumber });
+    if (!check) exists = false;
+  }
+
   const items = cartItems.map((item: any) => ({
     product: item.product._id,
     productName: item.product.title?.en,
@@ -128,18 +159,6 @@ async createOrder(userId: string, dto: CreateOrderDto) {
     totalPrice: (item.price || 0) * (item.quantity || 1),
   }));
 
-  // UNIQUE ORDER NUMBER GENERATOR
-  let orderNumber = '';
-  let exists = true;
-  while (exists) {
-    orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
-    const check = await this.orderModel.findOne({ orderNumber });
-    if (!check) exists = false;
-  }
-
-  const isOnlinePayment = dto.paymentMethod === 'SSLCOMMERZ';
-
-  // CREATE ORDER DOCUMENT
   const order = await this.orderModel.create({
     orderNumber,
     user: userId,
@@ -153,13 +172,11 @@ async createOrder(userId: string, dto: CreateOrderDto) {
     totalAmount,
     finalAmount,
     paymentMethod: dto.paymentMethod,
-    // 💡 অনলাইন পেমেন্টের ক্ষেত্রে স্ট্যাটাস থাকবে UNPAID/PENDING_PAYMENT
-    orderStatus: isOnlinePayment ? OrderStatus.PENDING_PAYMENT : OrderStatus.PENDING,
+    orderStatus: OrderStatus.PENDING,
     isPaid: false,
     trackingEnabled: false,
   });
 
-  // CREATE PAYMENT RECORD
   const payment = await this.paymentsService.createOrderPayment({
     userId,
     orderId: order._id.toString(),
@@ -171,24 +188,19 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   order.payment = payment._id as any;
   await order.save();
 
-  // ==========================================
-  // COD FLOW: কার্ট ডিলিট ও রিওয়ার্ড কেটে নেওয়া হবে
-  // ==========================================
-  if (!isOnlinePayment) {
-    if (rewardUsed > 0) {
-      await this.rewardsService.redeemReward(userId, rewardUsed, order._id.toString());
-      await this.usersService.increaseRewardUsed(userId, rewardUsed);
-    }
-    await this.cartModel.deleteMany({ user: userId });
-    await this.cartService.cacheCart(userId);
+  // রিওয়ার্ড কাটা এবং কার্ট ক্লিয়ার করা
+  if (rewardUsed > 0) {
+    await this.rewardsService.redeemReward(userId, rewardUsed, order._id.toString());
+    await this.usersService.increaseRewardUsed(userId, rewardUsed);
   }
+
+  await this.cartModel.deleteMany({ user: userId });
+  await this.cartService.cacheCart(userId);
 
   return {
     ...order.toObject(),
     paymentMethod: payment.paymentMethod,
     paymentStatus: payment.paymentStatus,
-    paymentUrl: payment.paymentUrl,
-    paymentId: payment._id,
   };
 }
   // =========================
