@@ -141,6 +141,8 @@ return product;
         .populate('category')
         .populate('locations')
         .sort({
+          isFeatured: -1,
+          homePriority: -1,
           createdAt: -1,
         });
 
@@ -371,6 +373,8 @@ async remove(id: string) {
  .populate('category')
  .populate('locations')
  .sort({
+   isFeatured: -1,
+   homePriority: -1,
    createdAt:-1
  });
 
@@ -493,6 +497,8 @@ async remove(id: string) {
 
     let sortOption: any = {
       createdAt: -1,
+      isFeatured: -1,
+      homePriority: -1,
     };
 
     if (
@@ -583,6 +589,8 @@ return {
         .populate('category')
         .populate('locations')
         .sort({
+          isFeatured: -1,
+          homePriority: -1,
           createdAt: -1,
         });
 
