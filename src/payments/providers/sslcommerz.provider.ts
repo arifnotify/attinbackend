@@ -33,6 +33,7 @@ export class SSLCommerzProvider {
         success_url: process.env.SSL_SUCCESS_URL,
         fail_url: process.env.SSL_FAIL_URL,
         cancel_url: process.env.SSL_CANCEL_URL,
+
         ipn_url: process.env.SSL_IPN_URL,
 
         shipping_method: 'NO',
@@ -48,7 +49,7 @@ export class SSLCommerzProvider {
         cus_country: 'Bangladesh',
         cus_phone: data.customerPhone,
 
-        // 🎯 পেমেন্ট সফল হলে অর্ডার তৈরি করার জন্য কাস্টম ডেটা পাস করা
+        // 🎯 কাস্টম ডেটা পাস করা (পেমেন্ট সফল হলে এই তথ্যগুলো দিয়েই ব্যাকএন্ডে Order ক্রিয়েট হবে)
         value_a: data.userId,
         value_b: data.shippingAddressId,
         value_c: data.useReward ? '1' : '0',
@@ -81,6 +82,7 @@ export class SSLCommerzProvider {
       };
     } catch (e: any) {
       console.log('SSL Error:', e.response?.data || e.message);
+
       throw new BadRequestException('Unable to create SSL payment session');
     }
   }
