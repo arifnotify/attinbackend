@@ -1,5 +1,5 @@
 import { Body, Controller, Post, Res } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express'; // 🟢 'import type' হিসেবে ইমপোর্ট করা হয়েছে
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -38,7 +38,6 @@ export class PaymentsController {
   async sslSuccess(@Body() body: Record<string, any>, @Res() res: Response) {
     await this.paymentsService.handleSuccess(body);
 
-    // 🟢 WebView-এর জন্য HTML Response পাঠাবো যা Flutter সহজেই ডিটেক্ট করতে পারবে
     return res.send(`
       <!DOCTYPE html>
       <html>
