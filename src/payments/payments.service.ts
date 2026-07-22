@@ -104,10 +104,16 @@ export class PaymentsService {
   // ====================================
   // SSL SUCCESS HANDLER (পেমেন্ট সফল হলেই কেবল Order ডাটাবেজে তৈরি হবে)
   // ====================================
+  // ====================================
+  // SSL SUCCESS HANDLER (FIXED)
+  // ====================================
   async handleSuccess(query: Record<string, any>) {
     const transactionId = query.tran_id as string;
 
-    const userId = query.value_a as string;
+    // 🎯 value_a থেকে userId এবং customerPhone আলাদা করে নেওয়া হচ্ছে
+    const rawValueA = (query.value_a as string) || '';
+    const [userId, customerPhoneFromPayload] = rawValueA.split('|');
+
     const shippingAddressId = query.value_b as string;
     const useReward = query.value_c === '1';
 
@@ -158,11 +164,11 @@ export class PaymentsService {
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
 
-    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি করা হচ্ছে (customerPhone সহ)
+    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি হচ্ছে (Phone Number সহ)
     const order = await this.orderModel.create({
       orderNumber,
       user: userId,
-      customerPhone: query.cus_phone || query.cus_phone_no || '', // 🎯 SSLCommerz থেকে আসা ফোন নম্বর সরাসরি সেট করা হলো
+      customerPhone: customerPhoneFromPayload || query.cus_phone || '', // 🎯 ফোন নম্বর পারফেক্টলি সেট হবে
       shippingAddress: shippingAddressId,
       items,
       subTotal,
@@ -187,7 +193,7 @@ export class PaymentsService {
       transactionId: transactionId,
     });
 
-    // ৬. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
+    // ৬. রিওয়ার্ড ওয়ালেট আপডেট
     if (useReward && rewardUsed > 0) {
       await this.rewardsService.redeemReward(
         userId,
@@ -197,7 +203,7 @@ export class PaymentsService {
       await this.usersService.increaseRewardUsed(userId, rewardUsed);
     }
 
-    // ৭. ইউজারের কার্ট ডিলিট ও ক্যাশ রিফ্রেস
+    // ৭. কার্ট ক্লিয়ার
     await this.cartModel.deleteMany({ user: userId });
     await this.cartService.cacheCart(userId);
 
