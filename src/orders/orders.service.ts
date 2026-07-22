@@ -245,6 +245,9 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   // =========================
   // UPDATE STATUS
   // =========================
+// =========================
+// UPDATE STATUS (FIXED)
+// =========================
 async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
   const order = await this.orderModel.findById(id);
 
@@ -252,41 +255,28 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
     throw new NotFoundException('Order not found');
   }
 
-  // 🔥 prevent duplicate update
+  // 🔥 Prevent duplicate update
   if (order.orderStatus === dto.orderStatus) {
     return order;
   }
 
   const userId = order.user.toString();
 
-  const updated = await this.orderModel.findByIdAndUpdate(
-    id,
-    {
-      orderStatus: dto.orderStatus,
-    },
-    { new: true },
-  );
+  // ১. স্ট্যাটাস আপডেট অবজেক্টে সেট করা হলো
+  order.orderStatus = dto.orderStatus;
 
   // ======================================================
   // 🔵 DELIVERY COMPLETED FLOW
   // ======================================================
   if (dto.orderStatus === OrderStatus.DELIVERED) {
-    await this.orderModel.findByIdAndUpdate(id, {
-      trackingEnabled: false,
-      assignedRider: null,
-    });
+    order.trackingEnabled = false;
+    order.assignedRider = null;
 
     if (order.payment) {
-
-  await this.paymentsService
-  .markSuccess(
-    order.payment.toString(),
-  );
-
-}
+      await this.paymentsService.markSuccess(order.payment.toString());
+    }
 
     const user = await this.userModel.findById(userId);
-
     const customerType = user?.customerType ?? 'regular';
 
     // =========================
@@ -299,62 +289,45 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       order._id.toString(),
     );
 
-    // save earned reward in order
-    await this.orderModel.findByIdAndUpdate(order._id, {
-      earnedReward: earnedReward || 0,
-    });
+    // অবজেক্টের ভেতরে earnedReward সেট করা হলো (আলাদা DB call এর দরকার নেই)
+    order.earnedReward = earnedReward || 0;
 
     // =========================
     // USER REWARD UPDATE
     // =========================
     if (earnedReward > 0) {
-      await this.usersService.increaseRewardEarned(
-        userId,
-        earnedReward,
-      );
+      await this.usersService.increaseRewardEarned(userId, earnedReward);
     }
 
     // =========================
     // USER STATS UPDATE
     // =========================
-    await this.usersService.increaseSpentAmount(
-      userId,
-      order.totalAmount,
-    );
-
+    await this.usersService.increaseSpentAmount(userId, order.totalAmount);
     await this.usersService.increaseOrderCount(userId);
-
     await this.usersService.checkCustomerLevel(userId);
   }
 
   // ======================================================
-  // 🔴 CANCEL FLOW (NEW FIXED)
+  // 🔴 CANCEL FLOW
   // ======================================================
   if (dto.orderStatus === OrderStatus.CANCELLED) {
     if (order.payment) {
+      await this.paymentsService.markCancelled(order.payment.toString());
+    }
 
-  await this.paymentsService
-  .markCancelled(
-    order.payment.toString(),
-  );
-
-}
     const usedReward = order.rewardUsed || 0;
 
     if (usedReward > 0) {
       const wallet = await this.rewardsService.getWallet(userId);
 
-      // refund reward back
+      // Refund reward back
       wallet.balance += usedReward;
       await wallet.save();
 
-      // rollback user reward usage safely
-      await this.usersService.increaseRewardUsed(
-        userId,
-        -usedReward,
-      );
+      // Rollback user reward usage safely
+      await this.usersService.increaseRewardUsed(userId, -usedReward);
 
-      // transaction log
+      // Transaction log
       await this.rewardsService.createTransaction({
         user: userId,
         amount: usedReward,
@@ -364,13 +337,14 @@ async updateOrderStatus(id: string, dto: UpdateOrderStatusDto) {
       });
     }
 
-    await this.orderModel.findByIdAndUpdate(id, {
-      trackingEnabled: false,
-      assignedRider: null,
-    });
+    order.trackingEnabled = false;
+    order.assignedRider = null;
   }
 
-  return updated;
+  // ২. একসাথে সব পরিবর্তন DB-তে সেভ করা হলো
+  await order.save();
+
+  return order;
 }
   // =========================
   // RETURN ORDER ITEM
