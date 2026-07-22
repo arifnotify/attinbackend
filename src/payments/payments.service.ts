@@ -104,6 +104,9 @@ export class PaymentsService {
   // ====================================
   // SSL SUCCESS HANDLER (পেমেন্ট সফল হলেই কেবল Order ডাটাবেজে তৈরি হবে)
   // ====================================
+ // ====================================
+  // SSL SUCCESS HANDLER (ফোন নম্বর সহ অর্ডার তৈরি)
+  // ====================================
   async handleSuccess(query: Record<string, any>) {
     const transactionId = query.tran_id as string;
 
@@ -120,7 +123,10 @@ export class PaymentsService {
       return { success: false, message: 'Invalid payload' };
     }
 
-    // ১. কার্ট থেকে আইটেম রিড করা
+    // 🎯 ১. ইউজার ডাটাবেজ থেকে ইউজারের ফোন নম্বরটি রিড করা
+    const user = await this.usersService.findById(userId); // অথবা this.orderModel-এর জায়গায় User মডেল বা UsersService ব্যবহার করুন
+
+    // ২. কার্ট থেকে আইটেম রিড করা
     const cartItems = await this.cartModel
       .find({ user: userId })
       .populate('product');
@@ -132,7 +138,7 @@ export class PaymentsService {
       };
     }
 
-    // ২. টোটাল অ্যামাউন্ট হিসাব
+    // ৩. টোটাল অ্যামাউন্ট হিসাব
     const subTotal = cartItems.reduce(
       (sum, item: any) => sum + (item.price || 0) * (item.quantity || 1),
       0,
@@ -140,7 +146,7 @@ export class PaymentsService {
     const totalAmount = subTotal + deliveryCharge;
     const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
-    // ৩. ইউনিক অর্ডার নম্বর জেনারেট
+    // ৪. ইউনিক অর্ডার নম্বর জেনারেট
     let orderNumber = '';
     let exists = true;
     while (exists) {
@@ -158,10 +164,11 @@ export class PaymentsService {
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
 
-    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি করা হচ্ছে (isPaid: true)
+    // 🟢 ৫. ডাটাবেজে Order তৈরি করা (customerPhone যুক্ত করা হয়েছে)
     const order = await this.orderModel.create({
       orderNumber,
       user: userId,
+      customerPhone: user?.phone || query.cus_phone || '', // 🎯 ফোন নম্বর অ্যাসাইন করা হলো
       shippingAddress: shippingAddressId,
       items,
       subTotal,
@@ -176,7 +183,7 @@ export class PaymentsService {
       trackingEnabled: false,
     });
 
-    // ৫. Payment Schema তে সাকসেস রেকর্ড যুক্ত
+    // ৬. Payment Schema তে সাকসেস রেকর্ড যুক্ত
     await this.paymentModel.create({
       user: new Types.ObjectId(userId),
       order: order._id,
@@ -186,7 +193,7 @@ export class PaymentsService {
       transactionId: transactionId,
     });
 
-    // ৬. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
+    // ৭. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
     if (useReward && rewardUsed > 0) {
       await this.rewardsService.redeemReward(
         userId,
@@ -196,13 +203,12 @@ export class PaymentsService {
       await this.usersService.increaseRewardUsed(userId, rewardUsed);
     }
 
-    // ৭. ইউজারের কার্ট ডিলিট ও ক্যাশ রিফ্রেস
+    // ৮. ইউজারের কার্ট ডিলিট ও ক্যাশ রিফ্রেশ
     await this.cartModel.deleteMany({ user: userId });
     await this.cartService.cacheCart(userId);
 
     return { success: true, message: 'Order created and payment successful' };
   }
-
   // ====================================
   // SSL FAIL HANDLER (কোনো অর্ডার ডিলিট করারও দরকার নেই, কারণ তৈরিই হয়নি)
   // ====================================
