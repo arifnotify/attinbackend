@@ -104,121 +104,111 @@ export class PaymentsService {
   // ====================================
   // SSL SUCCESS HANDLER (পেমেন্ট সফল হলেই কেবল Order ডাটাবেজে তৈরি হবে)
   // ====================================
- // ====================================
-  // SSL SUCCESS HANDLER (ফোন নম্বর সহ অর্ডার তৈরি)
-  // ====================================
-  // ====================================
-  // SSL SUCCESS HANDLER (FIXED)
-  // ====================================
   async handleSuccess(query: Record<string, any>) {
-    try {
-      const transactionId = query.tran_id as string;
+    const transactionId = query.tran_id as string;
 
-      const userId = query.value_a as string;
-      const shippingAddressId = query.value_b as string;
-      const useReward = query.value_c === '1';
+    const userId = query.value_a as string;
+    const shippingAddressId = query.value_b as string;
+    const useReward = query.value_c === '1';
 
-      const valueD = (query.value_d as string) || '0_0';
-      const [rewardAmountStr, deliveryChargeStr] = valueD.split('_');
-      const rewardUsed = parseFloat(rewardAmountStr) || 0;
-      const deliveryCharge = parseFloat(deliveryChargeStr) || 0;
+    const valueD = (query.value_d as string) || '0_0';
+    const [rewardAmountStr, deliveryChargeStr] = valueD.split('_');
+    const rewardUsed = parseFloat(rewardAmountStr) || 0;
+    const deliveryCharge = parseFloat(deliveryChargeStr) || 0;
 
-      if (!userId) {
-        return { success: false, message: 'Invalid payload' };
-      }
-
-      // 🎯 ১. সরাসরি orderModel / userModel থেকে ইউজার তথ্য রিড করা
-      const user = await this.userModel.findById(userId);
-
-      // ২. কার্ট চেক করা
-      const cartItems = await this.cartModel
-        .find({ user: userId })
-        .populate('product');
-
-      if (!cartItems.length) {
-        return {
-          success: false,
-          message: 'Cart empty or order already processed',
-        };
-      }
-
-      // ৩. অ্যামাউন্ট ক্যালকুলেশন
-      const subTotal = cartItems.reduce(
-        (sum, item: any) => sum + (item.price || 0) * (item.quantity || 1),
-        0,
-      );
-      const totalAmount = subTotal + deliveryCharge;
-      const finalAmount = Math.max(0, totalAmount - rewardUsed);
-
-      // ৪. ইউনিক অর্ডার নম্বর
-      let orderNumber = '';
-      let exists = true;
-      while (exists) {
-        orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
-        const check = await this.orderModel.findOne({ orderNumber });
-        if (!check) exists = false;
-      }
-
-      const items = cartItems.map((item: any) => ({
-        product: item.product._id,
-        productName: item.product.title?.en,
-        productImage: item.product.images?.[0] || '',
-        quantity: item.quantity || 1,
-        price: item.price || 0,
-        totalPrice: (item.price || 0) * (item.quantity || 1),
-      }));
-
-      // 🟢 ৫. ডাটাবেজে Order তৈরি (ফোন নম্বর সহ)
-      const order = await this.orderModel.create({
-        orderNumber,
-        user: userId,
-        customerPhone: user?.phone || query.cus_phone || '', // 🎯 সেফটি ব্যাকআপ সহ ফোন নম্বর
-        shippingAddress: shippingAddressId,
-        items,
-        subTotal,
-        deliveryCharge,
-        rewardUsed,
-        discountAmount: rewardUsed,
-        totalAmount,
-        finalAmount,
-        paymentMethod: PaymentMethod.SSLCOMMERZ,
-        orderStatus: OrderStatus.PENDING,
-        isPaid: true,
-        trackingEnabled: false,
-      });
-
-      // ৬. Payment Schema তে রেকর্ড
-      await this.paymentModel.create({
-        user: new Types.ObjectId(userId),
-        order: order._id,
-        amount: finalAmount,
-        paymentMethod: PaymentMethod.SSLCOMMERZ,
-        paymentStatus: PaymentStatus.SUCCESS,
-        transactionId: transactionId,
-      });
-
-      // ৭. রিওয়ার্ড কাটা
-      if (useReward && rewardUsed > 0) {
-        await this.rewardsService.redeemReward(
-          userId,
-          rewardUsed,
-          (order._id as Types.ObjectId).toString(),
-        );
-        await this.usersService.increaseRewardUsed(userId, rewardUsed);
-      }
-
-      // ৮. কার্ট ক্লিয়ার
-      await this.cartModel.deleteMany({ user: userId });
-      await this.cartService.cacheCart(userId);
-
-      return { success: true, message: 'Order created and payment successful' };
-    } catch (error) {
-      console.error('SSL Success Error:', error);
-      throw error;
+    if (!userId) {
+      return { success: false, message: 'Invalid payload' };
     }
+
+    // 🎯 ইউজার প্রোফাইল থেকে ফোন নম্বর বের করা
+    const userProfile = await this.usersService.getProfile(userId);
+
+    // ১. কার্ট থেকে আইটেম রিড করা
+    const cartItems = await this.cartModel
+      .find({ user: userId })
+      .populate('product');
+
+    if (!cartItems.length) {
+      return {
+        success: false,
+        message: 'Cart empty or order already processed',
+      };
+    }
+
+    // ২. টোটাল অ্যামাউন্ট হিসাব
+    const subTotal = cartItems.reduce(
+      (sum, item: any) => sum + (item.price || 0) * (item.quantity || 1),
+      0,
+    );
+    const totalAmount = subTotal + deliveryCharge;
+    const finalAmount = Math.max(0, totalAmount - rewardUsed);
+
+    // ৩. ইউনিক অর্ডার নম্বর জেনারেট
+    let orderNumber = '';
+    let exists = true;
+    while (exists) {
+      orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
+      const check = await this.orderModel.findOne({ orderNumber });
+      if (!check) exists = false;
+    }
+
+    const items = cartItems.map((item: any) => ({
+      product: item.product._id,
+      productName: item.product.title?.en,
+      productImage: item.product.images?.[0] || '',
+      quantity: item.quantity || 1,
+      price: item.price || 0,
+      totalPrice: (item.price || 0) * (item.quantity || 1),
+    }));
+
+    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি করা হচ্ছে (customerPhone সহ)
+    const order = await this.orderModel.create({
+      orderNumber,
+      user: userId,
+      customerPhone: userProfile?.phone || query.cus_phone || '', // 🎯 ফোন নম্বর অ্যাসাইন করা হলো
+      shippingAddress: shippingAddressId,
+      items,
+      subTotal,
+      deliveryCharge,
+      rewardUsed,
+      discountAmount: rewardUsed,
+      totalAmount,
+      finalAmount,
+      paymentMethod: PaymentMethod.SSLCOMMERZ,
+      orderStatus: OrderStatus.PENDING,
+      isPaid: true,
+      trackingEnabled: false,
+    });
+
+    // ৫. Payment Schema তে সাকসেস রেকর্ড যুক্ত
+    await this.paymentModel.create({
+      user: new Types.ObjectId(userId),
+      order: order._id,
+      amount: finalAmount,
+      paymentMethod: PaymentMethod.SSLCOMMERZ,
+      paymentStatus: PaymentStatus.SUCCESS,
+      transactionId: transactionId,
+    });
+
+    // ৬. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
+    if (useReward && rewardUsed > 0) {
+      await this.rewardsService.redeemReward(
+        userId,
+        rewardUsed,
+        (order._id as Types.ObjectId).toString(),
+      );
+      await this.usersService.increaseRewardUsed(userId, rewardUsed);
+    }
+
+    // ৭. ইউজারের কার্ট ডিলিট ও ক্যাশ রিফ্রেস
+    await this.cartModel.deleteMany({ user: userId });
+    await this.cartService.cacheCart(userId);
+
+    return { success: true, message: 'Order created and payment successful' };
   }
+
   // ====================================
-  // SSL FAIL HANDLER (কোনো অর্ডার ডিলিট করারও দরকার নেই, কারণ তৈরিই হয়নি)
+  // SSL FAIL HANDLER
   // ====================================
   async handleFail(query: Record<string, any>) {
     return { success: false, message: 'Payment Failed. No order created.' };
