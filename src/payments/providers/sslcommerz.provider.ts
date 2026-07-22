@@ -6,15 +6,20 @@ import * as qs from 'qs';
 export class SSLCommerzProvider {
   async createPayment(data: {
     amount: number;
-    orderId: string;
+    transactionId: string;
     customerPhone: string;
+    userId: string;
+    shippingAddressId: string;
+    useReward: boolean;
+    rewardAmount: number;
+    deliveryCharge: number;
   }) {
     try {
       const isLive = process.env.SSL_IS_LIVE === 'true';
 
       const url = isLive
-          ? 'https://securepay.sslcommerz.com/gwprocess/v4/api.php'
-          : 'https://sandbox.sslcommerz.com/gwprocess/v4/api.php';
+        ? 'https://securepay.sslcommerz.com/gwprocess/v4/api.php'
+        : 'https://sandbox.sslcommerz.com/gwprocess/v4/api.php';
 
       const payload = {
         store_id: process.env.SSL_STORE_ID,
@@ -23,12 +28,11 @@ export class SSLCommerzProvider {
         total_amount: data.amount,
         currency: 'BDT',
 
-        tran_id: data.orderId,
+        tran_id: data.transactionId,
 
         success_url: process.env.SSL_SUCCESS_URL,
         fail_url: process.env.SSL_FAIL_URL,
         cancel_url: process.env.SSL_CANCEL_URL,
-
         ipn_url: process.env.SSL_IPN_URL,
 
         shipping_method: 'NO',
@@ -44,7 +48,11 @@ export class SSLCommerzProvider {
         cus_country: 'Bangladesh',
         cus_phone: data.customerPhone,
 
-        value_a: data.orderId,
+        // 🎯 পেমেন্ট সফল হলে অর্ডার তৈরি করার জন্য কাস্টম ডেটা পাস করা
+        value_a: data.userId,
+        value_b: data.shippingAddressId,
+        value_c: data.useReward ? '1' : '0',
+        value_d: `${data.rewardAmount}_${data.deliveryCharge}`,
       };
 
       const response = await axios.post(
@@ -52,8 +60,7 @@ export class SSLCommerzProvider {
         qs.stringify(payload),
         {
           headers: {
-            'Content-Type':
-                'application/x-www-form-urlencoded',
+            'Content-Type': 'application/x-www-form-urlencoded',
           },
         },
       );
@@ -63,25 +70,18 @@ export class SSLCommerzProvider {
         !response.data.GatewayPageURL
       ) {
         throw new BadRequestException(
-          response.data.failedreason ||
-              'SSLCommerz Session Failed',
+          response.data.failedreason || 'SSLCommerz Session Failed',
         );
       }
 
       return {
-        transactionId: data.orderId,
+        transactionId: data.transactionId,
         paymentUrl: response.data.GatewayPageURL,
         sessionKey: response.data.sessionkey,
       };
     } catch (e: any) {
-      console.log(
-        'SSL Error:',
-        e.response?.data || e.message,
-      );
-
-      throw new BadRequestException(
-        'Unable to create SSL payment session',
-      );
+      console.log('SSL Error:', e.response?.data || e.message);
+      throw new BadRequestException('Unable to create SSL payment session');
     }
   }
 }
