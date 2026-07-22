@@ -162,6 +162,7 @@ export class PaymentsService {
     const order = await this.orderModel.create({
       orderNumber,
       user: userId,
+      customerPhone: user?.phone || query.cus_phone || '',
       shippingAddress: shippingAddressId,
       items,
       subTotal,
