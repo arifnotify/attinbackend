@@ -79,6 +79,8 @@ export class OrdersService {
 // =========================
 // orders.service.ts
 
+// orders.service.ts
+
 async createOrder(userId: string, dto: CreateOrderDto) {
   const user = await this.userModel.findById(userId);
   if (!user) throw new NotFoundException('User not found');
@@ -89,52 +91,47 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   });
   if (!address) throw new NotFoundException('Address not found');
 
-  const cartItems = await this.cartModel
-    .find({ user: userId })
-    .populate('product');
-
+  const cartItems = await this.cartModel.find({ user: userId }).populate('product');
   if (!cartItems.length) throw new NotFoundException('Cart is empty');
 
-  const subTotal = cartItems.reduce((sum, item: any) => {
-    const price = item.price || 0;
-    const qty = item.quantity || 1;
-    return sum + price * qty;
-  }, 0);
-
+  const subTotal = cartItems.reduce((sum, item: any) => sum + (item.price || 0) * (item.quantity || 1), 0);
   const deliveryCharge = dto.deliveryCharge ?? 0;
   const wallet = await this.rewardsService.getWallet(userId);
 
   let rewardUsed = 0;
   if (dto.useReward) {
-    rewardUsed = Math.min(
-      dto.rewardAmount || 0,
-      wallet.balance,
-      subTotal,
-    );
+    rewardUsed = Math.min(dto.rewardAmount || 0, wallet.balance, subTotal);
   }
 
   const totalAmount = subTotal + deliveryCharge;
   const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
-  // ==========================================
-  // 🔵 SSLCOMMERZ FLOW (অর্ডার ক্রিয়েট হবে না)
-  // ==========================================
+  // ====================================================================
+  // 🔵 SSLCOMMERZ FLOW (কোনো অর্ডার ডাটাবেজে ক্রিয়েট হবে না)
+  // ====================================================================
   if (dto.paymentMethod === 'SSLCOMMERZ') {
-    const payment = await this.paymentsService.initiateOnlinePayment({
-      userId,
+    const tempTransactionId = `TXN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const sslSession = await this.sslProvider.createPayment({
       amount: finalAmount,
+      transactionId: tempTransactionId,
       customerPhone: user.phone,
+      userId: userId,
+      shippingAddressId: address._id.toString(),
+      useReward: !!dto.useReward,
+      rewardAmount: rewardUsed,
+      deliveryCharge: deliveryCharge,
     });
 
     return {
       paymentMethod: 'SSLCOMMERZ',
-      paymentUrl: payment.paymentUrl,
+      paymentUrl: sslSession.paymentUrl,
     };
   }
 
-  // ==========================================
-  // 🟢 COD FLOW (অর্ডার সরাসরি ক্রিয়েট হবে)
-  // ==========================================
+  // ====================================================================
+  // 🟢 COD FLOW (সরাসরি ডাটাবেজে অর্ডার ক্রিয়েট হবে)
+  // ====================================================================
   let orderNumber = '';
   let exists = true;
   while (exists) {
@@ -170,17 +167,6 @@ async createOrder(userId: string, dto: CreateOrderDto) {
     trackingEnabled: false,
   });
 
-  const payment = await this.paymentsService.createOrderPayment({
-    userId,
-    orderId: order._id.toString(),
-    amount: order.finalAmount,
-    paymentMethod: dto.paymentMethod,
-    customerPhone: user.phone,
-  });
-
-  order.payment = payment._id as any;
-  await order.save();
-
   if (rewardUsed > 0) {
     await this.rewardsService.redeemReward(userId, rewardUsed, order._id.toString());
     await this.usersService.increaseRewardUsed(userId, rewardUsed);
@@ -189,11 +175,7 @@ async createOrder(userId: string, dto: CreateOrderDto) {
   await this.cartModel.deleteMany({ user: userId });
   await this.cartService.cacheCart(userId);
 
-  return {
-    ...order.toObject(),
-    paymentMethod: payment.paymentMethod,
-    paymentStatus: payment.paymentStatus,
-  };
+  return order.toObject();
 }
   // =========================
   // USER ORDERS
