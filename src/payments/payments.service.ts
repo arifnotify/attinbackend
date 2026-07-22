@@ -120,9 +120,6 @@ export class PaymentsService {
       return { success: false, message: 'Invalid payload' };
     }
 
-    // 🎯 ইউজার প্রোফাইল থেকে ফোন নম্বর বের করা
-    const userProfile = await this.usersService.getProfile(userId);
-
     // ১. কার্ট থেকে আইটেম রিড করা
     const cartItems = await this.cartModel
       .find({ user: userId })
@@ -161,11 +158,10 @@ export class PaymentsService {
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
 
-    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি করা হচ্ছে (customerPhone সহ)
+    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি করা হচ্ছে (isPaid: true)
     const order = await this.orderModel.create({
       orderNumber,
       user: userId,
-      customerPhone: userProfile?.phone || query.cus_phone || '', // 🎯 ফোন নম্বর অ্যাসাইন করা হলো
       shippingAddress: shippingAddressId,
       items,
       subTotal,
@@ -190,7 +186,7 @@ export class PaymentsService {
       transactionId: transactionId,
     });
 
-    // ৬. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
+    // ৬. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
     if (useReward && rewardUsed > 0) {
       await this.rewardsService.redeemReward(
         userId,
@@ -208,7 +204,7 @@ export class PaymentsService {
   }
 
   // ====================================
-  // SSL FAIL HANDLER
+  // SSL FAIL HANDLER (কোনো অর্ডার ডিলিট করারও দরকার নেই, কারণ তৈরিই হয়নি)
   // ====================================
   async handleFail(query: Record<string, any>) {
     return { success: false, message: 'Payment Failed. No order created.' };
