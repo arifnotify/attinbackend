@@ -22,7 +22,7 @@ export class PaymentsService {
     private readonly codProvider: CodProvider,
     private readonly sslProvider: SSLCommerzProvider,
 
-    @InjectModel(Order.name) 
+    @InjectModel(Order.name)
     private orderModel: Model<any>,
 
     @InjectModel(Cart.name)
@@ -34,20 +34,19 @@ export class PaymentsService {
   ) {}
 
   // ====================================
-  // INITIATE ONLINE PAYMENT (For OrdersService Build Fix)
+  // INITIATE ONLINE PAYMENT
   // ====================================
   async initiateOnlinePayment(data: {
-    userId: string;
     amount: number;
+    transactionId: string;
     customerPhone: string;
+    userId: string;
+    shippingAddressId: string;
+    useReward: boolean;
+    rewardAmount: number;
+    deliveryCharge: number;
   }) {
-    const tempOrderId = new Types.ObjectId().toString();
-
-    const gatewayResponse = await this.sslProvider.createPayment({
-      amount: data.amount,
-      orderId: tempOrderId,
-      customerPhone: data.customerPhone,
-    });
+    const gatewayResponse = await this.sslProvider.createPayment(data);
 
     return {
       paymentUrl: gatewayResponse?.paymentUrl || null,
@@ -56,7 +55,7 @@ export class PaymentsService {
   }
 
   // ====================================
-  // CREATE PAYMENT (For COD / Direct Payment)
+  // CREATE PAYMENT (COD)
   // ====================================
   async createOrderPayment(data: {
     userId: string;
@@ -75,8 +74,13 @@ export class PaymentsService {
       case PaymentMethod.SSLCOMMERZ:
         gatewayResponse = await this.sslProvider.createPayment({
           amount: data.amount,
-          orderId: data.orderId,
+          transactionId: data.orderId,
           customerPhone: data.customerPhone,
+          userId: data.userId,
+          shippingAddressId: '',
+          useReward: false,
+          rewardAmount: 0,
+          deliveryCharge: 0,
         });
         break;
 
@@ -98,7 +102,123 @@ export class PaymentsService {
   }
 
   // ====================================
-  // MARK SUCCESS
+  // SSL SUCCESS HANDLER (পেমেন্ট সফল হলেই কেবল Order ডাটাবেজে তৈরি হবে)
+  // ====================================
+  async handleSuccess(query: Record<string, any>) {
+    const transactionId = query.tran_id as string;
+
+    const userId = query.value_a as string;
+    const shippingAddressId = query.value_b as string;
+    const useReward = query.value_c === '1';
+
+    const valueD = (query.value_d as string) || '0_0';
+    const [rewardAmountStr, deliveryChargeStr] = valueD.split('_');
+    const rewardUsed = parseFloat(rewardAmountStr) || 0;
+    const deliveryCharge = parseFloat(deliveryChargeStr) || 0;
+
+    if (!userId) {
+      return { success: false, message: 'Invalid payload' };
+    }
+
+    // ১. কার্ট থেকে আইটেম রিড করা
+    const cartItems = await this.cartModel
+      .find({ user: userId })
+      .populate('product');
+
+    if (!cartItems.length) {
+      return {
+        success: false,
+        message: 'Cart empty or order already processed',
+      };
+    }
+
+    // ২. টোটাল অ্যামাউন্ট হিসাব
+    const subTotal = cartItems.reduce(
+      (sum, item: any) => sum + (item.price || 0) * (item.quantity || 1),
+      0,
+    );
+    const totalAmount = subTotal + deliveryCharge;
+    const finalAmount = Math.max(0, totalAmount - rewardUsed);
+
+    // ৩. ইউনিক অর্ডার নম্বর জেনারেট
+    let orderNumber = '';
+    let exists = true;
+    while (exists) {
+      orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
+      const check = await this.orderModel.findOne({ orderNumber });
+      if (!check) exists = false;
+    }
+
+    const items = cartItems.map((item: any) => ({
+      product: item.product._id,
+      productName: item.product.title?.en,
+      productImage: item.product.images?.[0] || '',
+      quantity: item.quantity || 1,
+      price: item.price || 0,
+      totalPrice: (item.price || 0) * (item.quantity || 1),
+    }));
+
+    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি করা হচ্ছে (isPaid: true)
+    const order = await this.orderModel.create({
+      orderNumber,
+      user: userId,
+      shippingAddress: shippingAddressId,
+      items,
+      subTotal,
+      deliveryCharge,
+      rewardUsed,
+      discountAmount: rewardUsed,
+      totalAmount,
+      finalAmount,
+      paymentMethod: PaymentMethod.SSLCOMMERZ,
+      orderStatus: OrderStatus.PENDING,
+      isPaid: true,
+      trackingEnabled: false,
+    });
+
+    // ৫. Payment Schema তে সাকসেস রেকর্ড যুক্ত
+    await this.paymentModel.create({
+      user: new Types.ObjectId(userId),
+      order: order._id,
+      amount: finalAmount,
+      paymentMethod: PaymentMethod.SSLCOMMERZ,
+      paymentStatus: PaymentStatus.SUCCESS,
+      transactionId: transactionId,
+    });
+
+    // ৬. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
+    if (useReward && rewardUsed > 0) {
+      await this.rewardsService.redeemReward(
+        userId,
+        rewardUsed,
+        (order._id as Types.ObjectId).toString(),
+      );
+      await this.usersService.increaseRewardUsed(userId, rewardUsed);
+    }
+
+    // ৭. ইউজারের কার্ট ডিলিট ও ক্যাশ রিফ্রেস
+    await this.cartModel.deleteMany({ user: userId });
+    await this.cartService.cacheCart(userId);
+
+    return { success: true, message: 'Order created and payment successful' };
+  }
+
+  // ====================================
+  // SSL FAIL HANDLER (কোনো অর্ডার ডিলিট করারও দরকার নেই, কারণ তৈরিই হয়নি)
+  // ====================================
+  async handleFail(query: Record<string, any>) {
+    return { success: false, message: 'Payment Failed. No order created.' };
+  }
+
+  // ====================================
+  // SSL CANCEL HANDLER
+  // ====================================
+  async handleCancel(query: Record<string, any>) {
+    return { success: false, message: 'Payment Cancelled. No order created.' };
+  }
+
+  // ====================================
+  // MARK SUCCESS (Manual / Admin)
   // ====================================
   async markSuccess(paymentId: string) {
     const payment = await this.paymentModel.findByIdAndUpdate(
@@ -148,9 +268,6 @@ export class PaymentsService {
     return payment;
   }
 
-  // ====================================
-  // GET SINGLE PAYMENT
-  // ====================================
   async getPayment(id: string) {
     return this.paymentModel
       .findById(id)
@@ -158,9 +275,6 @@ export class PaymentsService {
       .populate('order');
   }
 
-  // ====================================
-  // GET ALL PAYMENTS
-  // ====================================
   async getAllPayments() {
     return this.paymentModel
       .find()
@@ -169,118 +283,10 @@ export class PaymentsService {
       .sort({ createdAt: -1 });
   }
 
-  // ====================================
-  // GET USER PAYMENTS
-  // ====================================
   async getUserPayments(userId: string) {
     return this.paymentModel
       .find({ user: userId })
       .populate('order')
       .sort({ createdAt: -1 });
   }
-
-  // ====================================
-  // SSL SUCCESS HANDLER (پেমেন্ট সফল হলে অর্ডার এক্টিভ, রিওয়ার্ড কাটবে ও কার্ট ক্লিয়ার হবে)
-  // ====================================
-  // ====================================
-  // SSL SUCCESS HANDLER
-  // ====================================
-// payments.service.ts
-
-async handleSuccess(query: Record<string, any>) {
-  const transactionId = query.tran_id as string;
-
-  // SSLCommerz থেকে পাওয়া কাস্টম ভ্যালুগুলো রিড করা
-  const userId = query.value_a as string;
-  const shippingAddressId = query.value_b as string;
-  const useReward = query.value_c === '1';
-  
-  const valueD = (query.value_d as string) || '0_0';
-  const [rewardAmountStr, deliveryChargeStr] = valueD.split('_');
-  const rewardUsed = parseFloat(rewardAmountStr) || 0;
-  const deliveryCharge = parseFloat(deliveryChargeStr) || 0;
-
-  if (!userId) {
-    return { success: false, message: 'Invalid payload' };
-  }
-
-  // ১. ইউজার কার্ট থেকে আইটেমগুলো নিয়ে আসা
-  const cartItems = await this.cartModel.find({ user: userId }).populate('product');
-  if (!cartItems.length) {
-    return { success: false, message: 'Cart empty or order already processed' };
-  }
-
-  // ২. সাবটোটাল ও টোটাল হিসাব করা
-  const subTotal = cartItems.reduce((sum, item: any) => sum + (item.price || 0) * (item.quantity || 1), 0);
-  const totalAmount = subTotal + deliveryCharge;
-  const finalAmount = Math.max(0, totalAmount - rewardUsed);
-
-  // ৩. ইউনিক অর্ডার নম্বর জেনারেট
-  let orderNumber = '';
-  let exists = true;
-  while (exists) {
-    orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
-    const check = await this.orderModel.findOne({ orderNumber });
-    if (!check) exists = false;
-  }
-
-  const items = cartItems.map((item: any) => ({
-    product: item.product._id,
-    productName: item.product.title?.en,
-    productImage: item.product.images?.[0] || '',
-    quantity: item.quantity || 1,
-    price: item.price || 0,
-    totalPrice: (item.price || 0) * (item.quantity || 1),
-  }));
-
-  // 🟢 ৪. পেমেন্ট সাকসেস হয়েছে! এখন ডাটাবেজে Order তৈরি হবে (isPaid: true)
-  const order = await this.orderModel.create({
-    orderNumber,
-    user: userId,
-    shippingAddress: shippingAddressId,
-    items,
-    subTotal,
-    deliveryCharge,
-    rewardUsed,
-    discountAmount: rewardUsed,
-    totalAmount,
-    finalAmount,
-    paymentMethod: 'SSLCOMMERZ',
-    orderStatus: OrderStatus.PENDING,
-    isPaid: true, // 🎯 সরাসরি PAID হয়ে ক্রিয়েট হবে
-    trackingEnabled: false,
-  });
-
-  // ৫. পেমেন্ট রেকর্ড তৈরি
-  await this.paymentModel.create({
-    user: new Types.ObjectId(userId),
-    order: order._id,
-    amount: finalAmount,
-    paymentMethod: PaymentMethod.SSLCOMMERZ,
-    paymentStatus: PaymentStatus.SUCCESS,
-    transactionId: transactionId,
-  });
-
-  // ৬. রিওয়ার্ড পয়েন্ট কাটা
-  if (useReward && rewardUsed > 0) {
-    await this.rewardsService.redeemReward(userId, rewardUsed, order._id.toString());
-    await this.usersService.increaseRewardUsed(userId, rewardUsed);
-  }
-
-  // ৭. কার্ট খালি করা
-  await this.cartModel.deleteMany({ user: userId });
-  await this.cartService.cacheCart(userId);
-
-  return { success: true, message: 'Order created and payment successful' };
-}
-
-async handleFail(query: Record<string, any>) {
-  // পেমেন্ট ফেইল হলে ব্যাকএন্ডে কিছু করার প্রয়োজন নেই কারণ অর্ডার তৈরিই হয়নি!
-  return { success: false, message: 'Payment Failed. No order created.' };
-}
-
-async handleCancel(query: Record<string, any>) {
-  // ক্যানসেল করলেও ব্যাকএন্ডে কোনো অর্ডার ডিলিট বা ক্যানসেল করার দরকার নেই, কার্ট আগের মতোই থাকবে!
-  return { success: false, message: 'Payment Cancelled. No order created.' };
-}
 }
