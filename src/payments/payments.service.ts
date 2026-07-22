@@ -158,10 +158,11 @@ export class PaymentsService {
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
 
-    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি করা হচ্ছে (isPaid: true)
+    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি করা হচ্ছে (customerPhone সহ)
     const order = await this.orderModel.create({
       orderNumber,
       user: userId,
+      customerPhone: query.cus_phone || query.cus_phone_no || '', // 🎯 SSLCommerz থেকে আসা ফোন নম্বর সরাসরি সেট করা হলো
       shippingAddress: shippingAddressId,
       items,
       subTotal,
@@ -186,7 +187,7 @@ export class PaymentsService {
       transactionId: transactionId,
     });
 
-    // ৬. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
+    // ৬. রিওয়ার্ড ওয়ালেট থেকে ব্যালেন্স কমানো
     if (useReward && rewardUsed > 0) {
       await this.rewardsService.redeemReward(
         userId,
@@ -204,7 +205,7 @@ export class PaymentsService {
   }
 
   // ====================================
-  // SSL FAIL HANDLER (কোনো অর্ডার ডিলিট করারও দরকার নেই, কারণ তৈরিই হয়নি)
+  // SSL FAIL HANDLER
   // ====================================
   async handleFail(query: Record<string, any>) {
     return { success: false, message: 'Payment Failed. No order created.' };
