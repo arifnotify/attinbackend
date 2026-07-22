@@ -49,8 +49,8 @@ export class SSLCommerzProvider {
         cus_country: 'Bangladesh',
         cus_phone: data.customerPhone,
 
-        // 🎯 কাস্টম ডেটা পাস করা (পেমেন্ট সফল হলে এই তথ্যগুলো দিয়েই ব্যাকএন্ডে Order ক্রিয়েট হবে)
-        value_a: data.userId,
+        // 🎯 value_a তে userId এবং customerPhone দুটোই প্যাক করে পাঠানো হচ্ছে
+        value_a: `${data.userId}|${data.customerPhone}`,
         value_b: data.shippingAddressId,
         value_c: data.useReward ? '1' : '0',
         value_d: `${data.rewardAmount}_${data.deliveryCharge}`,
