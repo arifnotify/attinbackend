@@ -185,91 +185,102 @@ export class PaymentsService {
   // ====================================
   // SSL SUCCESS HANDLER
   // ====================================
-  async handleSuccess(query: Record<string, any>) {
-    const transactionId = query.tran_id as string;
-    const payment = await this.paymentModel.findOne({ transactionId });
+// payments.service.ts
 
-    if (!payment) {
-      return { success: false, message: 'Payment not found' };
-    }
+async handleSuccess(query: Record<string, any>) {
+  const transactionId = query.tran_id as string;
 
-    if (payment.paymentStatus === PaymentStatus.SUCCESS) {
-      return { success: true, message: 'Payment already processed' };
-    }
+  // SSLCommerz থেকে পাওয়া কাস্টম ভ্যালুগুলো রিড করা
+  const userId = query.value_a as string;
+  const shippingAddressId = query.value_b as string;
+  const useReward = query.value_c === '1';
+  
+  const valueD = (query.value_d as string) || '0_0';
+  const [rewardAmountStr, deliveryChargeStr] = valueD.split('_');
+  const rewardUsed = parseFloat(rewardAmountStr) || 0;
+  const deliveryCharge = parseFloat(deliveryChargeStr) || 0;
 
-    payment.paymentStatus = PaymentStatus.SUCCESS;
-    await payment.save();
-
-    const order = await this.orderModel.findById(payment.order);
-
-    if (order) {
-      const userId: string = order.user.toString();
-
-      order.isPaid = true;
-      order.orderStatus = OrderStatus.PENDING;
-      await order.save();
-
-      // রিওয়ার্ড ডিডাক্ট করা
-      if (order.rewardUsed > 0) {
-        await this.rewardsService.redeemReward(
-          userId,
-          order.rewardUsed as number,
-          (order._id as Types.ObjectId).toString(),
-        );
-
-        await this.usersService.increaseRewardUsed(
-          userId,
-          order.rewardUsed as number,
-        );
-      }
-
-      // কার্ট ক্লিয়ার করা
-      await this.cartModel.deleteMany({ user: userId });
-      await this.cartService.cacheCart(userId);
-    }
-
-    return { success: true, message: 'Payment Successful' };
+  if (!userId) {
+    return { success: false, message: 'Invalid payload' };
   }
 
-  // ====================================
-  // SSL FAIL HANDLER
-  // ====================================
-  async handleFail(query: Record<string, any>) {
-    const transactionId = query.tran_id as string;
-    const payment = await this.paymentModel.findOne({ transactionId });
-
-    if (!payment) {
-      return { success: false, message: 'Payment not found' };
-    }
-
-    payment.paymentStatus = PaymentStatus.FAILED;
-    await payment.save();
-
-    if (payment.order) {
-      await this.orderModel.findByIdAndDelete(payment.order);
-    }
-
-    return { success: false, message: 'Payment Failed' };
+  // ১. ইউজার কার্ট থেকে আইটেমগুলো নিয়ে আসা
+  const cartItems = await this.cartModel.find({ user: userId }).populate('product');
+  if (!cartItems.length) {
+    return { success: false, message: 'Cart empty or order already processed' };
   }
 
-  // ====================================
-  // SSL CANCEL HANDLER
-  // ====================================
-  async handleCancel(query: Record<string, any>) {
-    const transactionId = query.tran_id as string;
-    const payment = await this.paymentModel.findOne({ transactionId });
+  // ২. সাবটোটাল ও টোটাল হিসাব করা
+  const subTotal = cartItems.reduce((sum, item: any) => sum + (item.price || 0) * (item.quantity || 1), 0);
+  const totalAmount = subTotal + deliveryCharge;
+  const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
-    if (!payment) {
-      return { success: false, message: 'Payment not found' };
-    }
-
-    payment.paymentStatus = PaymentStatus.CANCELLED;
-    await payment.save();
-
-    if (payment.order) {
-      await this.orderModel.findByIdAndDelete(payment.order);
-    }
-
-    return { success: false, message: 'Payment Cancelled' };
+  // ৩. ইউনিক অর্ডার নম্বর জেনারেট
+  let orderNumber = '';
+  let exists = true;
+  while (exists) {
+    orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
+    const check = await this.orderModel.findOne({ orderNumber });
+    if (!check) exists = false;
   }
+
+  const items = cartItems.map((item: any) => ({
+    product: item.product._id,
+    productName: item.product.title?.en,
+    productImage: item.product.images?.[0] || '',
+    quantity: item.quantity || 1,
+    price: item.price || 0,
+    totalPrice: (item.price || 0) * (item.quantity || 1),
+  }));
+
+  // 🟢 ৪. পেমেন্ট সাকসেস হয়েছে! এখন ডাটাবেজে Order তৈরি হবে (isPaid: true)
+  const order = await this.orderModel.create({
+    orderNumber,
+    user: userId,
+    shippingAddress: shippingAddressId,
+    items,
+    subTotal,
+    deliveryCharge,
+    rewardUsed,
+    discountAmount: rewardUsed,
+    totalAmount,
+    finalAmount,
+    paymentMethod: 'SSLCOMMERZ',
+    orderStatus: OrderStatus.PENDING,
+    isPaid: true, // 🎯 সরাসরি PAID হয়ে ক্রিয়েট হবে
+    trackingEnabled: false,
+  });
+
+  // ৫. পেমেন্ট রেকর্ড তৈরি
+  await this.paymentModel.create({
+    user: new Types.ObjectId(userId),
+    order: order._id,
+    amount: finalAmount,
+    paymentMethod: PaymentMethod.SSLCOMMERZ,
+    paymentStatus: PaymentStatus.SUCCESS,
+    transactionId: transactionId,
+  });
+
+  // ৬. রিওয়ার্ড পয়েন্ট কাটা
+  if (useReward && rewardUsed > 0) {
+    await this.rewardsService.redeemReward(userId, rewardUsed, order._id.toString());
+    await this.usersService.increaseRewardUsed(userId, rewardUsed);
+  }
+
+  // ৭. কার্ট খালি করা
+  await this.cartModel.deleteMany({ user: userId });
+  await this.cartService.cacheCart(userId);
+
+  return { success: true, message: 'Order created and payment successful' };
+}
+
+async handleFail(query: Record<string, any>) {
+  // পেমেন্ট ফেইল হলে ব্যাকএন্ডে কিছু করার প্রয়োজন নেই কারণ অর্ডার তৈরিই হয়নি!
+  return { success: false, message: 'Payment Failed. No order created.' };
+}
+
+async handleCancel(query: Record<string, any>) {
+  // ক্যানসেল করলেও ব্যাকএন্ডে কোনো অর্ডার ডিলিট বা ক্যানসেল করার দরকার নেই, কার্ট আগের মতোই থাকবে!
+  return { success: false, message: 'Payment Cancelled. No order created.' };
+}
 }
