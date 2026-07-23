@@ -58,10 +58,7 @@ export class OrdersService {
   ) {}
 
   // =========================
-  // CREATE ORDER
-  // =========================
-// =========================
-  // CREATE ORDER (FIXED)
+  // CRsEATE ORDER
   // =========================
   async createOrder(userId: string, dto: CreateOrderDto) {
     const user = await this.userModel.findById(userId);
@@ -97,10 +94,11 @@ export class OrdersService {
       );
     }
 
-    const finalAmount = Math.max(0, subTotal + deliveryCharge - rewardUsed);
+    const totalAmount = subTotal + deliveryCharge;
+    const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
     // ==========================================
-    // 🔵 SSLCOMMERZ FLOW (ডাটাবেজে অর্ডার তৈরি হবে পেমেন্ট সাকসেস হওয়ার পর)
+    // 🔵 SSLCOMMERZ FLOW (ডাটাবেজে কোনো অর্ডার তৈরি হবে না)
     // ==========================================
     if (
       dto.paymentMethod === PaymentMethod.SSLCOMMERZ ||
@@ -126,7 +124,7 @@ export class OrdersService {
     }
 
     // ==========================================
-    // 🟢 COD FLOW (ক্যাশ অন ডেলিভারির ক্ষেত্রে সরাসরি অর্ডার ডাটাবেজে ক্রিয়েট হবে)
+    // 🟢 COD FLOW (অর্ডার সরাসরি ডাটাবেজে ক্রিয়েট হবে)
     // ==========================================
     let orderNumber = '';
     let exists = true;
@@ -139,17 +137,15 @@ export class OrdersService {
     const items = cartItems.map((item: any) => ({
       product: item.product._id,
       productName: {
-        en: item.product.title?.en || '',
-        bn: item.product.title?.bn || '',
+      en: item.product.title?.en || '',
+      bn: item.product.title?.bn || '',
       },
-      unit: item.product.unit || 'pcs',
+      unit: item.product.unit || 'pcs', // unit যুক্ত করা হয়েছে
       productImage: item.product.images?.[0] || '',
       quantity: item.quantity || 1,
       price: item.price || 0,
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
-
-    const totalAmount = subTotal + deliveryCharge;
 
     const order = await this.orderModel.create({
       orderNumber,
