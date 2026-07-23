@@ -60,6 +60,9 @@ export class OrdersService {
   // =========================
   // CREATE ORDER
   // =========================
+// =========================
+  // CREATE ORDER (FIXED)
+  // =========================
   async createOrder(userId: string, dto: CreateOrderDto) {
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -94,11 +97,10 @@ export class OrdersService {
       );
     }
 
-    const totalAmount = subTotal + deliveryCharge;
-    const finalAmount = Math.max(0, totalAmount - rewardUsed);
+    const finalAmount = Math.max(0, subTotal + deliveryCharge - rewardUsed);
 
     // ==========================================
-    // 🔵 SSLCOMMERZ FLOW (ডাটাবেজে কোনো অর্ডার তৈরি হবে না)
+    // 🔵 SSLCOMMERZ FLOW (ডাটাবেজে অর্ডার তৈরি হবে পেমেন্ট সাকসেস হওয়ার পর)
     // ==========================================
     if (
       dto.paymentMethod === PaymentMethod.SSLCOMMERZ ||
@@ -124,7 +126,7 @@ export class OrdersService {
     }
 
     // ==========================================
-    // 🟢 COD FLOW (অর্ডার সরাসরি ডাটাবেজে ক্রিয়েট হবে)
+    // 🟢 COD FLOW (ক্যাশ অন ডেলিভারির ক্ষেত্রে সরাসরি অর্ডার ডাটাবেজে ক্রিয়েট হবে)
     // ==========================================
     let orderNumber = '';
     let exists = true;
@@ -137,15 +139,17 @@ export class OrdersService {
     const items = cartItems.map((item: any) => ({
       product: item.product._id,
       productName: {
-      en: item.product.title?.en || '',
-      bn: item.product.title?.bn || '',
+        en: item.product.title?.en || '',
+        bn: item.product.title?.bn || '',
       },
-      unit: item.product.unit || 'pcs', // unit যুক্ত করা হয়েছে
+      unit: item.product.unit || 'pcs',
       productImage: item.product.images?.[0] || '',
       quantity: item.quantity || 1,
       price: item.price || 0,
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
+
+    const totalAmount = subTotal + deliveryCharge;
 
     const order = await this.orderModel.create({
       orderNumber,
