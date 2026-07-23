@@ -107,6 +107,9 @@ export class PaymentsService {
   // ====================================
   // SSL SUCCESS HANDLER (FIXED ORDER OF CREATION)
   // ====================================
+// ====================================
+  // SSL SUCCESS HANDLER (FIXED VARIABLE ORDER)
+  // ====================================
   async handleSuccess(query: Record<string, any>) {
     const transactionId = query.tran_id as string;
 
@@ -168,12 +171,23 @@ export class PaymentsService {
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
 
-    // 🟢 ৪. প্রথমে অর্ডার তৈরি করে ফেলা হচ্ছে (যাতে order._id পাওয়া যায়)
-const order = await this.orderModel.create({
+    // 🟢 ৪. প্রথমে পেমেন্ট মডেল তৈরি করা হচ্ছে (অর্ডার আইডি ছাড়া বা টেম্পোরারি নাল রেখে)
+    // নোট: আপনার Payment Schema-তে `order` ফিল্ডটি যদি required: true থাকে, 
+    // তবে সাময়িকভাবে `required: false` করে নিতে পারেন অথবা নিচে order ফিল্ড বাদ দিতে পারেন।
+    const payment = await this.paymentModel.create({
+      user: new Types.ObjectId(userId),
+      amount: finalAmount,
+      paymentMethod: PaymentMethod.SSLCOMMERZ,
+      paymentStatus: PaymentStatus.SUCCESS,
+      transactionId: transactionId,
+    });
+
+    // 🟢 ৫. এখন অর্ডার তৈরি করা হচ্ছে এবং পেমেন্ট আইডি ও সঠিক ObjectId ফরম্যাটে shippingAddress পাস করা হচ্ছে
+    const order = await this.orderModel.create({
       orderNumber,
       user: new Types.ObjectId(userId),
       customerPhone: customerPhoneFromPayload || query.cus_phone || '',
-      shippingAddress: new Types.ObjectId(shippingAddressId), // 🎯 এটিকে ObjectId এ কনভার্ট করা হলো
+      shippingAddress: new Types.ObjectId(shippingAddressId), // 🎯 সঠিক অবজেক্ট আইডি ফরম্যাট
       items,
       subTotal,
       deliveryCharge,
@@ -182,25 +196,15 @@ const order = await this.orderModel.create({
       totalAmount,
       finalAmount,
       paymentMethod: PaymentMethod.SSLCOMMERZ,
-      payment: payment._id,
+      payment: payment._id, // 🎯 এখানে পেমেন্ট আইডি সঠিকভাবে যুক্ত হলো
       orderStatus: OrderStatus.PENDING,
       isPaid: true,
       trackingEnabled: false,
     });
 
-    // 🟢 ৫. এখন পেমেন্ট রেকর্ড তৈরি করা হচ্ছে এবং order._id পাস করা হচ্ছে
-    const payment = await this.paymentModel.create({
-      user: new Types.ObjectId(userId),
-      order: order._id, // 🎯 এখানে অর্ডার আইডি সঠিকভাবে পাস হলো, ফলে আর ভ্যালিডেশন এরর দিবে না
-      amount: finalAmount,
-      paymentMethod: PaymentMethod.SSLCOMMERZ,
-      paymentStatus: PaymentStatus.SUCCESS,
-      transactionId: transactionId,
-    });
-
-    // 🟢 ৬. অর্ডারের ভেতরে পেমেন্ট আইডি আপডেট করে দেওয়া
-    order.payment = payment._id as any;
-    await order.save();
+    // 🟢 ৬. পেমেন্টের ভেতরে অর্ডার আইডি আপডেট করে দেওয়া
+    payment.order = order._id as any;
+    await payment.save();
 
     // ৭. রিওয়ার্ড ওয়ালেট আপডেট
     if (useReward && rewardUsed > 0) {
