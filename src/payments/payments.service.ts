@@ -102,15 +102,12 @@ export class PaymentsService {
   }
 
   // ====================================
-  // SSL SUCCESS HANDLER (পেমেন্ট সফল হলেই কেবল Order ডাটাবেজে তৈরি হবে)
-  // ====================================
-  // ====================================
-  // SSL SUCCESS HANDLER (FIXED)
+  // SSL SUCCESS HANDLER (FIXED WITH PAYMENT ID LINKING)
   // ====================================
   async handleSuccess(query: Record<string, any>) {
     const transactionId = query.tran_id as string;
 
-    // 🎯 value_a থেকে userId এবং customerPhone আলাদা করে নেওয়া হচ্ছে
+    // value_a থেকে userId এবং customerPhone আলাদা করে নেওয়া হচ্ছে
     const rawValueA = (query.value_a as string) || '';
     const [userId, customerPhoneFromPayload] = rawValueA.split('|');
 
@@ -157,18 +154,31 @@ export class PaymentsService {
 
     const items = cartItems.map((item: any) => ({
       product: item.product._id,
-      productName: item.product.title?.en,
+      productName: {
+        en: item.product.title?.en || '',
+        bn: item.product.title?.bn || '',
+      },
+      unit: item.product.unit || 'pcs',
       productImage: item.product.images?.[0] || '',
       quantity: item.quantity || 1,
       price: item.price || 0,
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
 
-    // 🟢 ৪. পেমেন্ট সাকসেসফুল! এখন ডাটাবেজে Order তৈরি হচ্ছে (Phone Number সহ)
+    // ৪. প্রথমে পেমেন্ট মডেল তৈরি করা হচ্ছে যাতে পেমেন্ট আইডি পাওয়া যায়
+    const payment = await this.paymentModel.create({
+      user: new Types.ObjectId(userId),
+      amount: finalAmount,
+      paymentMethod: PaymentMethod.SSLCOMMERZ,
+      paymentStatus: PaymentStatus.SUCCESS,
+      transactionId: transactionId,
+    });
+
+    // ৫. পেমেন্ট সফল হওয়ার পর অর্ডার তৈরি এবং পেমেন্ট আইডি যুক্ত করা
     const order = await this.orderModel.create({
       orderNumber,
       user: userId,
-      customerPhone: customerPhoneFromPayload || query.cus_phone || '', // 🎯 ফোন নম্বর পারফেক্টলি সেট হবে
+      customerPhone: customerPhoneFromPayload || query.cus_phone || '',
       shippingAddress: shippingAddressId,
       items,
       subTotal,
@@ -178,22 +188,17 @@ export class PaymentsService {
       totalAmount,
       finalAmount,
       paymentMethod: PaymentMethod.SSLCOMMERZ,
+      payment: payment._id, // 🎯 এখানে পেমেন্ট আইডি সঠিকভাবে সেট হলো
       orderStatus: OrderStatus.PENDING,
       isPaid: true,
       trackingEnabled: false,
     });
 
-    // ৫. Payment Schema তে সাকসেস রেকর্ড যুক্ত
-    await this.paymentModel.create({
-      user: new Types.ObjectId(userId),
-      order: order._id,
-      amount: finalAmount,
-      paymentMethod: PaymentMethod.SSLCOMMERZ,
-      paymentStatus: PaymentStatus.SUCCESS,
-      transactionId: transactionId,
-    });
+    // পেমেন্টের মধ্যে অর্ডার আইডি আপডেট করে দেওয়া
+    payment.order = order._id as any;
+    await payment.save();
 
-    // ৬. রিওয়ার্ড ওয়ালেট আপডেট
+    // ৬. রিওয়ার্ড ওয়ালেট আপডেট
     if (useReward && rewardUsed > 0) {
       await this.rewardsService.redeemReward(
         userId,
@@ -203,7 +208,7 @@ export class PaymentsService {
       await this.usersService.increaseRewardUsed(userId, rewardUsed);
     }
 
-    // ৭. কার্ট ক্লিয়ার
+    // ৭. কার্ট ক্লিয়ার
     await this.cartModel.deleteMany({ user: userId });
     await this.cartService.cacheCart(userId);
 

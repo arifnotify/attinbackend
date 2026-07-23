@@ -58,11 +58,16 @@ export class OrdersService {
   ) {}
 
   // =========================
-  // CRsEATE ORDER
+  // CREATE ORDER
   // =========================
   async createOrder(userId: string, dto: CreateOrderDto) {
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
+
+    // অ্যাড্রেস আইডি ফাঁকা কি না চেক করা
+    if (!dto.shippingAddress || dto.shippingAddress.trim() === '') {
+      throw new BadRequestException('Shipping address ID is required and cannot be empty');
+    }
 
     const address = await this.addressModel.findOne({
       _id: dto.shippingAddress,
@@ -98,14 +103,16 @@ export class OrdersService {
     const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
     // ==========================================
-    // 🔵 SSLCOMMERZ FLOW (ডাটাবেজে কোনো অর্ডার তৈরি হবে না)
+    // 🔵 SSLCOMMERZ FLOW (পেমেন্ট সফল হওয়ার আগে অর্ডার তৈরি হবে না)
     // ==========================================
-    if (
+    const isOnline =
       dto.paymentMethod === PaymentMethod.SSLCOMMERZ ||
-      (dto.paymentMethod as any) === 'SSLCOMMERZ'
-    ) {
+      (dto.paymentMethod as any) === 'SSLCOMMERZ';
+
+    if (isOnline) {
       const tempTransactionId = `TXN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
 
+      // পেমেন্ট গেটওয়ের জন্য প্রয়োজনীয় ডেটা পাস করা (যাতে পেমেন্ট সাকসেস হলে হ্যান্ডলারে সব ডাটা পাওয়া যায়)
       const sslSession = await this.paymentsService.initiateOnlinePayment({
         amount: finalAmount,
         transactionId: tempTransactionId,
@@ -124,7 +131,7 @@ export class OrdersService {
     }
 
     // ==========================================
-    // 🟢 COD FLOW (অর্ডার সরাসরি ডাটাবেজে ক্রিয়েট হবে)
+    // 🟢 COD FLOW (ক্যাশ অন ডেলিভারির ক্ষেত্রে সরাসরি অর্ডার ডাটাবেজে ক্রিয়েট হবে)
     // ==========================================
     let orderNumber = '';
     let exists = true;
@@ -137,10 +144,10 @@ export class OrdersService {
     const items = cartItems.map((item: any) => ({
       product: item.product._id,
       productName: {
-      en: item.product.title?.en || '',
-      bn: item.product.title?.bn || '',
+        en: item.product.title?.en || '',
+        bn: item.product.title?.bn || '',
       },
-      unit: item.product.unit || 'pcs', // unit যুক্ত করা হয়েছে
+      unit: item.product.unit || 'pcs',
       productImage: item.product.images?.[0] || '',
       quantity: item.quantity || 1,
       price: item.price || 0,
@@ -194,7 +201,6 @@ export class OrdersService {
       paymentStatus: payment.paymentStatus,
     };
   }
-
   // =========================
   // USER ORDERS
   // =========================
