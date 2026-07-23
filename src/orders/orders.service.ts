@@ -60,9 +60,6 @@ export class OrdersService {
   // =========================
   // CREATE ORDER
   // =========================
-// =========================
-  // CREATE ORDER
-  // =========================
   async createOrder(userId: string, dto: CreateOrderDto) {
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -97,10 +94,11 @@ export class OrdersService {
       );
     }
 
-    const finalAmount = Math.max(0, subTotal + deliveryCharge - rewardUsed);
+    const totalAmount = subTotal + deliveryCharge;
+    const finalAmount = Math.max(0, totalAmount - rewardUsed);
 
     // ==========================================
-    // 🔵 SSLCOMMERZ FLOW (আপনার PaymentsService-এর লজিক অনুযায়ী)
+    // 🔵 SSLCOMMERZ FLOW (ডাটাবেজে কোনো অর্ডার তৈরি হবে না)
     // ==========================================
     if (
       dto.paymentMethod === PaymentMethod.SSLCOMMERZ ||
@@ -139,17 +137,15 @@ export class OrdersService {
     const items = cartItems.map((item: any) => ({
       product: item.product._id,
       productName: {
-        en: item.product.title?.en || '',
-        bn: item.product.title?.bn || '',
+      en: item.product.title?.en || '',
+      bn: item.product.title?.bn || '',
       },
-      unit: item.product.unit || 'pcs',
+      unit: item.product.unit || 'pcs', // unit যুক্ত করা হয়েছে
       productImage: item.product.images?.[0] || '',
       quantity: item.quantity || 1,
       price: item.price || 0,
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
-
-    const totalAmount = subTotal + deliveryCharge;
 
     const order = await this.orderModel.create({
       orderNumber,
@@ -198,6 +194,7 @@ export class OrdersService {
       paymentStatus: payment.paymentStatus,
     };
   }
+
   // =========================
   // USER ORDERS
   // =========================
