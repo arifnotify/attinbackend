@@ -1,12 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
 import { Document, Types } from 'mongoose';
-
-import { PaymentMethod }
-from '../enums/payment-method.enum';
-
-import { PaymentStatus }
-from '../enums/payment-status.enum';
+import { PaymentMethod } from '../enums/payment-method.enum';
+import { PaymentStatus } from '../enums/payment-status.enum';
 
 export type PaymentDocument = Payment & Document;
 
@@ -14,25 +9,24 @@ export type PaymentDocument = Payment & Document;
   timestamps: true,
 })
 export class Payment {
-
   @Prop({
     type: Types.ObjectId,
-    ref:'User',
+    ref: 'User',
     required: true,
   })
   user: Types.ObjectId;
 
   @Prop({
-    type:Types.ObjectId,
-    ref:'Order',
-    required:true,
+    type: Types.ObjectId,
+    ref: 'Order',
+    required: false, // 🎯 পেমেন্ট আগে তৈরি হওয়ার কারণে এটি সাময়িকভাবে অপশনাল করা হলো
   })
   order: Types.ObjectId;
 
   @Prop({
-    required:true,
+    required: true,
   })
-  amount:number;
+  amount: number;
 
   @Prop({
     enum: Object.values(PaymentMethod),
@@ -41,17 +35,15 @@ export class Payment {
 
   @Prop({
     enum: Object.values(PaymentStatus),
-    default:
-      PaymentStatus.PENDING,
+    default: PaymentStatus.PENDING,
   })
-  paymentStatus:
-    PaymentStatus;
+  paymentStatus: PaymentStatus;
 
   @Prop()
-  transactionId?:string;
+  transactionId?: string;
 
   @Prop()
-  paymentUrl?:string;
+  paymentUrl?: string;
 }
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);
