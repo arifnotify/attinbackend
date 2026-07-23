@@ -169,11 +169,11 @@ export class PaymentsService {
     }));
 
     // 🟢 ৪. প্রথমে অর্ডার তৈরি করে ফেলা হচ্ছে (যাতে order._id পাওয়া যায়)
-    const order = await this.orderModel.create({
+const order = await this.orderModel.create({
       orderNumber,
-      user: userId,
+      user: new Types.ObjectId(userId),
       customerPhone: customerPhoneFromPayload || query.cus_phone || '',
-      shippingAddress: shippingAddressId,
+      shippingAddress: new Types.ObjectId(shippingAddressId), // 🎯 এটিকে ObjectId এ কনভার্ট করা হলো
       items,
       subTotal,
       deliveryCharge,
@@ -182,6 +182,7 @@ export class PaymentsService {
       totalAmount,
       finalAmount,
       paymentMethod: PaymentMethod.SSLCOMMERZ,
+      payment: payment._id,
       orderStatus: OrderStatus.PENDING,
       isPaid: true,
       trackingEnabled: false,
