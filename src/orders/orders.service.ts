@@ -459,9 +459,14 @@ export class OrdersService {
       throw new NotFoundException('Order not found');
     }
 
-    if (order.orderStatus === OrderStatus.DELIVERED) {
-      throw new BadRequestException('Delivered order cannot be edited');
-    }
+// 🔴 DELIVERED বা CANCELLED হলে এডিট করতে দিবে না
+  if (
+    order.orderStatus === OrderStatus.DELIVERED ||
+    order.orderStatus === OrderStatus.CANCELLED
+  ) {
+    throw new BadRequestException(
+      'Delivered or Cancelled order cannot be edited',
+    );
 
     let subTotal = 0;
 
