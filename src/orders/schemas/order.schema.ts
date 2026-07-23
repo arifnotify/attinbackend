@@ -37,7 +37,13 @@ export class Order {
         type: Types.ObjectId,
         ref: 'Product',
       },
-      productName: String,
+      // 🔴 Inline object style (en & bn)
+      productName: {
+        en: { type: String, default: '' },
+        bn: { type: String, default: '' },
+      },
+      // 🔴 unit field
+      unit: { type: String, default: 'pcs' },
       productImage: String,
       quantity: Number,
       price: Number,
@@ -46,7 +52,11 @@ export class Order {
   ])
   items: {
     product: Types.ObjectId;
-    productName: string;
+    productName: {
+      en: string;
+      bn: string;
+    };
+    unit?: string;
     productImage: string;
     quantity: number;
     price: number;
@@ -65,7 +75,6 @@ export class Order {
   @Prop({ default: 0 })
   totalAmount: number;
 
-  // 🔥 FIXED: (previous error fix)
   @Prop({ default: 0 })
   discountAmount: number;
 
@@ -78,13 +87,12 @@ export class Order {
   // =========================
   // PAYMENT
   // =========================
-@Prop({
-  enum: Object.values(PaymentMethod),
-  default: PaymentMethod.COD,
-})
-paymentMethod: PaymentMethod;
+  @Prop({
+    enum: Object.values(PaymentMethod),
+    default: PaymentMethod.COD,
+  })
+  paymentMethod: PaymentMethod;
 
-    // 🔥 NEW
   @Prop({
     type: Types.ObjectId,
     ref: 'Payment',
