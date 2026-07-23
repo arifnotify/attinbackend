@@ -97,11 +97,36 @@ export class OrdersService {
       );
     }
 
-    const totalAmount = subTotal + deliveryCharge;
-    const finalAmount = Math.max(0, totalAmount - rewardUsed);
+    const finalAmount = Math.max(0, subTotal + deliveryCharge - rewardUsed);
 
     // ==========================================
-    // ইউনিক অর্ডার নম্বর জেনারেট করা (উভয় ফ্লো-এর জন্য কমন)
+    // 🔵 SSLCOMMERZ FLOW (আপনার PaymentsService-এর লজিক অনুযায়ী)
+    // ==========================================
+    if (
+      dto.paymentMethod === PaymentMethod.SSLCOMMERZ ||
+      (dto.paymentMethod as any) === 'SSLCOMMERZ'
+    ) {
+      const tempTransactionId = `TXN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const sslSession = await this.paymentsService.initiateOnlinePayment({
+        amount: finalAmount,
+        transactionId: tempTransactionId,
+        customerPhone: user.phone,
+        userId: userId,
+        shippingAddressId: address._id.toString(),
+        useReward: !!dto.useReward,
+        rewardAmount: rewardUsed,
+        deliveryCharge: deliveryCharge,
+      });
+
+      return {
+        paymentMethod: 'SSLCOMMERZ',
+        paymentUrl: sslSession.paymentUrl,
+      };
+    }
+
+    // ==========================================
+    // 🟢 COD FLOW (অর্ডার সরাসরি ডাটাবেজে ক্রিয়েট হবে)
     // ==========================================
     let orderNumber = '';
     let exists = true;
@@ -111,7 +136,6 @@ export class OrdersService {
       if (!check) exists = false;
     }
 
-    // কার্টের আইটেমগুলো প্রপারলি ম্যাপিং করা (Name, Unit সহ)
     const items = cartItems.map((item: any) => ({
       product: item.product._id,
       productName: {
@@ -125,12 +149,7 @@ export class OrdersService {
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
 
-    // ==========================================
-    // 🔵 SSLCOMMERZ & 🟢 COD উভয় ফ্লো-এর জন্যই প্রথমে অর্ডার ক্রিয়েট হবে
-    // ==========================================
-    const isOnline = 
-      dto.paymentMethod === PaymentMethod.SSLCOMMERZ ||
-      (dto.paymentMethod as any) === 'SSLCOMMERZ';
+    const totalAmount = subTotal + deliveryCharge;
 
     const order = await this.orderModel.create({
       orderNumber,
@@ -150,7 +169,6 @@ export class OrdersService {
       trackingEnabled: false,
     });
 
-    // পেমেন্ট রেকর্ড তৈরি এবং গেটওয়ে কানেক্ট করা
     const payment = await this.paymentsService.createOrderPayment({
       userId,
       orderId: order._id.toString(),
@@ -162,17 +180,6 @@ export class OrdersService {
     order.payment = payment._id as any;
     await order.save();
 
-    // যদি অনলাইন পেমেন্ট (SSLCommerz) হয়, তবে পেমেন্ট URL রিটার্ন করুন
-    if (isOnline) {
-      return {
-        paymentMethod: 'SSLCOMMERZ',
-        paymentUrl: payment.paymentUrl,
-      };
-    }
-
-    // ==========================================
-    // শুধুমাত্র COD-এর ক্ষেত্রে রিওয়ার্ড ও কার্ট তাৎক্ষণিক কাটবে
-    // ==========================================
     if (rewardUsed > 0) {
       await this.rewardsService.redeemReward(
         userId,
