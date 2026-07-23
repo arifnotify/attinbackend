@@ -104,6 +104,9 @@ export class PaymentsService {
   // ====================================
   // SSL SUCCESS HANDLER (FIXED WITH PAYMENT ID LINKING)
   // ====================================
+  // ====================================
+  // SSL SUCCESS HANDLER (FIXED ORDER OF CREATION)
+  // ====================================
   async handleSuccess(query: Record<string, any>) {
     const transactionId = query.tran_id as string;
 
@@ -165,16 +168,7 @@ export class PaymentsService {
       totalPrice: (item.price || 0) * (item.quantity || 1),
     }));
 
-    // ৪. প্রথমে পেমেন্ট মডেল তৈরি করা হচ্ছে যাতে পেমেন্ট আইডি পাওয়া যায়
-    const payment = await this.paymentModel.create({
-      user: new Types.ObjectId(userId),
-      amount: finalAmount,
-      paymentMethod: PaymentMethod.SSLCOMMERZ,
-      paymentStatus: PaymentStatus.SUCCESS,
-      transactionId: transactionId,
-    });
-
-    // ৫. পেমেন্ট সফল হওয়ার পর অর্ডার তৈরি এবং পেমেন্ট আইডি যুক্ত করা
+    // 🟢 ৪. প্রথমে অর্ডার তৈরি করে ফেলা হচ্ছে (যাতে order._id পাওয়া যায়)
     const order = await this.orderModel.create({
       orderNumber,
       user: userId,
@@ -188,17 +182,26 @@ export class PaymentsService {
       totalAmount,
       finalAmount,
       paymentMethod: PaymentMethod.SSLCOMMERZ,
-      payment: payment._id, // 🎯 এখানে পেমেন্ট আইডি সঠিকভাবে সেট হলো
       orderStatus: OrderStatus.PENDING,
       isPaid: true,
       trackingEnabled: false,
     });
 
-    // পেমেন্টের মধ্যে অর্ডার আইডি আপডেট করে দেওয়া
-    payment.order = order._id as any;
-    await payment.save();
+    // 🟢 ৫. এখন পেমেন্ট রেকর্ড তৈরি করা হচ্ছে এবং order._id পাস করা হচ্ছে
+    const payment = await this.paymentModel.create({
+      user: new Types.ObjectId(userId),
+      order: order._id, // 🎯 এখানে অর্ডার আইডি সঠিকভাবে পাস হলো, ফলে আর ভ্যালিডেশন এরর দিবে না
+      amount: finalAmount,
+      paymentMethod: PaymentMethod.SSLCOMMERZ,
+      paymentStatus: PaymentStatus.SUCCESS,
+      transactionId: transactionId,
+    });
 
-    // ৬. রিওয়ার্ড ওয়ালেট আপডেট
+    // 🟢 ৬. অর্ডারের ভেতরে পেমেন্ট আইডি আপডেট করে দেওয়া
+    order.payment = payment._id as any;
+    await order.save();
+
+    // ৭. রিওয়ার্ড ওয়ালেট আপডেট
     if (useReward && rewardUsed > 0) {
       await this.rewardsService.redeemReward(
         userId,
@@ -208,13 +211,12 @@ export class PaymentsService {
       await this.usersService.increaseRewardUsed(userId, rewardUsed);
     }
 
-    // ৭. কার্ট ক্লিয়ার
+    // ৮. কার্ট ক্লিয়ার
     await this.cartModel.deleteMany({ user: userId });
     await this.cartService.cacheCart(userId);
 
     return { success: true, message: 'Order created and payment successful' };
   }
-
   // ====================================
   // SSL FAIL HANDLER
   // ====================================
