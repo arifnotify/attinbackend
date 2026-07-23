@@ -1,5 +1,5 @@
-import { Body, Controller, Post, Res } from '@nestjs/common';
-import type { Response } from 'express'; // 🟢 'import type' হিসেবে ইমপোর্ট করা হয়েছে
+import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import type { Response, Request } from 'express';
 import { PaymentsService } from './payments.service';
 
 @Controller('payments')
@@ -31,12 +31,15 @@ export class PaymentsController {
   }
 
   // ====================================
-  // SSLCOMMERZ CALLBACK ENDPOINTS
+  // SSLCOMMERZ CALLBACK ENDPOINTS (FIXED)
   // ====================================
 
   @Post('success')
-  async sslSuccess(@Body() body: Record<string, any>, @Res() res: Response) {
-    await this.paymentsService.handleSuccess(body);
+  async sslSuccess(@Req() req: Request, @Res() res: Response) {
+    // SSLCommerz অনেক সময় body বা query যেকোনো জায়গায় ডেটা পাঠাতে পারে, তাই দুটোই চেক করা হলো
+    const paymentData = { ...req.body, ...req.query };
+    
+    await this.paymentsService.handleSuccess(paymentData);
 
     return res.send(`
       <!DOCTYPE html>
@@ -56,8 +59,9 @@ export class PaymentsController {
   }
 
   @Post('fail')
-  async sslFail(@Body() body: Record<string, any>, @Res() res: Response) {
-    await this.paymentsService.handleFail(body);
+  async sslFail(@Req() req: Request, @Res() res: Response) {
+    const paymentData = { ...req.body, ...req.query };
+    await this.paymentsService.handleFail(paymentData);
 
     return res.send(`
       <!DOCTYPE html>
@@ -77,8 +81,9 @@ export class PaymentsController {
   }
 
   @Post('cancel')
-  async sslCancel(@Body() body: Record<string, any>, @Res() res: Response) {
-    await this.paymentsService.handleCancel(body);
+  async sslCancel(@Req() req: Request, @Res() res: Response) {
+    const paymentData = { ...req.body, ...req.query };
+    await this.paymentsService.handleCancel(paymentData);
 
     return res.send(`
       <!DOCTYPE html>
