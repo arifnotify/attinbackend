@@ -136,7 +136,11 @@ export class OrdersService {
 
     const items = cartItems.map((item: any) => ({
       product: item.product._id,
-      productName: item.product.title?.en,
+      productName: {
+      en: item.product.title?.en || '',
+      bn: item.product.title?.bn || '',
+      },
+      unit: item.product.unit || 'pcs', // unit যুক্ত করা হয়েছে
       productImage: item.product.images?.[0] || '',
       quantity: item.quantity || 1,
       price: item.price || 0,
@@ -478,7 +482,12 @@ export class OrdersService {
 
       return {
         product: new Types.ObjectId(item.product),
-        productName: item.productName || '',
+        // 🔴 en, bn এবং unit সেভ করা হচ্ছে
+        productName: {
+          en: item.productName?.en || '',
+          bn: item.productName?.bn || '',
+        },
+        unit: item.unit || 'pcs',
         productImage: item.productImage || '',
         quantity: item.quantity,
         price,
