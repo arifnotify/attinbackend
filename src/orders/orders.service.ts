@@ -467,6 +467,7 @@ export class OrdersService {
     throw new BadRequestException(
       'Delivered or Cancelled order cannot be edited',
     );
+  }
 
     let subTotal = 0;
 
