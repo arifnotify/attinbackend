@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { PaymentsService } from './payments.service';
 
@@ -31,14 +31,25 @@ export class PaymentsController {
   }
 
   // ====================================
-  // SSLCOMMERZ CALLBACK ENDPOINTS (FIXED)
+  // SSLCOMMERZ CALLBACK ENDPOINTS (POST & GET Support)
   // ====================================
 
   @Post('success')
-  async sslSuccess(@Req() req: Request, @Res() res: Response) {
-    // SSLCommerz অনেক সময় body বা query যেকোনো জায়গায় ডেটা পাঠাতে পারে, তাই দুটোই চেক করা হলো
+  async sslSuccessPost(@Req() req: Request, @Res() res: Response) {
+    return this.handleSslSuccess(req, res);
+  }
+
+  @Get('success')
+  async sslSuccessGet(@Req() req: Request, @Res() res: Response) {
+    return this.handleSslSuccess(req, res);
+  }
+
+  private async handleSslSuccess(req: Request, res: Response) {
+    // বডি অথবা কুয়েরি যেখান থেকেই ডাটা আসুক না কেন তা একসাথে রিসিভ করা
     const paymentData = { ...req.body, ...req.query };
     
+    console.log('SSL Success Data Received:', paymentData); // 🔍 কনসোলে ডেটা চেক করার জন্য
+
     await this.paymentsService.handleSuccess(paymentData);
 
     return res.send(`
@@ -59,7 +70,16 @@ export class PaymentsController {
   }
 
   @Post('fail')
-  async sslFail(@Req() req: Request, @Res() res: Response) {
+  async sslFailPost(@Req() req: Request, @Res() res: Response) {
+    return this.handleSslFail(req, res);
+  }
+
+  @Get('fail')
+  async sslFailGet(@Req() req: Request, @Res() res: Response) {
+    return this.handleSslFail(req, res);
+  }
+
+  private async handleSslFail(req: Request, res: Response) {
     const paymentData = { ...req.body, ...req.query };
     await this.paymentsService.handleFail(paymentData);
 
@@ -81,7 +101,16 @@ export class PaymentsController {
   }
 
   @Post('cancel')
-  async sslCancel(@Req() req: Request, @Res() res: Response) {
+  async sslCancelPost(@Req() req: Request, @Res() res: Response) {
+    return this.handleSslCancel(req, res);
+  }
+
+  @Get('cancel')
+  async sslCancelGet(@Req() req: Request, @Res() res: Response) {
+    return this.handleSslCancel(req, res);
+  }
+
+  private async handleSslCancel(req: Request, res: Response) {
     const paymentData = { ...req.body, ...req.query };
     await this.paymentsService.handleCancel(paymentData);
 
