@@ -232,7 +232,7 @@ async getUserOrders(userId: string) {
     const order = await this.orderModel
       .findById(id)
       .populate('shippingAddress')
-      ..populate('assignedRider', 'name phone')
+      .populate('assignedRider', 'name phone')
       .populate('payment');
 
     if (!order) {
