@@ -463,14 +463,14 @@ async getUserOrders(userId: string) {
   // =========================
   // ADMIN EDIT ORDER
   // =========================
-  async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
-    const order = await this.orderModel.findById(orderId);
+async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
+  const order = await this.orderModel.findById(orderId);
 
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
+  if (!order) {
+    throw new NotFoundException('Order not found');
+  }
 
-// 🔴 DELIVERED বা CANCELLED হলে এডিট করতে দিবে না
+  // 🔴 DELIVERED বা CANCELLED হলে এডিট করা যাবে না
   if (
     order.orderStatus === OrderStatus.DELIVERED ||
     order.orderStatus === OrderStatus.CANCELLED
@@ -480,63 +480,70 @@ async getUserOrders(userId: string) {
     );
   }
 
-    let subTotal = 0;
+  let subTotal = 0;
 
-    const updatedItems = dto.items.map((item) => {
-      const price = item.price;
-      const totalPrice = price * item.quantity;
-      subTotal += totalPrice;
+  const updatedItems = dto.items.map((item) => {
+    const price = item.price;
+    const totalPrice = price * item.quantity;
 
-      return {
-        product: new Types.ObjectId(item.product),
-        // 🔴 en, bn এবং unit সেভ করা হচ্ছে
-        productName: {
-          en: item.productName?.en || '',
-          bn: item.productName?.bn || '',
-        },
-        unit: item.unit || 'pcs',
-        productImage: item.productImage || '',
-        quantity: item.quantity,
-        price,
-        totalPrice,
-      };
-    });
-
-    order.items = updatedItems as any;
-
-    const deliveryCharge = order.deliveryCharge || 0;
-    const totalAmount = subTotal + deliveryCharge;
-
-    const oldTotal = order.totalAmount || 0;
-    const diff = totalAmount - oldTotal;
-
-    const userId = order.user.toString();
-
-    if (diff !== 0) {
-      const wallet = await this.rewardsService.getWallet(userId);
-
-      if (wallet) {
-        wallet.balance = Math.max(0, wallet.balance + diff);
-        await wallet.save();
-      }
-
-      await this.usersService.increaseSpentAmount(userId, diff);
-    }
-
-    const rewardUsed = Math.min(order.rewardUsed || 0, totalAmount);
-    const finalAmount = Math.max(0, totalAmount - rewardUsed);
-
-    order.subTotal = subTotal;
-    order.totalAmount = totalAmount;
-    order.rewardUsed = rewardUsed;
-    order.finalAmount = finalAmount;
-
-    await order.save();
+    subTotal += totalPrice;
 
     return {
-      success: true,
-      message: 'Order updated successfully',
-      order,
+      product: new Types.ObjectId(item.product),
+
+      productName: {
+        en: item.productName?.en || '',
+        bn: item.productName?.bn || '',
+      },
+
+      unit: item.unit || 'pcs',
+
+      productImage: item.productImage || '',
+
+      quantity: item.quantity,
+      price,
+      totalPrice,
     };
-  }
+  });
+
+  // =========================
+  // UPDATE ITEMS
+  // =========================
+  order.items = updatedItems as any;
+
+  // =========================
+  // RECALCULATE TOTALS
+  // =========================
+  const deliveryCharge = order.deliveryCharge || 0;
+
+  const totalAmount = subTotal + deliveryCharge;
+
+  // Reward Used আগেরটাই থাকবে
+  const rewardUsed = Math.min(
+    order.rewardUsed || 0,
+    totalAmount,
+  );
+
+  const finalAmount = Math.max(
+    0,
+    totalAmount - rewardUsed,
+  );
+
+  // =========================
+  // UPDATE ORDER AMOUNTS
+  // =========================
+  order.subTotal = subTotal;
+  order.totalAmount = totalAmount;
+  order.rewardUsed = rewardUsed;
+  order.discountAmount = rewardUsed;
+  order.finalAmount = finalAmount;
+
+  await order.save();
+
+  return {
+    success: true,
+    message: 'Order updated successfully',
+    order,
+  };
+}
 }
