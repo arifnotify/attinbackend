@@ -156,7 +156,7 @@ export class OrdersService {
 
     const order = await this.orderModel.create({
       orderNumber,
-      user: userId,
+      user: new Types.ObjectId(userId),
       customerPhone: user.phone,
       shippingAddress: address._id,
       items,
@@ -207,10 +207,7 @@ export class OrdersService {
 async getUserOrders(userId: string) {
   return this.orderModel
     .find({
-      $or: [
-        { user: userId },
-        { user: new Types.ObjectId(userId) },
-      ],
+      user: new Types.ObjectId(userId),
     })
     .populate('shippingAddress')
     .populate('payment')
