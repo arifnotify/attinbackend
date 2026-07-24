@@ -220,6 +220,7 @@ async getUserOrders(userId: string) {
     return this.orderModel
       .find()
       .populate('shippingAddress')
+      .populate('assignedRider', 'name phone')
       .populate('payment')
       .sort({ createdAt: -1 });
   }
@@ -231,6 +232,7 @@ async getUserOrders(userId: string) {
     const order = await this.orderModel
       .findById(id)
       .populate('shippingAddress')
+      ..populate('assignedRider', 'name phone')
       .populate('payment');
 
     if (!order) {
@@ -378,17 +380,44 @@ async getUserOrders(userId: string) {
   // =========================
   // ASSIGN RIDER
   // =========================
-  async assignRider(orderId: string, riderId: string) {
-    return this.orderModel.findByIdAndUpdate(
-      orderId,
-      {
-        assignedRider: new Types.ObjectId(riderId),
-        orderStatus: OrderStatus.OUT_FOR_DELIVERY,
-        trackingEnabled: true,
-      },
-      { new: true },
+async assignRider(
+  orderId: string,
+  riderId: string
+) {
+
+  const order =
+    await this.orderModel.findById(orderId);
+
+
+  if(!order){
+    throw new NotFoundException(
+      "Order not found"
     );
   }
+
+
+  order.assignedRider =
+    new Types.ObjectId(riderId);
+
+
+  order.orderStatus =
+    OrderStatus.OUT_FOR_DELIVERY;
+
+
+  order.trackingEnabled = true;
+
+
+  await order.save();
+
+
+  return this.orderModel
+    .findById(orderId)
+    .populate(
+      'assignedRider',
+      'name phone'
+    );
+
+}
 
   // =========================
   // TRACKING
