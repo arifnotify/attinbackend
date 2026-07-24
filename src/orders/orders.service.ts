@@ -204,14 +204,19 @@ export class OrdersService {
   // =========================
   // USER ORDERS
   // =========================
-  async getUserOrders(userId: string) {
-    return this.orderModel
-      .find({ user: userId })
-      .populate('shippingAddress')
-      .populate('payment')
-      .sort({ createdAt: -1 });
-  }
+async getUserOrders(userId: string) {
+  const orders = await this.orderModel
+    .find({ user: userId })
+    .populate('shippingAddress')
+    .populate('payment')
+    .sort({ createdAt: -1 });
 
+  console.log(
+    JSON.stringify(orders, null, 2),
+  );
+
+  return orders;
+}
   // =========================
   // ALL ORDERS
   // =========================
