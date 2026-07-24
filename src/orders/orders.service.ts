@@ -205,17 +205,16 @@ export class OrdersService {
   // USER ORDERS
   // =========================
 async getUserOrders(userId: string) {
-  const orders = await this.orderModel
-    .find({ user: userId })
+  return this.orderModel
+    .find({
+      $or: [
+        { user: userId },
+        { user: new Types.ObjectId(userId) },
+      ],
+    })
     .populate('shippingAddress')
     .populate('payment')
     .sort({ createdAt: -1 });
-
-  console.log(
-    JSON.stringify(orders, null, 2),
-  );
-
-  return orders;
 }
   // =========================
   // ALL ORDERS
