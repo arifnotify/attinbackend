@@ -11,6 +11,7 @@ import { OrdersModule } from '../orders/orders.module';
 import { RewardsModule } from 'src/rewards/rewards.module'; // 2. RewardsModule যুক্ত করা হলো
 import { UsersModule } from 'src/users/users.module';     // 3. UsersModule যুক্ত করা হলো
 import { CartModule } from 'src/cart/cart.module';         // 4. CartModule যুক্ত করা হলো
+import { SocketModule } from '../socket/socket.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { CartModule } from 'src/cart/cart.module';         // 4. CartModule য�
     RewardsModule,
     UsersModule,
     forwardRef(() => CartModule), // Circular dependency এড়াতে forwardRef
+    SocketModule,
   ],
 
   controllers: [PaymentsController],
