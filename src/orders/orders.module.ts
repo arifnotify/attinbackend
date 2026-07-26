@@ -66,7 +66,8 @@ import { PaymentsModule } from '../payments/payments.module';
 
   controllers: [OrdersController],
 
-  providers: [OrdersService],
+  providers: [OrdersService,
+              SocketGateway,],
 
   exports: [OrdersService],
 })
