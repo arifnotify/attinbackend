@@ -328,9 +328,14 @@ async getUserOrders(userId: string) {
       order.trackingEnabled = false;
       order.assignedRider = null;
     }
-
+    // Admin Panel
     await order.save();
     this.socketGateway.emitOrderUpdated(
+      order
+    );
+    // User App
+    this.socketGateway.emitOrderStatusChanged(
+      userId,
       order
     );
     return order;
