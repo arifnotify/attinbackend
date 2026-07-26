@@ -11,11 +11,8 @@ import {
 } from '@nestjs/common';
 
 import { CartService } from './cart.service';
-
 import { AddToCartDto } from './dto/add-to-cart.dto';
-
 import { UpdateCartDto } from './dto/update-cart.dto';
-
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('cart')
@@ -33,9 +30,7 @@ export class CartController {
   @Post()
   addToCart(
     @Req() req: any,
-
-    @Body()
-    addToCartDto: AddToCartDto,
+    @Body() addToCartDto: AddToCartDto,
   ) {
     return this.cartService.addToCart(req.user.userId, addToCartDto);
   }
@@ -47,19 +42,24 @@ export class CartController {
     return this.cartService.getUserCart(req.user.userId);
   }
 
+  // 🔴 ১. CLEAR ALL CART (অবশ্যই :id এর উপরে থাকবে)
+  @UseGuards(JwtAuthGuard)
+  @Delete('clear')
+  clearCart(@Req() req: any) {
+    return this.cartService.clearCart(req.user.userId);
+  }
+
   // UPDATE QUANTITY
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
   updateQuantity(
     @Param('id') id: string,
-
-    @Body()
-    updateCartDto: UpdateCartDto,
+    @Body() updateCartDto: UpdateCartDto,
   ) {
     return this.cartService.updateQuantity(id, updateCartDto);
   }
 
-  // REMOVE ITEM
+  // REMOVE SINGLE ITEM
   @UseGuards(JwtAuthGuard)
   @Delete(':id')
   removeCartItem(@Param('id') id: string) {
