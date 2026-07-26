@@ -387,6 +387,9 @@ async getUserOrders(userId: string) {
   // =========================
   // ASSIGN RIDER
   // =========================
+// =========================
+// ASSIGN RIDER
+// =========================
 async assignRider(
   orderId: string,
   riderId: string
@@ -396,7 +399,7 @@ async assignRider(
     await this.orderModel.findById(orderId);
 
 
-  if(!order){
+  if (!order) {
     throw new NotFoundException(
       "Order not found"
     );
@@ -417,15 +420,22 @@ async assignRider(
   await order.save();
 
 
-  return this.orderModel
-    .findById(orderId)
-    .populate(
-      'assignedRider',
-      'name phone'
-    );
+  const updatedOrder =
+    await this.orderModel
+      .findById(orderId)
+      .populate(
+        'assignedRider',
+        'name phone'
+      );
+
+
+  // 🔥 SOCKET EVENT
   this.socketGateway.emitOrderUpdated(
-  updatedOrder
+    updatedOrder
   );
+
+
+  return updatedOrder;
 
 }
 
