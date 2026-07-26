@@ -88,6 +88,30 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // ==========================
+  // ORDER UPDATED
+  // ==========================
+  
+  emitOrderUpdated(order: any) {
+    this.server.emit(
+      "order_updated",
+      order
+    );
+  }
+
+  // ==========================
+  // ORDER DELETED
+  // ==========================
+  
+  emitOrderDeleted(orderId: string) {
+    this.server.emit(
+      "order_deleted",
+      {
+        orderId,
+      }
+    );
+  }
+
+  // ==========================
   // ORDER STATUS
   // ==========================
 
