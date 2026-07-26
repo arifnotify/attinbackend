@@ -24,6 +24,7 @@ import { RewardsModule } from '../rewards/rewards.module';
 import { UsersModule } from '../users/users.module';
 import { CartModule } from '../cart/cart.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { SocketGateway } from "../socket/socket.gateway";
 
 @Module({
   imports: [
