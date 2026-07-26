@@ -26,6 +26,7 @@ import { Product } from 'src/products/schemas/product.schema';
 import { CartService } from 'src/cart/cart.service';
 import { PaymentsService } from '../payments/payments.service';
 import { PaymentMethod } from '../payments/enums/payment-method.enum';
+import { SocketGateway } from "../socket/socket.gateway";
 
 @Injectable()
 export class OrdersService {
@@ -55,6 +56,8 @@ export class OrdersService {
 
     @Inject(forwardRef(() => PaymentsService))
     private readonly paymentsService: PaymentsService,
+
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   // =========================
@@ -194,6 +197,7 @@ export class OrdersService {
 
     await this.cartModel.deleteMany({ user: userId });
     await this.cartService.cacheCart(userId);
+    this.socketGateway.emitNewOrder(order);
 
     return {
       ...order.toObject(),
@@ -326,6 +330,9 @@ async getUserOrders(userId: string) {
     }
 
     await order.save();
+    this.socketGateway.emitOrderUpdated(
+      order
+    );
     return order;
   }
 
@@ -416,6 +423,9 @@ async assignRider(
       'assignedRider',
       'name phone'
     );
+  this.socketGateway.emitOrderUpdated(
+  updatedOrder
+  );
 
 }
 
@@ -568,6 +578,9 @@ async adminEditOrder(orderId: string, dto: AdminEditOrderDto) {
   order.finalAmount = finalAmount;
 
   await order.save();
+  this.socketGateway.emitOrderUpdated(
+  order
+  );
 
   return {
     success: true,
