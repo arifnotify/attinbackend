@@ -246,4 +246,20 @@ async getUserCart(userId:string){
       300,
     );
   }
+  ////////////////////////////////////////////
+  // =========================
+  // CLEAR ALL CART ITEMS
+  // =========================
+  async clearCart(userId: string) {
+    // ১. MongoDB থেকে ইউজারের সম্পূর্ণ কার্ট রিমুভ
+    await this.cartModel.deleteMany({ user: userId });
+
+    // ২. Redis Cache থেকে ইউজারের কার্ট মুছে দেওয়া
+    await this.redisService.del(`cart:${userId}`);
+
+    return {
+      success: true,
+      message: 'Cart cleared successfully',
+    };
+  }
 }
