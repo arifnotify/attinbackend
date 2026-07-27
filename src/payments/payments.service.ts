@@ -12,6 +12,7 @@ import { Cart } from '../cart/schemas/cart.schema';
 import { RewardsService } from 'src/rewards/rewards.service';
 import { UsersService } from 'src/users/users.service';
 import { CartService } from 'src/cart/cart.service';
+import { SocketGateway } from '../socket/socket.gateway';
 
 @Injectable()
 export class PaymentsService {
@@ -31,6 +32,7 @@ export class PaymentsService {
     private readonly rewardsService: RewardsService,
     private readonly usersService: UsersService,
     private readonly cartService: CartService,
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   // ====================================
@@ -219,6 +221,9 @@ export class PaymentsService {
     // ৮. কার্ট ক্লিয়ার
     await this.cartModel.deleteMany({ user: userId });
     await this.cartService.cacheCart(userId);
+    this.socketGateway.emitNewOrder(
+      order,
+    );
 
     return { success: true, message: 'Order created and payment successful' };
   }
@@ -246,12 +251,30 @@ export class PaymentsService {
       { new: true },
     );
 
-    if (payment) {
-      await this.orderModel.findByIdAndUpdate(payment.order, {
+if (payment) {
+
+  const order =
+    await this.orderModel.findByIdAndUpdate(
+      payment.order,
+      {
         isPaid: true,
-        orderStatus: OrderStatus.PENDING,
-      });
-    }
+        orderStatus:
+          OrderStatus.PENDING,
+      },
+      {
+        new: true,
+      },
+    );
+
+  if (order) {
+
+    this.socketGateway.emitOrderUpdated(
+      order,
+    );
+
+  }
+
+}
 
     return payment;
   }
@@ -277,12 +300,30 @@ export class PaymentsService {
       { new: true },
     );
 
-    if (payment) {
-      await this.orderModel.findByIdAndUpdate(payment.order, {
+if (payment) {
+
+  const order =
+    await this.orderModel.findByIdAndUpdate(
+      payment.order,
+      {
         isPaid: false,
-        orderStatus: OrderStatus.CANCELLED,
-      });
-    }
+        orderStatus:
+          OrderStatus.CANCELLED,
+      },
+      {
+        new: true,
+      },
+    );
+
+  if (order) {
+
+    this.socketGateway.emitOrderUpdated(
+      order,
+    );
+
+  }
+
+}
 
     return payment;
   }
