@@ -1,15 +1,40 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class CreateCategoryDto {
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
+
+// =========================
+// CATEGORY NAME DTO
+// =========================
+class CategoryNameDto {
   @IsNotEmpty()
   @IsString()
-  name: string;
+  en: string;
+
+  @IsNotEmpty()
+  @IsString()
+  bn: string;
+}
+
+// =========================
+// CREATE CATEGORY DTO
+// =========================
+export class CreateCategoryDto {
+  @ValidateNested()
+  @Type(() => CategoryNameDto)
+  name: CategoryNameDto;
 
   @IsOptional()
   @IsString()
   image: string;
 
   @IsOptional()
+  @IsString()
   parentCategory: string;
 
   @IsOptional()
