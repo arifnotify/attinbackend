@@ -3,59 +3,22 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
-} from '@nestjs/websockets';
-
-import { Server, Socket } from 'socket.io';
-import {
   SubscribeMessage,
   MessageBody,
   ConnectedSocket,
 } from '@nestjs/websockets';
 
-@SubscribeMessage('join_user')
-handleJoinUser(
-  @MessageBody() userId: string,
-  @ConnectedSocket() client: Socket,
-) {
-  client.join(`user_${userId}`);
-
-  console.log(
-    `User Joined user_${userId}`,
-  );
-}
-
-@SubscribeMessage('join_rider')
-handleJoinRider(
-  @MessageBody() riderId: string,
-  @ConnectedSocket() client: Socket,
-) {
-  client.join(`rider_${riderId}`);
-
-  console.log(
-    `Rider Joined rider_${riderId}`,
-  );
-}
+import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
     origin: '*',
   },
-
   transports: ['websocket', 'polling'],
 })
-export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
-emitAddressUpdated(
-  userId: string,
-) {
-  this.server
-    .to(`user_${userId}`)
-    .emit(
-      'address_updated',
-      {
-        success: true,
-      },
-    );
-}
+export class SocketGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -64,7 +27,9 @@ emitAddressUpdated(
   // ==========================
 
   handleConnection(client: Socket) {
-    console.log(`Socket Connected: ${client.id}`);
+    console.log(
+      `🟢 Socket Connected: ${client.id}`,
+    );
   }
 
   // ==========================
@@ -72,7 +37,58 @@ emitAddressUpdated(
   // ==========================
 
   handleDisconnect(client: Socket) {
-    console.log(`Socket Disconnected: ${client.id}`);
+    console.log(
+      `🔴 Socket Disconnected: ${client.id}`,
+    );
+  }
+
+  // ==========================
+  // USER JOIN ROOM
+  // ==========================
+
+  @SubscribeMessage('join_user')
+  handleJoinUser(
+    @MessageBody() userId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.join(`user_${userId}`);
+
+    console.log(
+      `👤 User Joined Room: user_${userId}`,
+    );
+  }
+
+  // ==========================
+  // RIDER JOIN ROOM
+  // ==========================
+
+  @SubscribeMessage('join_rider')
+  handleJoinRider(
+    @MessageBody() riderId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    client.join(`rider_${riderId}`);
+
+    console.log(
+      `🚚 Rider Joined Room: rider_${riderId}`,
+    );
+  }
+
+  // ==========================
+  // ADDRESS UPDATED
+  // ==========================
+
+  emitAddressUpdated(
+    userId: string,
+  ) {
+    this.server
+      .to(`user_${userId}`)
+      .emit(
+        'address_updated',
+        {
+          success: true,
+        },
+      );
   }
 
   // ==========================
@@ -80,11 +96,15 @@ emitAddressUpdated(
   // ==========================
 
   emitHomeUpdated() {
-    this.server.emit('home_updated', {
-      success: true,
-      message: 'Home data updated',
-      time: new Date(),
-    });
+    this.server.emit(
+      'home_updated',
+      {
+        success: true,
+        message:
+          'Home data updated',
+        time: new Date(),
+      },
+    );
   }
 
   // ==========================
@@ -92,9 +112,12 @@ emitAddressUpdated(
   // ==========================
 
   emitProductUpdated() {
-    this.server.emit('product_updated', {
-      success: true,
-    });
+    this.server.emit(
+      'product_updated',
+      {
+        success: true,
+      },
+    );
   }
 
   // ==========================
@@ -102,9 +125,12 @@ emitAddressUpdated(
   // ==========================
 
   emitBannerUpdated() {
-    this.server.emit('banner_updated', {
-      success: true,
-    });
+    this.server.emit(
+      'banner_updated',
+      {
+        success: true,
+      },
+    );
   }
 
   // ==========================
@@ -112,74 +138,101 @@ emitAddressUpdated(
   // ==========================
 
   emitFlashSaleUpdated() {
-    this.server.emit('flash_sale_updated', {
-      success: true,
-    });
+    this.server.emit(
+      'flash_sale_updated',
+      {
+        success: true,
+      },
+    );
   }
 
   // ==========================
   // NEW ORDER
   // ==========================
 
-  emitNewOrder(order: any) {
-    this.server.emit('new_order', order);
+  emitNewOrder(
+    order: any,
+  ) {
+    this.server.emit(
+      'new_order',
+      order,
+    );
   }
 
   // ==========================
   // ORDER UPDATED
   // ==========================
-  
-emitOrderUpdated(order: any) {
 
-  if (!order) return;
+  emitOrderUpdated(
+    order: any,
+  ) {
+    if (!order) return;
 
-  this.server.emit(
-    "order_updated",
-    order
-  );
-
-}
-
-  // ==========================
-  // ORDER DELETED
-  // ==========================
-  
-  emitOrderDeleted(orderId: string) {
     this.server.emit(
-      "order_deleted",
-      {
-        orderId,
-      }
+      'order_updated',
+      order,
     );
   }
 
   // ==========================
-  // ORDER STATUS
+  // ORDER DELETED
   // ==========================
 
-  emitOrderStatusChanged(userId: string, order: any) {
-    this.server.to(`user_${userId}`).emit('order_status_changed', order);
+  emitOrderDeleted(
+    orderId: string,
+  ) {
+    this.server.emit(
+      'order_deleted',
+      {
+        orderId,
+      },
+    );
   }
 
   // ==========================
-  // RIDER ASSIGN
+  // ORDER STATUS CHANGED
   // ==========================
 
-  emitOrderAssigned(riderId: string, order: any) {
-    this.server.to(`rider_${riderId}`).emit('order_assigned', order);
+  emitOrderStatusChanged(
+    userId: string,
+    order: any,
+  ) {
+    this.server
+      .to(`user_${userId}`)
+      .emit(
+        'order_status_changed',
+        order,
+      );
   }
-  
-  ///////////////////////////////////////////////
-  emitCartUpdated(){
 
-  this.server.emit(
-    "cartUpdated",
-    {
-      message:"Cart product updated"
-    }
-  );
+  // ==========================
+  // ORDER ASSIGNED
+  // ==========================
 
-}
+  emitOrderAssigned(
+    riderId: string,
+    order: any,
+  ) {
+    this.server
+      .to(`rider_${riderId}`)
+      .emit(
+        'order_assigned',
+        order,
+      );
+  }
 
+  // ==========================
+  // CART UPDATED
+  // ==========================
 
+  emitCartUpdated() {
+    this.server.emit(
+      'cart_updated',
+      {
+        success: true,
+        message:
+          'Cart product updated',
+      },
+    );
+  }
 }
