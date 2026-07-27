@@ -9,10 +9,26 @@ export type CategoryDocument = Category & Document;
 })
 export class Category {
   @Prop({
+    type: {
+      en: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+
+      bn: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+    },
+
     required: true,
-    unique: true,
   })
-  name: string;
+  name: {
+    en: string;
+    bn: string;
+  };
 
   @Prop()
   image: string;
@@ -31,4 +47,17 @@ export class Category {
   isActive: boolean;
 }
 
-export const CategorySchema = SchemaFactory.createForClass(Category);
+export const CategorySchema =
+  SchemaFactory.createForClass(Category);
+
+// English name unique
+CategorySchema.index(
+  { 'name.en': 1 },
+  { unique: true },
+);
+
+// Bangla name unique
+CategorySchema.index(
+  { 'name.bn': 1 },
+  { unique: true },
+);
