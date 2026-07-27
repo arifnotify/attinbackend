@@ -6,6 +6,35 @@ import {
 } from '@nestjs/websockets';
 
 import { Server, Socket } from 'socket.io';
+import {
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
+} from '@nestjs/websockets';
+
+@SubscribeMessage('join_user')
+handleJoinUser(
+  @MessageBody() userId: string,
+  @ConnectedSocket() client: Socket,
+) {
+  client.join(`user_${userId}`);
+
+  console.log(
+    `User Joined user_${userId}`,
+  );
+}
+
+@SubscribeMessage('join_rider')
+handleJoinRider(
+  @MessageBody() riderId: string,
+  @ConnectedSocket() client: Socket,
+) {
+  client.join(`rider_${riderId}`);
+
+  console.log(
+    `Rider Joined rider_${riderId}`,
+  );
+}
 
 @WebSocketGateway({
   cors: {
@@ -15,9 +44,18 @@ import { Server, Socket } from 'socket.io';
   transports: ['websocket', 'polling'],
 })
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  emitAddressUpdated(userId: string) {
-    throw new Error('Method not implemented.');
-  }
+emitAddressUpdated(
+  userId: string,
+) {
+  this.server
+    .to(`user_${userId}`)
+    .emit(
+      'address_updated',
+      {
+        success: true,
+      },
+    );
+}
   @WebSocketServer()
   server: Server;
 
