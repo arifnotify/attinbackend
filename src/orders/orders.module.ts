@@ -24,7 +24,12 @@ import { RewardsModule } from '../rewards/rewards.module';
 import { UsersModule } from '../users/users.module';
 import { CartModule } from '../cart/cart.module';
 import { PaymentsModule } from '../payments/payments.module';
-import { SocketGateway } from "../socket/socket.gateway";
+import { PaymentSettingsModule } from 'src/payment-settings/payment-settings.module';
+import { SocketGateway } from 'src/socket/socket.gateway';
+import {
+  PaymentSetting,
+  PaymentSettingSchema,
+} from 'src/payment-settings/schemas/payment-setting.schema';
 
 @Module({
   imports: [
@@ -53,6 +58,10 @@ import { SocketGateway } from "../socket/socket.gateway";
         name: Product.name,
         schema: ProductSchema,
       },
+      {
+        name: PaymentSetting.name,
+        schema: PaymentSettingSchema,
+      },
     ]),
 
     RedisModule,
@@ -63,12 +72,12 @@ import { SocketGateway } from "../socket/socket.gateway";
     RewardsModule,
     UsersModule,
     CartModule,
+    PaymentSettingsModule,
   ],
 
   controllers: [OrdersController],
 
-  providers: [OrdersService,
-              SocketGateway,],
+  providers: [OrdersService, SocketGateway],
 
   exports: [OrdersService],
 })

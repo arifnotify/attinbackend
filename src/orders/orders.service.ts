@@ -26,7 +26,11 @@ import { Product } from 'src/products/schemas/product.schema';
 import { CartService } from 'src/cart/cart.service';
 import { PaymentsService } from '../payments/payments.service';
 import { PaymentMethod } from '../payments/enums/payment-method.enum';
-import { SocketGateway } from "../socket/socket.gateway";
+import { SocketGateway } from 'src/socket/socket.gateway';
+import {
+  PaymentSetting,
+  PaymentSettingDocument,
+} from '../payment-settings/schemas/payment-setting.schema';
 
 @Injectable()
 export class OrdersService {
@@ -58,153 +62,342 @@ export class OrdersService {
     private readonly paymentsService: PaymentsService,
 
     private readonly socketGateway: SocketGateway,
+
+    @InjectModel(PaymentSetting.name)
+    private paymentSettingModel: Model<PaymentSettingDocument>,
   ) {}
 
   // =========================
   // CREATE ORDER
   // =========================
-  async createOrder(userId: string, dto: CreateOrderDto) {
-    const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('User not found');
+async createOrder(userId: string, dto: CreateOrderDto) {
+  const user = await this.userModel.findById(userId);
 
-    // অ্যাড্রেস আইডি ফাঁকা কি না চেক করা
-    if (!dto.shippingAddress || dto.shippingAddress.trim() === '') {
-      throw new BadRequestException('Shipping address ID is required and cannot be empty');
-    }
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
 
-    const address = await this.addressModel.findOne({
+  // ==========================================
+  // PAYMENT SETTINGS CHECK
+  // ==========================================
+  const settings =
+    await this.paymentSettingModel.findOne();
+
+  if (!settings) {
+    throw new BadRequestException(
+      'Payment settings not found',
+    );
+  }
+
+  if (
+    dto.paymentMethod === PaymentMethod.COD &&
+    !settings.codEnabled
+  ) {
+    throw new BadRequestException(
+      'Cash On Delivery is currently disabled',
+    );
+  }
+
+  if (
+    dto.paymentMethod === PaymentMethod.SSLCOMMERZ &&
+    !settings.sslcommerzEnabled
+  ) {
+    throw new BadRequestException(
+      'SSLCOMMERZ payment is currently disabled',
+    );
+  }
+
+  // ==========================================
+  // SHIPPING ADDRESS CHECK
+  // ==========================================
+  if (
+    !dto.shippingAddress ||
+    dto.shippingAddress.trim() === ''
+  ) {
+    throw new BadRequestException(
+      'Shipping address ID is required and cannot be empty',
+    );
+  }
+
+  const address =
+    await this.addressModel.findOne({
       _id: dto.shippingAddress,
       user: userId,
     });
-    if (!address) throw new NotFoundException('Address not found');
 
-    const cartItems = await this.cartModel
+  if (!address) {
+    throw new NotFoundException(
+      'Address not found',
+    );
+  }
+
+  // ==========================================
+  // CART CHECK
+  // ==========================================
+  const cartItems =
+    await this.cartModel
       .find({ user: userId })
       .populate('product');
 
-    if (!cartItems.length) throw new NotFoundException('Cart is empty');
+  if (!cartItems.length) {
+    throw new NotFoundException(
+      'Cart is empty',
+    );
+  }
 
-    const subTotal = cartItems.reduce((sum, item: any) => {
+  // ==========================================
+  // CALCULATE TOTALS
+  // ==========================================
+  const subTotal = cartItems.reduce(
+    (sum, item: any) => {
       const price = item.price || 0;
       const qty = item.quantity || 1;
+
       return sum + price * qty;
-    }, 0);
+    },
+    0,
+  );
 
-    const deliveryCharge = dto.deliveryCharge ?? 0;
-    const wallet = await this.rewardsService.getWallet(userId);
+  const deliveryCharge =
+    dto.deliveryCharge ?? 0;
 
-    let rewardUsed = 0;
-    if (dto.useReward) {
-      rewardUsed = Math.min(
-        dto.rewardAmount || 0,
-        wallet.balance,
-        subTotal,
-      );
-    }
-
-    const totalAmount = subTotal + deliveryCharge;
-    const finalAmount = Math.max(0, totalAmount - rewardUsed);
-
-    // ==========================================
-    // 🔵 SSLCOMMERZ FLOW (পেমেন্ট সফল হওয়ার আগে অর্ডার তৈরি হবে না)
-    // ==========================================
-    const isOnline =
-      dto.paymentMethod === PaymentMethod.SSLCOMMERZ ||
-      (dto.paymentMethod as any) === 'SSLCOMMERZ';
-
-    if (isOnline) {
-      const tempTransactionId = `TXN_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
-
-      // পেমেন্ট গেটওয়ের জন্য প্রয়োজনীয় ডেটা পাস করা (যাতে পেমেন্ট সাকসেস হলে হ্যান্ডলারে সব ডাটা পাওয়া যায়)
-      const sslSession = await this.paymentsService.initiateOnlinePayment({
-        amount: finalAmount,
-        transactionId: tempTransactionId,
-        customerPhone: user.phone,
-        userId: userId,
-        shippingAddressId: address._id.toString(),
-        useReward: !!dto.useReward,
-        rewardAmount: rewardUsed,
-        deliveryCharge: deliveryCharge,
-      });
-
-      return {
-        paymentMethod: 'SSLCOMMERZ',
-        paymentUrl: sslSession.paymentUrl,
-      };
-    }
-
-    // ==========================================
-    // 🟢 COD FLOW (ক্যাশ অন ডেলিভারির ক্ষেত্রে সরাসরি অর্ডার ডাটাবেজে ক্রিয়েট হবে)
-    // ==========================================
-    let orderNumber = '';
-    let exists = true;
-    while (exists) {
-      orderNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
-      const check = await this.orderModel.findOne({ orderNumber });
-      if (!check) exists = false;
-    }
-
-    const items = cartItems.map((item: any) => ({
-      product: item.product._id,
-      productName: {
-        en: item.product.title?.en || '',
-        bn: item.product.title?.bn || '',
-      },
-      unit: item.product.unit || 'pcs',
-      productImage: item.product.images?.[0] || '',
-      quantity: item.quantity || 1,
-      price: item.price || 0,
-      totalPrice: (item.price || 0) * (item.quantity || 1),
-    }));
-
-    const order = await this.orderModel.create({
-      orderNumber,
-      user: new Types.ObjectId(userId),
-      customerPhone: user.phone,
-      shippingAddress: address._id,
-      items,
-      subTotal,
-      deliveryCharge,
-      rewardUsed,
-      discountAmount: rewardUsed,
-      totalAmount,
-      finalAmount,
-      paymentMethod: dto.paymentMethod,
-      orderStatus: OrderStatus.PENDING,
-      isPaid: false,
-      trackingEnabled: false,
-    });
-
-    const payment = await this.paymentsService.createOrderPayment({
+  const wallet =
+    await this.rewardsService.getWallet(
       userId,
-      orderId: order._id.toString(),
-      amount: order.finalAmount,
-      paymentMethod: dto.paymentMethod,
-      customerPhone: user.phone,
-    });
+    );
 
-    order.payment = payment._id as any;
-    await order.save();
+  let rewardUsed = 0;
 
-    if (rewardUsed > 0) {
-      await this.rewardsService.redeemReward(
-        userId,
-        rewardUsed,
-        order._id.toString(),
+  if (dto.useReward) {
+    rewardUsed = Math.min(
+      dto.rewardAmount || 0,
+      wallet.balance,
+      subTotal,
+    );
+  }
+
+  const totalAmount =
+    subTotal + deliveryCharge;
+
+  const finalAmount = Math.max(
+    0,
+    totalAmount - rewardUsed,
+  );
+
+  // ==========================================
+  // SSLCOMMERZ FLOW
+  // ==========================================
+  const isOnline =
+    dto.paymentMethod ===
+      PaymentMethod.SSLCOMMERZ ||
+    (dto.paymentMethod as any) ===
+      'SSLCOMMERZ';
+
+  if (isOnline) {
+    const tempTransactionId =
+      `TXN_${Date.now()}_${Math.floor(
+        1000 + Math.random() * 9000,
+      )}`;
+
+    const sslSession =
+      await this.paymentsService.initiateOnlinePayment(
+        {
+          amount: finalAmount,
+          transactionId:
+            tempTransactionId,
+          customerPhone: user.phone,
+          userId,
+          shippingAddressId:
+            address._id.toString(),
+          useReward:
+            !!dto.useReward,
+          rewardAmount:
+            rewardUsed,
+          deliveryCharge,
+        },
       );
-      await this.usersService.increaseRewardUsed(userId, rewardUsed);
-    }
-
-    await this.cartModel.deleteMany({ user: userId });
-    await this.cartService.cacheCart(userId);
-    this.socketGateway.emitNewOrder(order);
 
     return {
-      ...order.toObject(),
-      paymentMethod: payment.paymentMethod,
-      paymentStatus: payment.paymentStatus,
+      paymentMethod:
+        'SSLCOMMERZ',
+      paymentUrl:
+        sslSession.paymentUrl,
     };
   }
+
+  // ==========================================
+  // GENERATE ORDER NUMBER
+  // ==========================================
+  let orderNumber = '';
+  let exists = true;
+
+  while (exists) {
+    orderNumber = Math.floor(
+      10000000 +
+        Math.random() * 90000000,
+    ).toString();
+
+    const check =
+      await this.orderModel.findOne({
+        orderNumber,
+      });
+
+    if (!check) {
+      exists = false;
+    }
+  }
+
+  // ==========================================
+  // PREPARE ORDER ITEMS
+  // ==========================================
+  const items = cartItems.map(
+    (item: any) => ({
+      product:
+        item.product._id,
+
+      productName: {
+        en:
+          item.product.title?.en ||
+          '',
+        bn:
+          item.product.title?.bn ||
+          '',
+      },
+
+      unit:
+        item.product.unit ||
+        'pcs',
+
+      productImage:
+        item.product.images?.[0] ||
+        '',
+
+      quantity:
+        item.quantity || 1,
+
+      price:
+        item.price || 0,
+
+      totalPrice:
+        (item.price || 0) *
+        (item.quantity || 1),
+    }),
+  );
+
+  // ==========================================
+  // CREATE ORDER
+  // ==========================================
+  const order =
+    await this.orderModel.create({
+      orderNumber,
+
+      user:
+        new Types.ObjectId(
+          userId,
+        ),
+
+      customerPhone:
+        user.phone,
+
+      shippingAddress:
+        address._id,
+
+      items,
+
+      subTotal,
+
+      deliveryCharge,
+
+      rewardUsed,
+
+      discountAmount:
+        rewardUsed,
+
+      totalAmount,
+
+      finalAmount,
+
+      paymentMethod:
+        dto.paymentMethod,
+
+      orderStatus:
+        OrderStatus.PENDING,
+
+      isPaid: false,
+
+      trackingEnabled:
+        false,
+    });
+
+  // ==========================================
+  // CREATE PAYMENT RECORD
+  // ==========================================
+  const payment =
+    await this.paymentsService.createOrderPayment(
+      {
+        userId,
+
+        orderId:
+          order._id.toString(),
+
+        amount:
+          order.finalAmount,
+
+        paymentMethod:
+          dto.paymentMethod,
+
+        customerPhone:
+          user.phone,
+      },
+    );
+
+  order.payment =
+    payment._id as any;
+
+  await order.save();
+
+  // ==========================================
+  // REWARD DEDUCTION
+  // ==========================================
+  if (rewardUsed > 0) {
+    await this.rewardsService.redeemReward(
+      userId,
+      rewardUsed,
+      order._id.toString(),
+    );
+
+    await this.usersService.increaseRewardUsed(
+      userId,
+      rewardUsed,
+    );
+  }
+
+  // ==========================================
+  // CLEAR CART
+  // ==========================================
+  await this.cartModel.deleteMany({
+    user: userId,
+  });
+
+  await this.cartService.cacheCart(
+    userId,
+  );
+
+  // ==========================================
+  // SOCKET EVENT
+  // ==========================================
+  this.socketGateway.emitNewOrder(
+    order,
+  );
+
+  return {
+    ...order.toObject(),
+    paymentMethod:
+      payment.paymentMethod,
+    paymentStatus:
+      payment.paymentStatus,
+  };
+}
   // =========================
   // USER ORDERS
   // =========================
