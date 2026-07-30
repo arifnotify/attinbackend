@@ -8,6 +8,8 @@ import { Location, LocationDocument } from './schemas/location.schema';
 
 import { CreateLocationDto } from './dto/create-location.dto';
 
+import { UpdateLocationDto } from './dto/update-location.dto';
+
 @Injectable()
 export class LocationsService {
   constructor(
@@ -75,4 +77,45 @@ export class LocationsService {
 
     return location;
   }
+  // GET SINGLE
+  async getLocationById(id: string) {
+    const location = await this.locationModel.findById(id);
+
+  if (!location) {
+      throw new NotFoundException('Location not found');
+  }
+
+  return location;
+}
+
+// UPDATE
+  async updateLocation(id: string, updateLocationDto: UpdateLocationDto) {
+    const location = await this.locationModel.findByIdAndUpdate(
+      id,
+      updateLocationDto,
+      {
+        new: true,
+        runValidators: true,
+      },
+    );
+
+    if (!location) {
+    throw new NotFoundException('Location not found',);
+  }
+
+  return location;
+}
+
+// DELETE
+  async deleteLocation(id: string) {
+    const location = await this.locationModel.findByIdAndDelete(id);
+
+    if (!location) {
+      throw new NotFoundException('Location not found');
+  }
+
+  return {
+    message: 'Location deleted successfully',
+  };
+}
 }

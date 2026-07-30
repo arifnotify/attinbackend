@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -11,24 +12,29 @@ import {
 import { LocationsService } from './locations.service';
 
 import { CreateLocationDto } from './dto/create-location.dto';
+import { UpdateLocationDto } from './dto/update-location.dto';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('locations')
 export class LocationsController {
-  constructor(private locationsService: LocationsService) {}
+  constructor(
+    private readonly locationsService: LocationsService,
+  ) {}
 
-  // CREATE LOCATION
+  // CREATE
   @UseGuards(JwtAuthGuard)
   @Post()
   createLocation(
     @Body()
     createLocationDto: CreateLocationDto,
   ) {
-    return this.locationsService.createLocation(createLocationDto);
+    return this.locationsService.createLocation(
+      createLocationDto,
+    );
   }
 
-  // GET ALL LOCATIONS
+  // GET ALL
   @Get()
   getAllLocations() {
     return this.locationsService.getAllLocations();
@@ -40,7 +46,9 @@ export class LocationsController {
     @Param('division')
     division: string,
   ) {
-    return this.locationsService.getDistrictsByDivision(division);
+    return this.locationsService.getDistrictsByDivision(
+      division,
+    );
   }
 
   // DELIVERY CHARGE
@@ -49,18 +57,47 @@ export class LocationsController {
     @Param('district')
     district: string,
   ) {
-    return this.locationsService.getDeliveryCharge(district);
+    return this.locationsService.getDeliveryCharge(
+      district,
+    );
   }
 
-  // UPDATE DELIVERY CHARGE
+  // GET SINGLE
+  @Get(':id')
+  getLocationById(
+    @Param('id')
+    id: string,
+  ) {
+    return this.locationsService.getLocationById(
+      id,
+    );
+  }
+
+  // UPDATE
   @UseGuards(JwtAuthGuard)
   @Patch(':id')
-  updateDeliveryCharge(
-    @Param('id') id: string,
+  updateLocation(
+    @Param('id')
+    id: string,
 
-    @Body('deliveryCharge')
-    deliveryCharge: number,
+    @Body()
+    updateLocationDto: UpdateLocationDto,
   ) {
-    return this.locationsService.updateDeliveryCharge(id, deliveryCharge);
+    return this.locationsService.updateLocation(
+      id,
+      updateLocationDto,
+    );
+  }
+
+  // DELETE
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id')
+  deleteLocation(
+    @Param('id')
+    id: string,
+  ) {
+    return this.locationsService.deleteLocation(
+      id,
+    );
   }
 }
