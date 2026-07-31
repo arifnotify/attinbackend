@@ -41,6 +41,12 @@ export class Category {
   })
   parentCategory: Types.ObjectId;
 
+  // ⭐ NEW
+  @Prop({
+    default: 0,
+  })
+  sortOrder: number;
+
   @Prop({
     default: true,
   })
@@ -61,3 +67,8 @@ CategorySchema.index(
   { 'name.bn': 1 },
   { unique: true },
 );
+
+// ⭐ NEW
+CategorySchema.index({
+  sortOrder: 1,
+});

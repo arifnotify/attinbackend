@@ -25,16 +25,32 @@ export class CategoriesService {
   // =========================
   // CREATE CATEGORY
   // =========================
-  async create(createCategoryDto: CreateCategoryDto) {
-    const category = await this.categoryModel.create(createCategoryDto);
+// =========================
+// CREATE CATEGORY
+// =========================
+async create(createCategoryDto: CreateCategoryDto) {
+  // যদি sortOrder না আসে তাহলে শেষের পরে বসবে
+  if (
+    createCategoryDto.sortOrder === undefined ||
+    createCategoryDto.sortOrder === null
+  ) {
+    const lastCategory = await this.categoryModel
+      .findOne()
+      .sort({ sortOrder: -1 });
 
-    await this.redisService.del('all_categories');
-
-    // 🔥 SOCKET EVENT
-    this.socketGateway.emitHomeUpdated();
-
-    return category;
+    createCategoryDto.sortOrder = lastCategory
+      ? lastCategory.sortOrder + 1
+      : 1;
   }
+
+  const category = await this.categoryModel.create(createCategoryDto);
+
+  await this.redisService.del('all_categories');
+
+  this.socketGateway.emitHomeUpdated();
+
+  return category;
+}
 
   // =========================
   // GET ALL CATEGORIES (CACHE)
@@ -55,7 +71,9 @@ export class CategoriesService {
     const categories = await this.categoryModel
       .find()
       .populate('parentCategory')
-      .sort({ createdAt: -1 });
+      .sort({
+  sortOrder: 1,
+});
 
     await this.redisService.set(cacheKey, JSON.stringify(categories), 300);
 
@@ -72,7 +90,9 @@ export class CategoriesService {
         parentCategory: null,
         isActive: true,
       })
-      .sort({ createdAt: -1 });
+      .sort({
+  sortOrder: 1,
+});
   }
 
   // =========================
@@ -84,7 +104,9 @@ export class CategoriesService {
         parentCategory: parentId,
         isActive: true,
       })
-      .sort({ createdAt: -1 });
+      .sort({
+  sortOrder: 1,
+});
   }
 
   // =========================
@@ -144,4 +166,32 @@ export class CategoriesService {
       message: 'Category deleted successfully',
     };
   }
+
+  // =========================
+// UPDATE SORT ORDER
+// =========================
+async updateSortOrders(
+  categories: {
+    id: string;
+    sortOrder: number;
+  }[],
+) {
+  for (const item of categories) {
+    await this.categoryModel.findByIdAndUpdate(
+      item.id,
+      {
+        sortOrder: item.sortOrder,
+      },
+    );
+  }
+
+  await this.redisService.del('all_categories');
+
+  this.socketGateway.emitHomeUpdated();
+
+  return {
+    success: true,
+    message: 'Category order updated successfully',
+  };
+}
 }

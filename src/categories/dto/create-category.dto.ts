@@ -40,4 +40,9 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsBoolean()
   isActive: boolean;
+
+  // ⭐ NEW
+  @IsOptional()
+  @IsNumber()
+  sortOrder: number;
 }
