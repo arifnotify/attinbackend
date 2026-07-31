@@ -194,4 +194,51 @@ async updateSortOrders(
     message: 'Category order updated successfully',
   };
 }
+
+// =========================
+// HOME CATEGORIES
+// =========================
+async getHomeCategories() {
+
+  const cacheKey = "home_categories";
+
+
+  const cached =
+    await this.redisService.get(cacheKey);
+
+
+  if(cached){
+
+    return typeof cached === "string"
+      ? JSON.parse(cached)
+      : cached;
+
+  }
+
+
+
+  const categories =
+    await this.categoryModel.find({
+
+      isActive:true,
+
+      showOnHome:true,
+
+    })
+    .sort({
+      sortOrder:1,
+    });
+
+
+
+  await this.redisService.set(
+    cacheKey,
+    JSON.stringify(categories),
+    300,
+  );
+
+
+  return categories;
+
+}
 }

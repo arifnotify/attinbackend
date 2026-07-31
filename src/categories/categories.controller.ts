@@ -107,4 +107,12 @@ export class CategoriesController {
  );
 
 }
+/////////////////////////////////////////////
+@Get('home')
+getHomeCategories(){
+
+ return this.categoriesService
+ .getHomeCategories();
+
+}
 }
