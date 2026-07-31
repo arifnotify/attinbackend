@@ -51,6 +51,14 @@ export class Category {
     default: true,
   })
   isActive: boolean;
+  
+
+  // ⭐ Home Screen Control
+  @Prop({
+    default:false,
+  })
+  showOnHome:boolean;
+
 }
 
 export const CategorySchema =

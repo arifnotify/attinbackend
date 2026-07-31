@@ -46,4 +46,9 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsNumber()
   sortOrder: number;
+
+  // ⭐ NEW
+ @IsOptional()
+ @IsBoolean()
+ showOnHome:boolean;
 }
