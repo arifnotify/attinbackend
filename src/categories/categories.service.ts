@@ -140,6 +140,7 @@ async create(createCategoryDto: CreateCategoryDto) {
     }
 
     await this.redisService.del('all_categories');
+    await this.redisService.del('home_categories');
 
     // 🔥 SOCKET EVENT
     this.socketGateway.emitHomeUpdated();
@@ -158,6 +159,7 @@ async create(createCategoryDto: CreateCategoryDto) {
     }
 
     await this.redisService.del('all_categories');
+    await this.redisService.del('home_categories');
 
     // 🔥 SOCKET EVENT
     this.socketGateway.emitHomeUpdated();
@@ -187,6 +189,7 @@ async updateSortOrders(
   }
 
   await this.redisService.del('all_categories');
+  await this.redisService.del('home_categories');
 
   this.socketGateway.emitHomeUpdated();
 
