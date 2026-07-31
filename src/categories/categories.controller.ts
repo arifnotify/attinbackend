@@ -44,6 +44,16 @@ export class CategoriesController {
     return this.categoriesService.findAll();
   }
 
+  ///////////////////////////
+  /////////////////////////////////////////////
+@Get('home')
+getHomeCategories(){
+
+ return this.categoriesService
+ .getHomeCategories();
+
+}
+
   // =========================
   // GET MAIN CATEGORIES (parentCategory = null)
   // =========================
@@ -107,12 +117,5 @@ export class CategoriesController {
  );
 
 }
-/////////////////////////////////////////////
-@Get('home')
-getHomeCategories(){
 
- return this.categoriesService
- .getHomeCategories();
-
-}
 }
