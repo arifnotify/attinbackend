@@ -46,6 +46,7 @@ async create(createCategoryDto: CreateCategoryDto) {
   const category = await this.categoryModel.create(createCategoryDto);
 
   await this.redisService.del('all_categories');
+  await this.redisService.del('home_categories');
 
   this.socketGateway.emitHomeUpdated();
 
