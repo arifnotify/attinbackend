@@ -235,4 +235,16 @@ export class SocketGateway
       },
     );
   }
+
+  // ==========================
+// LOCATION UPDATED
+// ==========================
+
+emitLocationUpdated() {
+  this.server.emit('location_updated', {
+    success: true,
+    message: 'Location updated',
+    time: new Date(),
+  });
+}
 }
