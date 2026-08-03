@@ -7,7 +7,7 @@ import {
   RewardSettings,
   RewardSettingsDocument,
 } from 'src/reward-settings/schemas/reward-setting.schema';
-import { SocketGateway } from 'src/socket/socket.gateway'; // 👈 ১. SocketGateway ইমপোর্ট করুন
+import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
 export class UsersService {
@@ -18,7 +18,7 @@ export class UsersService {
     @InjectModel(RewardSettings.name)
     private rewardSettingsModel: Model<RewardSettingsDocument>,
 
-    private readonly socketGateway: SocketGateway, // 👈 ২. SocketGateway ইনজেক্ট করুন
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   // ===========================
@@ -40,16 +40,23 @@ export class UsersService {
   }
 
   // ===========================
-  // FIND USER BY ID
+  // 🔑 FIND USER BY ID (নতুন মেথড যোগ করা হয়েছে)
   // ===========================
-  async getUserById(id: string) {
-    const user = await this.userModel.findById(id);
+  async findById(id: string) {
+    const user = await this.userModel.findById(id).select('-password');
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
     return user;
+  }
+
+  // ===========================
+  // GET USER BY ID (BACKWARD COMPATIBILITY)
+  // ===========================
+  async getUserById(id: string) {
+    return this.findById(id);
   }
 
   // ===========================
@@ -228,7 +235,7 @@ export class UsersService {
       user.customerType = customerType;
       await user.save();
 
-      // 🔥 সকেট ইভент: টাইপ আপগ্রেড হলে রিয়েলটাইমে ইউজারকে পাঠানো
+      // 🔥 সকেট ইভেন্ট: টাইপ আপগ্রেড হলে রিয়েলটাইমে ইউজারকে পাঠানো
       this.socketGateway.emitUserUpdated(userId, { customerType });
     }
 
