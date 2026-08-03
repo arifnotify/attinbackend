@@ -98,4 +98,10 @@ export class AuthService {
       user,
     };
   }
+
+  // auth.service.ts
+async getProfile(userId: string) {
+  // ডাটাবেজ থেকে ফ্রেশ ডাটা নেওয়া
+  return await this.userModel.findById(userId).select('-password'); 
+}
 }

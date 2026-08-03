@@ -1,30 +1,41 @@
-import { Body, Controller, Post } from '@nestjs/common';
-
+import { Body, Controller, Get, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
-
 import { SendOtpDto } from './dto/send-otp.dto';
-
 import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { JwtAuthGuard } from './jwt-auth.guard'; // 📌 Guard-এর সঠিক পাথ নিশ্চিত করুন
 
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
-  // SEND OTP
+  // ==========================================
+  // 📩 SEND OTP
+  // ==========================================
   @Post('send-otp')
-  sendOtp(
-    @Body()
-    sendOtpDto: SendOtpDto,
+  async sendOtp(
+    @Body() sendOtpDto: SendOtpDto,
   ) {
     return this.authService.sendOtp(sendOtpDto.phone);
   }
 
-  // VERIFY OTP
+  // ==========================================
+  // 🔑 VERIFY OTP
+  // ==========================================
   @Post('verify-otp')
-  verifyOtp(
-    @Body()
-    verifyOtpDto: VerifyOtpDto,
+  async verifyOtp(
+    @Body() verifyOtpDto: VerifyOtpDto,
   ) {
     return this.authService.verifyOtp(verifyOtpDto.phone, verifyOtpDto.otp);
+  }
+
+  // ==========================================
+  // 👤 GET USER PROFILE & CHECK BLOCK STATUS
+  // ==========================================
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  async getProfile(@Request() req) {
+    // 💡 JWT স্ট্র্যাটেজি থেকে আসা user id দিয়ে ডাটাবেজ থেকে ফ্রেশ ইউজারের তথ্য রিটার্ন করুন
+    const userId = req.user._id || req.user.id;
+    return this.authService.getProfile(userId);
   }
 }
