@@ -1,18 +1,17 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-
 import { UsersService } from '../users/users.service';
-
 import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
-
     private redisService: RedisService,
-
     private jwtService: JwtService,
   ) {}
 
@@ -99,9 +98,17 @@ export class AuthService {
     };
   }
 
-  // auth.service.ts
-async getProfile(userId: string) {
-  // ডাটাবেজ থেকে ফ্রেশ ডাটা নেওয়া
-  return await this.userModel.findById(userId).select('-password'); 
-}
+  // =========================
+  // GET PROFILE
+  // =========================
+  async getProfile(userId: string) {
+    // 💡 usersService এর মাধ্যমে প্রোফাইল ডাটা রিট্রাইভ করা হচ্ছে
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
+  }
 }
