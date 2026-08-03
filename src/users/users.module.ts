@@ -8,6 +8,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { User, UserSchema } from './schemas/user.schema';
 import { RewardSettingsModule } from 'src/reward-settings/reward-settings.module';
+import { SocketModule } from 'src/socket/socket.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { RewardSettingsModule } from 'src/reward-settings/reward-settings.module
       },
     ]),
     RewardSettingsModule,
+    SocketModule,
   ],
 
   controllers: [UsersController],
