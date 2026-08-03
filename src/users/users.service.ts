@@ -1,7 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model } from 'mongoose';
 
 import { User, UserDocument, CustomerType } from './schemas/user.schema';
@@ -9,17 +7,19 @@ import {
   RewardSettings,
   RewardSettingsDocument,
 } from 'src/reward-settings/schemas/reward-setting.schema';
+import { SocketGateway } from 'src/socket/socket.gateway'; // 👈 ১. SocketGateway ইমপোর্ট করুন
 
 @Injectable()
 export class UsersService {
-  [x: string]: any;
   constructor(
-  @InjectModel(User.name)
-  private userModel: Model<UserDocument>,
+    @InjectModel(User.name)
+    private userModel: Model<UserDocument>,
 
-  @InjectModel(RewardSettings.name)
+    @InjectModel(RewardSettings.name)
     private rewardSettingsModel: Model<RewardSettingsDocument>,
-) {}
+
+    private readonly socketGateway: SocketGateway, // 👈 ২. SocketGateway ইনজেক্ট করুন
+  ) {}
 
   // ===========================
   // GET ALL USERS
@@ -65,68 +65,86 @@ export class UsersService {
   // BLOCK USER
   // ===========================
   async blockUser(phone: string, reason: string) {
-    return this.userModel.findOneAndUpdate(
-      {
-        phone,
-      },
+    const user = await this.userModel.findOneAndUpdate(
+      { phone },
       {
         isBlocked: true,
         blockReason: reason,
       },
-      {
-        new: true,
-      },
+      { new: true },
     );
+
+    if (user) {
+      // 🔥 সকেট ইভেন্ট: ইউজারকে ইনস্ট্যান্ট ব্লক আপডেট পাঠানো
+      this.socketGateway.emitUserBlockStatusChanged(
+        user._id.toString(),
+        true,
+        reason,
+      );
+    }
+
+    return user;
   }
 
   // ===========================
   // UNBLOCK USER
   // ===========================
   async unblockUser(phone: string) {
-    return this.userModel.findOneAndUpdate(
-      {
-        phone,
-      },
+    const user = await this.userModel.findOneAndUpdate(
+      { phone },
       {
         isBlocked: false,
         blockReason: '',
       },
-      {
-        new: true,
-      },
+      { new: true },
     );
+
+    if (user) {
+      // 🔥 সকেট ইভেন্ট: ইউজারকে আনব্লক আপডেট পাঠানো
+      this.socketGateway.emitUserBlockStatusChanged(
+        user._id.toString(),
+        false,
+      );
+    }
+
+    return user;
   }
 
   // ===========================
   // UPDATE CUSTOMER TYPE
   // ===========================
   async updateCustomerType(userId: string, customerType: CustomerType) {
-    return this.userModel.findByIdAndUpdate(
+    const user = await this.userModel.findByIdAndUpdate(
       userId,
-      {
-        customerType,
-      },
-      {
-        new: true,
-      },
+      { customerType },
+      { new: true },
     );
+
+    if (user) {
+      // 🔥 সকেট ইভেন্ট: কাস্টমার টাইপ চেঞ্জ হলে ইউজারকে নোটিফাই করা
+      this.socketGateway.emitUserUpdated(userId, { customerType });
+    }
+
+    return user;
   }
 
   // ===========================
   // ADD SPENT AMOUNT
   // ===========================
   async increaseSpentAmount(userId: string, amount: number) {
-    return this.userModel.findByIdAndUpdate(
+    const user = await this.userModel.findByIdAndUpdate(
       userId,
       {
-        $inc: {
-          totalSpent: amount,
-        },
+        $inc: { totalSpent: amount },
       },
-      {
-        new: true,
-      },
+      { new: true },
     );
+
+    if (user) {
+      this.socketGateway.emitUserUpdated(userId, { totalSpent: user.totalSpent });
+    }
+
+    return user;
   }
 
   // ===========================
@@ -136,13 +154,9 @@ export class UsersService {
     return this.userModel.findByIdAndUpdate(
       userId,
       {
-        $inc: {
-          totalOrders: 1,
-        },
+        $inc: { totalOrders: 1 },
       },
-      {
-        new: true,
-      },
+      { new: true },
     );
   }
 
@@ -150,138 +164,80 @@ export class UsersService {
   // ADD REWARD EARNED
   // ===========================
   async increaseRewardEarned(userId: string, amount: number) {
-    return this.userModel.findByIdAndUpdate(
+    const user = await this.userModel.findByIdAndUpdate(
       userId,
       {
-        $inc: {
-          totalRewardEarned: amount,
-        },
+        $inc: { totalRewardEarned: amount },
       },
-      {
-        new: true,
-      },
+      { new: true },
     );
+
+    if (user) {
+      this.socketGateway.emitUserUpdated(userId, {
+        totalRewardEarned: user.totalRewardEarned,
+      });
+    }
+
+    return user;
   }
 
   // ===========================
   // ADD REWARD USED
   // ===========================
   async increaseRewardUsed(userId: string, amount: number) {
-    return this.userModel.findByIdAndUpdate(
+    const user = await this.userModel.findByIdAndUpdate(
       userId,
       {
-        $inc: {
-          totalRewardUsed: amount,
-        },
+        $inc: { totalRewardUsed: amount },
       },
-      {
-        new: true,
-      },
-    );
-  }
-
-  // ===========================
-  // CHANGE CUSTOMER TYPE
-  // ===========================
-// ===========================
-// CHECK CUSTOMER LEVEL
-// ===========================
-async checkCustomerLevel(
-  userId: string,
-) {
-
-  const user =
-    await this.userModel.findById(
-      userId,
+      { new: true },
     );
 
+    if (user) {
+      this.socketGateway.emitUserUpdated(userId, {
+        totalRewardUsed: user.totalRewardUsed,
+      });
+    }
 
-  if (!user) {
-    throw new NotFoundException(
-      'User not found',
-    );
+    return user;
   }
 
-
-
-  // GET ADMIN SETTINGS
-
-  const settings =
-    await this.rewardSettingsModel.findOne();
-
-
-
-  const premiumAmount =
-    settings?.premiumAmount || 10000;
-
-
-
-  const vipAmount =
-    settings?.vipAmount || 50000;
-
-
-
-  let customerType =
-    CustomerType.REGULAR;
-
-
-
   // ===========================
-  // VIP CHECK
+  // CHECK CUSTOMER LEVEL
   // ===========================
+  async checkCustomerLevel(userId: string) {
+    const user = await this.userModel.findById(userId);
 
-  if (
-    (user.totalSpent || 0)
-    >= vipAmount
-  ) {
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-    customerType =
-      CustomerType.VIP;
+    const settings = await this.rewardSettingsModel.findOne();
+    const premiumAmount = settings?.premiumAmount || 10000;
+    const vipAmount = settings?.vipAmount || 50000;
 
+    let customerType = CustomerType.REGULAR;
+
+    if ((user.totalSpent || 0) >= vipAmount) {
+      customerType = CustomerType.VIP;
+    } else if ((user.totalSpent || 0) >= premiumAmount) {
+      customerType = CustomerType.PREMIUM;
+    }
+
+    if (user.customerType !== customerType) {
+      user.customerType = customerType;
+      await user.save();
+
+      // 🔥 সকেট ইভент: টাইপ আপগ্রেড হলে রিয়েলটাইমে ইউজারকে পাঠানো
+      this.socketGateway.emitUserUpdated(userId, { customerType });
+    }
+
+    return {
+      userId: user._id,
+      totalSpent: user.totalSpent,
+      customerType,
+      premiumLimit: premiumAmount,
+      vipLimit: vipAmount,
+    };
   }
-
-
-  // ===========================
-  // PREMIUM CHECK
-  // ===========================
-
-  else if (
-    (user.totalSpent || 0)
-    >= premiumAmount
-  ) {
-
-    customerType =
-      CustomerType.PREMIUM;
-
-  }
-
-
-
-  // ===========================
-  // UPDATE USER LEVEL
-  // ===========================
-
-  if (
-    user.customerType !== customerType
-  ) {
-
-    user.customerType =
-      customerType;
-
-
-    await user.save();
-
-  }
-
-
-
-  return {
-    userId: user._id,
-    totalSpent: user.totalSpent,
-    customerType,
-    premiumLimit: premiumAmount,
-    vipLimit: vipAmount,
-  };
-
-}
 }

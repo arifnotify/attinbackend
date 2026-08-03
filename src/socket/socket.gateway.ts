@@ -247,4 +247,25 @@ emitLocationUpdated() {
     time: new Date(),
   });
 }
+
+// ==========================
+  // USER UPDATED / PROFILE CHANGE
+  // ==========================
+  emitUserUpdated(userId: string, data?: any) {
+    this.server.to(`user_${userId}`).emit('user_updated', {
+      success: true,
+      message: 'User profile updated',
+      data,
+    });
+  }
+
+  // ==========================
+  // USER BLOCKED STATUS CHANGED
+  // ==========================
+  emitUserBlockStatusChanged(userId: string, isBlocked: boolean, reason?: string) {
+    this.server.to(`user_${userId}`).emit('user_block_status', {
+      isBlocked,
+      reason,
+    });
+  }
 }
