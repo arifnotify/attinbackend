@@ -1,17 +1,18 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+
 import { JwtService } from '@nestjs/jwt';
+
 import { UsersService } from '../users/users.service';
+
 import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
+
     private redisService: RedisService,
+
     private jwtService: JwtService,
   ) {}
 
@@ -97,20 +98,4 @@ export class AuthService {
       user,
     };
   }
-
-  // =========================
-  // GET PROFILE
-  // =========================
-// src/auth/auth.service.ts
-
-async getProfile(userId: string) {
-  // findById এর বদলে findOne বা আপনার UsersService-এ যে মেথড আছে তা ব্যবহার করুন
-  const user = await this.usersService.findOne(userId); 
-
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
-
-  return user;
-}
 }
