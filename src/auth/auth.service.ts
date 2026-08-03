@@ -1,19 +1,14 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-
+import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-
 import { UsersService } from '../users/users.service';
-
 import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
-
-    private redisService: RedisService,
-
-    private jwtService: JwtService,
+    private readonly usersService: UsersService,
+    private readonly redisService: RedisService,
+    private readonly jwtService: JwtService,
   ) {}
 
   // =========================
@@ -97,5 +92,18 @@ export class AuthService {
       access_token: token,
       user,
     };
+  }
+
+  // =========================
+  // GET PROFILE
+  // =========================
+  async getProfile(userId: string) {
+    const user = await this.usersService.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user;
   }
 }
