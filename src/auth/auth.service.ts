@@ -101,14 +101,16 @@ export class AuthService {
   // =========================
   // GET PROFILE
   // =========================
-  async getProfile(userId: string) {
-    // 💡 usersService এর মাধ্যমে প্রোফাইল ডাটা রিট্রাইভ করা হচ্ছে
-    const user = await this.usersService.findById(userId);
+// src/auth/auth.service.ts
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+async getProfile(userId: string) {
+  // findById এর বদলে findOne বা আপনার UsersService-এ যে মেথড আছে তা ব্যবহার করুন
+  const user = await this.usersService.findOne(userId); 
 
-    return user;
+  if (!user) {
+    throw new NotFoundException('User not found');
   }
+
+  return user;
+}
 }
