@@ -2,20 +2,14 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-
 import { InjectModel } from '@nestjs/mongoose';
-
 import { Model } from 'mongoose';
-
 import {
   Location,
   LocationDocument,
 } from './schemas/location.schema';
-
 import { CreateLocationDto } from './dto/create-location.dto';
-
 import { UpdateLocationDto } from './dto/update-location.dto';
-
 import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
@@ -48,27 +42,33 @@ export class LocationsService {
         isActive: true,
       })
       .sort({
-        division: 1,
+        'division.en': 1,
       });
   }
 
-  // GET DISTRICTS BY DIVISION
+  // GET DISTRICTS BY DIVISION (এখানে division.en বা division.bn দিয়ে সার্চ করতে পারেন)
   async getDistrictsByDivision(
-    division: string,
+    divisionName: string,
   ) {
     return this.locationModel.find({
-      division,
+      $or: [
+        { 'division.en': divisionName },
+        { 'division.bn': divisionName },
+      ],
       isActive: true,
     });
   }
 
-  // GET DELIVERY CHARGE
+  // GET DELIVERY CHARGE (district.en বা district.bn দিয়ে সার্চ করতে পারেন)
   async getDeliveryCharge(
-    district: string,
+    districtName: string,
   ) {
     const location =
       await this.locationModel.findOne({
-        district,
+        $or: [
+          { 'district.en': districtName },
+          { 'district.bn': districtName },
+        ],
         isActive: true,
       });
 
