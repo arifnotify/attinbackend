@@ -5,12 +5,15 @@ import {
   PaymentSettingDocument,
 } from './schemas/payment-setting.schema';
 import { Model } from 'mongoose';
+import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
 export class PaymentSettingsService {
   constructor(
     @InjectModel(PaymentSetting.name)
     private paymentSettingModel: Model<PaymentSettingDocument>,
+
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   async getSettings() {
@@ -41,6 +44,9 @@ export class PaymentSettingsService {
 
       await settings.save();
     }
+
+    // 🔥 Notify all apps instantly
+    this.socketGateway.emitPaymentSettingsUpdated(settings);
 
     return settings;
   }

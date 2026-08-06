@@ -8,6 +8,7 @@ import {
 
 import { PaymentSettingsService } from './payment-settings.service';
 import { PaymentSettingsController } from './payment-settings.controller';
+import { SocketModule } from 'src/socket/socket.module';
 
 @Module({
   imports: [
@@ -17,6 +18,8 @@ import { PaymentSettingsController } from './payment-settings.controller';
         schema: PaymentSettingSchema,
       },
     ]),
+
+    SocketModule,
   ],
   controllers: [PaymentSettingsController],
   providers: [PaymentSettingsService],

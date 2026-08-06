@@ -260,6 +260,18 @@ emitLocationUpdated() {
   }
 
   // ==========================
+// PAYMENT SETTINGS UPDATED
+// ==========================
+
+emitPaymentSettingsUpdated(data: any) {
+  this.server.emit('payment_settings_updated', {
+    success: true,
+    data,
+    time: new Date(),
+  });
+}
+
+  // ==========================
   // USER BLOCKED STATUS CHANGED
   // ==========================
   emitUserBlockStatusChanged(userId: string, isBlocked: boolean, reason?: string) {
