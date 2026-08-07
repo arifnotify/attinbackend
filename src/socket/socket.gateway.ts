@@ -271,6 +271,17 @@ emitPaymentSettingsUpdated(data: any) {
   });
 }
 
+// ==========================
+// SUPPORT LINKS UPDATED
+// ==========================
+emitSupportLinksUpdated(data?: any) {
+  this.server.emit('support_links_updated', {
+    success: true,
+    data,
+    time: new Date(),
+  });
+}
+
   // ==========================
   // USER BLOCKED STATUS CHANGED
   // ==========================

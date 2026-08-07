@@ -9,28 +9,36 @@ import {
 } from './schemas/support-link.schema';
 
 import { UpdateSupportLinkDto } from './dto/update-support-link.dto';
+import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Injectable()
 export class SupportLinksService {
   constructor(
     @InjectModel(SupportLink.name)
     private readonly model: Model<SupportLinkDocument>,
+
+    private readonly socketGateway: SocketGateway,
   ) {}
 
   // ==========================
   // CREATE / UPDATE
   // ==========================
-  async updateLinks(dto: UpdateSupportLinkDto) {
-    const existing = await this.model.findOne();
+async updateLinks(dto: UpdateSupportLinkDto) {
+  const existing = await this.model.findOne();
 
-    if (!existing) {
-      return await this.model.create(dto);
-    }
+  let result;
 
+  if (!existing) {
+    result = await this.model.create(dto);
+  } else {
     Object.assign(existing, dto);
-
-    return await existing.save();
+    result = await existing.save();
   }
+
+  this.socketGateway.emitSupportLinksUpdated(result);
+
+    return result;
+}
 
   // ==========================
   // GET LINKS

@@ -7,6 +7,7 @@ import { SupportLinksService } from './support-links.service';
 import { SupportLinksController } from './support-links.controller';
 
 import { AuthModule } from '../auth/auth.module'; // 🔥 ADD THIS
+import { SocketGateway } from 'src/socket/socket.gateway';
 
 @Module({
   imports: [
@@ -20,6 +21,6 @@ import { AuthModule } from '../auth/auth.module'; // 🔥 ADD THIS
   ],
 
   controllers: [SupportLinksController],
-  providers: [SupportLinksService],
+  providers: [SupportLinksService, SocketGateway],
 })
 export class SupportLinksModule {}
