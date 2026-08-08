@@ -32,43 +32,62 @@ export class ProductsService {
   // CREATE PRODUCT
   // =========================
 
-  async create(
-    createProductDto: CreateProductDto,
-  ) {
-    const product =
-      await this.productModel.create({
-        ...createProductDto,
+  async create(createProductDto: CreateProductDto) {
 
-        category:
-          new Types.ObjectId(
-            createProductDto.category,
-          ),
+  const product =
+    await this.productModel.create({
 
-        locations:
-          createProductDto.locations.map(
-            (id) =>
-              new Types.ObjectId(id),
-          ),
-      });
+      ...createProductDto,
 
-await this.redisService.delPattern(
-  'products_*',
-);
+      category:
+        new Types.ObjectId(
+          createProductDto.category,
+        ),
 
-    this.socketGateway.emitHomeUpdated();
-    this.socketGateway.emitProductUpdated();
-    this.socketGateway.emitCartUpdated();
+      country:
+        createProductDto.country
+          ? new Types.ObjectId(
+              createProductDto.country,
+            )
+          : undefined,
 
-await product.populate([
-  {
-    path: 'category',
-  },
-  {
-    path: 'locations',
-  },
-]);
-return product;
-  }
+      locations:
+        createProductDto.locations.map(
+          (id) =>
+            new Types.ObjectId(id),
+        ),
+    });
+
+
+  await this.redisService.delPattern(
+    'products_*',
+  );
+
+
+  this.socketGateway.emitHomeUpdated();
+
+  this.socketGateway.emitProductUpdated();
+
+  this.socketGateway.emitCartUpdated();
+
+
+  await product.populate([
+    {
+      path: 'category',
+    },
+
+    {
+      path: 'country',
+    },
+
+    {
+      path: 'locations',
+    },
+  ]);
+
+
+  return product;
+}
 
   // =========================
   // GET ALL PRODUCTS
@@ -139,6 +158,7 @@ return product;
       await this.productModel
         .find(query)
         .populate('category')
+        .populate('country')
         .populate('locations')
         .sort({
           isFeatured: -1,
@@ -193,6 +213,7 @@ return product;
       await this.productModel
         .findById(id)
         .populate('category')
+        .populate('country')
         .populate('locations');
 
     if (!product) {
@@ -246,6 +267,14 @@ async update(
     );
   }
 
+  if (updateProductDto.country) {
+
+  updateData.country =
+    new Types.ObjectId(
+      updateProductDto.country,
+    );
+}
+
   // Locations কে ObjectId[] বানান
   if (updateProductDto.locations) {
     updateData.locations = updateProductDto.locations.map(
@@ -259,6 +288,7 @@ async update(
       runValidators: true,
     })
     .populate('category')
+    .populate('country')
     .populate('locations');
 
   if (!product) {
@@ -371,6 +401,7 @@ async remove(id: string) {
  await this.productModel
  .find(query)
  .populate('category')
+ .populate('country')
  .populate('locations')
  .sort({
    isFeatured: -1,
@@ -523,6 +554,7 @@ async remove(id: string) {
       await this.productModel
         .find(filter)
         .populate('category')
+        .populate('country')
         .populate('locations')
         .sort(sortOption)
         .skip(skip)
@@ -587,6 +619,7 @@ return {
       await this.productModel
         .find()
         .populate('category')
+        .populate('country')
         .populate('locations')
         .sort({
           isFeatured: -1,

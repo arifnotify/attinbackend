@@ -49,6 +49,13 @@ export class Product {
   discountPrice: number;
 
   @Prop({
+    type: Types.ObjectId,
+    ref: 'Country',
+    required: false,
+  })
+  country?: Types.ObjectId;
+
+  @Prop({
     default: 0,
   })
   flashSalePrice: number;

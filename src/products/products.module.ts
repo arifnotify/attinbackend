@@ -15,6 +15,7 @@ import { ProductsService } from './products.service';
 
 import { RedisModule } from '../redis/redis.module';
 import { SocketModule } from 'src/socket/socket.module';
+import { Country, CountrySchema } from 'src/country/schemas/country.schema';
 
 @Module({
   imports: [
@@ -27,6 +28,15 @@ import { SocketModule } from 'src/socket/socket.module';
       {
         name: Category.name,
         schema: CategorySchema,
+      },
+
+      // =========================
+      // COUNTRY
+      // =========================
+
+      {
+        name: Country.name,
+        schema: CountrySchema,
       },
     ]),
 

@@ -66,6 +66,10 @@ export class CreateProductDto {
   @IsString()
   brand: string;
 
+  @IsOptional()
+  @IsMongoId()
+  country?: string;
+
   @IsArray()
   @IsMongoId({
     each: true,
