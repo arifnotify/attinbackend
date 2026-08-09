@@ -88,6 +88,13 @@ getHomeCategories(){
   ) {
     return this.categoriesService.update(id, updateCategoryDto);
   }
+  /////////////////////////////////////////////
+  //////////////////////////////////
+  @UseGuards(JwtAuthGuard)
+@Patch(':id/toggle-status')
+toggleStatus(@Param('id') id: string) {
+  return this.categoriesService.toggleStatus(id);
+}
 
   // =========================
   // DELETE CATEGORY
