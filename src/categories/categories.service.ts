@@ -198,6 +198,32 @@ async updateSortOrders(
     message: 'Category order updated successfully',
   };
 }
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
+  async toggleStatus(id: string) {
+  const category = await this.categoryModel.findById(id);
+
+  if (!category) {
+    throw new NotFoundException('Category not found');
+  }
+
+  category.isActive = !category.isActive;
+
+  await category.save();
+
+  await this.redisService.del('all_categories');
+  await this.redisService.del('home_categories');
+
+  this.socketGateway.emitHomeUpdated();
+
+  return {
+    success: true,
+    isActive: category.isActive,
+    message: category.isActive
+      ? 'Category activated'
+      : 'Category deactivated',
+  };
+}
 
 // =========================
 // HOME CATEGORIES
