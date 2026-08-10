@@ -38,9 +38,7 @@ export class LocationsService {
   // GET ALL LOCATIONS
   async getAllLocations() {
     return this.locationModel
-      .find({
-        isActive: true,
-      })
+      .find()
       .sort({
         'division.en': 1,
       });
