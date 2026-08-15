@@ -1,17 +1,34 @@
-import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsMongoId,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateBannerDto {
-  @IsNotEmpty()
+
   @IsString()
+  @IsNotEmpty()
   title: string;
 
-  @IsNotEmpty()
   @IsString()
+  @IsNotEmpty()
   image: string;
 
   @IsOptional()
-  @IsString()
-  link?: string;
+  @IsEnum([
+    'none',
+    'product',
+    'flashSale',
+    'category',
+  ])
+  linkType?: string;
+
+  @IsOptional()
+  @IsMongoId()
+  linkId?: string;
 
   @IsOptional()
   @IsBoolean()
