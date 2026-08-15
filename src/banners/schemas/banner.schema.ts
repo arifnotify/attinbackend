@@ -1,6 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type BannerDocument = Banner & Document;
 
@@ -8,6 +7,7 @@ export type BannerDocument = Banner & Document;
   timestamps: true,
 })
 export class Banner {
+
   @Prop({
     required: true,
   })
@@ -18,10 +18,19 @@ export class Banner {
   })
   image: string;
 
+  // 🔥 Banner কোথায় যাবে
   @Prop({
-    default: '',
+    enum: ['none', 'product', 'flashSale', 'category'],
+    default: 'none',
   })
-  link: string;
+  linkType: string;
+
+  // 🔥 Product / FlashSale / Category ID
+  @Prop({
+    type: Types.ObjectId,
+    default: null,
+  })
+  linkId: Types.ObjectId;
 
   @Prop({
     default: true,
@@ -29,4 +38,5 @@ export class Banner {
   isActive: boolean;
 }
 
-export const BannerSchema = SchemaFactory.createForClass(Banner);
+export const BannerSchema =
+  SchemaFactory.createForClass(Banner);
