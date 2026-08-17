@@ -20,7 +20,7 @@ import { Admin, AdminSchema } from './schemas/admin.schema';
     ]),
 
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'secret',
+      secret: process.env.JWT_SECRET,
 
       signOptions: {
         expiresIn: '7d',

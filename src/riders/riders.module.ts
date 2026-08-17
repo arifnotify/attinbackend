@@ -15,7 +15,7 @@ import { Order, OrderSchema } from '../orders/schemas/order.schema';
 @Module({
   imports: [
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'secret',
+      secret: process.env.JWT_SECRET,
       signOptions: {
         expiresIn: '30d',
       },
