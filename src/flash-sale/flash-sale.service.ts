@@ -11,7 +11,12 @@ import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
 
 import { RedisService } from '../redis/redis.service';
 import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
+
 import { SocketGateway } from 'src/socket/socket.gateway';
+
+// ✅ এগুলো অবশ্যই লাগবে
+import { formatExpiryDate } from 'src/common/utils/expiry.util';
+import { getFreshTime } from 'src/common/utils/fresh-time.util';
 
 @Injectable()
 export class FlashSaleService {
@@ -30,19 +35,27 @@ export class FlashSaleService {
   // =========================
   // CREATE FLASH SALE
   // =========================
-  async createFlashSale(createFlashSaleDto: CreateFlashSaleDto) {
+
+  async createFlashSale(
+    createFlashSaleDto: CreateFlashSaleDto,
+  ) {
     const flashProducts: any[] = [];
 
     for (const item of createFlashSaleDto.products) {
-      const product = await this.productModel.findById(item.product);
+      const product = await this.productModel.findById(
+        item.product,
+      );
 
       if (!product) {
-        throw new NotFoundException('Product not found');
+        throw new NotFoundException(
+          'Product not found',
+        );
       }
 
       // MARK FLASH SALE
       product.isFlashSale = true;
       product.flashSalePrice = item.salePrice;
+
       await product.save();
 
       flashProducts.push({
@@ -52,21 +65,35 @@ export class FlashSaleService {
       });
     }
 
-    const flashSale = await this.flashSaleModel.create({
-      title: createFlashSaleDto.title,
-      products: flashProducts,
-      startTime: createFlashSaleDto.startTime,
-      endTime: createFlashSaleDto.endTime,
-      isActive: createFlashSaleDto.isActive,
-    });
+    const flashSale =
+      await this.flashSaleModel.create({
+        title: createFlashSaleDto.title,
+        products: flashProducts,
+        startTime: createFlashSaleDto.startTime,
+        endTime: createFlashSaleDto.endTime,
+        isActive: createFlashSaleDto.isActive,
+      });
 
-    // 🧠 CLEAR CACHE
-    await this.redisService.del('flash_sales_active');
-    await this.redisService.del('flash_sales_all');
+    // =========================
+    // CLEAR CACHE
+    // =========================
 
-    await this.redisService.del('all_products');
+    await this.redisService.del(
+      'flash_sales_active',
+    );
 
-    // 🔥 SOCKET EVENTS
+    await this.redisService.del(
+      'flash_sales_all',
+    );
+
+    await this.redisService.del(
+      'all_products',
+    );
+
+    // =========================
+    // SOCKET EVENTS
+    // =========================
+
     this.socketGateway.emitFlashSaleUpdated();
     this.socketGateway.emitHomeUpdated();
 
@@ -74,44 +101,60 @@ export class FlashSaleService {
   }
 
   // =========================
-  // GET ACTIVE FLASH SALES (CACHED)
+  // GET ACTIVE FLASH SALES
   // =========================
-async getActiveFlashSales() {
-  console.log('🟡 BYPASS CACHE TEST');
 
-  const now = new Date();
+  async getActiveFlashSales() {
+    console.log('🟡 BYPASS CACHE TEST');
 
-  const flashSales = await this.flashSaleModel
-    .find({
-      isActive: true,
-      startTime: { $lte: now },
-      endTime: { $gte: now },
-    })
-    .populate('products.product');
+    const now = new Date();
 
-  console.log('RESULT:', flashSales);
+    const flashSales =
+      await this.flashSaleModel
+        .find({
+          isActive: true,
+          startTime: { $lte: now },
+          endTime: { $gte: now },
+        })
+        .populate('products.product');
 
-  return flashSales;
-}
+    console.log('RESULT:', flashSales);
+
+    return flashSales;
+  }
 
   // =========================
-  // GET ALL FLASH SALES (CACHED)
+  // GET ALL FLASH SALES
   // =========================
+
   async getAllFlashSales() {
-    const cacheKey = 'flash_sales_all';
+    const cacheKey =
+      'flash_sales_all';
 
-    const cached = await this.redisService.get(cacheKey);
+    const cached =
+      await this.redisService.get(
+        cacheKey,
+      );
 
     if (cached) {
-      return typeof cached === 'string' ? JSON.parse(cached) : cached;
+      return typeof cached === 'string'
+        ? JSON.parse(cached)
+        : cached;
     }
 
-    const flashSales = await this.flashSaleModel
-      .find()
-      .populate('products.product')
-      .sort({ createdAt: -1 });
+    const flashSales =
+      await this.flashSaleModel
+        .find()
+        .populate('products.product')
+        .sort({
+          createdAt: -1,
+        });
 
-    await this.redisService.set(cacheKey, JSON.stringify(flashSales), 300);
+    await this.redisService.set(
+      cacheKey,
+      JSON.stringify(flashSales),
+      300,
+    );
 
     return flashSales;
   }
@@ -119,36 +162,52 @@ async getActiveFlashSales() {
   // =========================
   // EXPIRE FLASH SALES
   // =========================
+
   async expireFlashSales() {
     const now = new Date();
 
-    const expiredSales = await this.flashSaleModel.find({
-      endTime: { $lt: now },
-      isActive: true,
-    });
+    const expiredSales =
+      await this.flashSaleModel.find({
+        endTime: { $lt: now },
+        isActive: true,
+      });
 
     for (const sale of expiredSales) {
       for (const item of sale.products) {
-        const product = await this.productModel.findById(item.product);
+        const product =
+          await this.productModel.findById(
+            item.product,
+          );
 
         if (product) {
           product.isFlashSale = false;
           product.flashSalePrice = 0;
+
           await product.save();
         }
       }
 
       sale.isActive = false;
+
       await sale.save();
     }
 
-    // 🧠 CLEAR CACHE
-    await this.redisService.del('flash_sales_active');
-    await this.redisService.del('flash_sales_all');
+    // CLEAR CACHE
 
-    await this.redisService.del('all_products');
+    await this.redisService.del(
+      'flash_sales_active',
+    );
 
-    // 🔥 SOCKET EVENTS
+    await this.redisService.del(
+      'flash_sales_all',
+    );
+
+    await this.redisService.del(
+      'all_products',
+    );
+
+    // SOCKET EVENTS
+
     this.socketGateway.emitFlashSaleUpdated();
     this.socketGateway.emitHomeUpdated();
 
@@ -161,105 +220,168 @@ async getActiveFlashSales() {
   // =========================
   // DELETE FLASH SALE
   // =========================
-  async deleteFlashSale(id: string) {
-    const flashSale = await this.flashSaleModel.findById(id);
+
+  async deleteFlashSale(
+    id: string,
+  ) {
+    const flashSale =
+      await this.flashSaleModel.findById(
+        id,
+      );
 
     if (!flashSale) {
-      throw new NotFoundException('Flash sale not found');
+      throw new NotFoundException(
+        'Flash sale not found',
+      );
     }
 
     for (const item of flashSale.products) {
-      const product = await this.productModel.findById(item.product);
+      const product =
+        await this.productModel.findById(
+          item.product,
+        );
 
       if (product) {
         product.isFlashSale = false;
         product.flashSalePrice = 0;
+
         await product.save();
       }
     }
 
-    await this.flashSaleModel.findByIdAndDelete(id);
+    await this.flashSaleModel.findByIdAndDelete(
+      id,
+    );
 
-    // 🧠 CLEAR CACHE
-    await this.redisService.del('flash_sales_active');
-    await this.redisService.del('flash_sales_all');
+    // CLEAR CACHE
 
-    await this.redisService.del('all_products');
+    await this.redisService.del(
+      'flash_sales_active',
+    );
 
-    // 🔥 SOCKET EVENTS
+    await this.redisService.del(
+      'flash_sales_all',
+    );
+
+    await this.redisService.del(
+      'all_products',
+    );
+
+    // SOCKET EVENTS
+
     this.socketGateway.emitFlashSaleUpdated();
     this.socketGateway.emitHomeUpdated();
 
-
     return {
       success: true,
-      message: 'Flash sale deleted successfully',
+      message:
+        'Flash sale deleted successfully',
     };
   }
 
-  //...................
-  async getFlashSaleById(id: string) {
-    const flashSale = await this.flashSaleModel
-      .findById(id)
-      .populate('products.product');
+  // =========================
+  // GET FLASH SALE BY ID
+  // =========================
+
+  async getFlashSaleById(
+    id: string,
+  ) {
+    const flashSale =
+      await this.flashSaleModel
+        .findById(id)
+        .populate('products.product');
 
     if (!flashSale) {
-      throw new NotFoundException('Flash sale not found');
-    }
-
-    const data: any = flashSale.toObject();
-
-  data.products = data.products.map((item: any) => {
-    if (!item.product) {
-      return item;
-    }
-
-    const product = {
-      ...item.product,
-    };
-
-    // ==========================================
-    // FLASH SALE PRICE
-    // ==========================================
-
-    product.flashSalePrice =
-      item.salePrice ?? product.flashSalePrice ?? 0;
-
-    // ==========================================
-    // FRESH PRODUCT
-    // ==========================================
-
-    if (product.productType === 'fresh') {
-      product.freshText = getFreshTime(
-        product.updatedAt || product.createdAt,
+      throw new NotFoundException(
+        'Flash sale not found',
       );
     }
 
-    // ==========================================
-    // REGULAR PRODUCT
-    // ==========================================
+    // Convert mongoose document
+    // to normal object
 
-    if (
-      product.productType === 'regular' &&
-      product.expiryDate
-    ) {
-      product.expiryText =
-        `Exp: ${formatExpiryDate(product.expiryDate)}`;
-    }
+    const data: any =
+      flashSale.toObject();
 
-    return {
-      ...item,
-        product,
-      };
-    });
+    // =========================
+    // FORMAT PRODUCTS
+    // =========================
 
-  return data;
-},
+    data.products =
+      data.products.map(
+        (item: any) => {
+          // যদি product না থাকে
+          if (!item.product) {
+            return item;
+          }
 
-  // update flash sale
-  async updateFlashSale(id: string, dto: UpdateFlashSaleDto) {
-    return this.flashSaleModel.findByIdAndUpdate(id, dto, {
-      new: true,
-    });
+          const product = {
+            ...item.product,
+          };
+
+          // =========================
+          // FLASH SALE PRICE
+          // =========================
+
+          product.flashSalePrice =
+            item.salePrice ??
+            product.flashSalePrice ??
+            0;
+
+          // =========================
+          // FRESH PRODUCT
+          // =========================
+
+          if (
+            product.productType ===
+            'fresh'
+          ) {
+            product.freshText =
+              getFreshTime(
+                product.updatedAt ||
+                  product.createdAt,
+              );
+          }
+
+          // =========================
+          // REGULAR PRODUCT
+          // =========================
+
+          if (
+            product.productType ===
+              'regular' &&
+            product.expiryDate
+          ) {
+            product.expiryText =
+              `Exp: ${formatExpiryDate(
+                product.expiryDate,
+              )}`;
+          }
+
+          return {
+            ...item,
+            product,
+          };
+        },
+      );
+
+    return data;
+  }
+
+  // =========================
+  // UPDATE FLASH SALE
+  // =========================
+
+  async updateFlashSale(
+    id: string,
+    dto: UpdateFlashSaleDto,
+  ) {
+    return this.flashSaleModel.findByIdAndUpdate(
+      id,
+      dto,
+      {
+        new: true,
+      },
+    );
   }
 }
