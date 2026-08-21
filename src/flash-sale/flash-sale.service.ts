@@ -199,8 +199,62 @@ async getActiveFlashSales() {
 
   //...................
   async getFlashSaleById(id: string) {
-    return this.flashSaleModel.findById(id).populate('products.product');
-  }
+    const flashSale = await this.flashSaleModel
+      .findById(id)
+      .populate('products.product');
+
+    if (!flashSale) {
+      throw new NotFoundException('Flash sale not found');
+    }
+
+    const data: any = flashSale.toObject();
+
+  data.products = data.products.map((item: any) => {
+    if (!item.product) {
+      return item;
+    }
+
+    const product = {
+      ...item.product,
+    };
+
+    // ==========================================
+    // FLASH SALE PRICE
+    // ==========================================
+
+    product.flashSalePrice =
+      item.salePrice ?? product.flashSalePrice ?? 0;
+
+    // ==========================================
+    // FRESH PRODUCT
+    // ==========================================
+
+    if (product.productType === 'fresh') {
+      product.freshText = getFreshTime(
+        product.updatedAt || product.createdAt,
+      );
+    }
+
+    // ==========================================
+    // REGULAR PRODUCT
+    // ==========================================
+
+    if (
+      product.productType === 'regular' &&
+      product.expiryDate
+    ) {
+      product.expiryText =
+        `Exp: ${formatExpiryDate(product.expiryDate)}`;
+    }
+
+    return {
+      ...item,
+        product,
+      };
+    });
+
+  return data;
+},
 
   // update flash sale
   async updateFlashSale(id: string, dto: UpdateFlashSaleDto) {
