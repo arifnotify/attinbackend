@@ -10,12 +10,16 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 
 import { RedisService } from '../redis/redis.service';
 import { SocketGateway } from 'src/socket/socket.gateway';
+import { Product, ProductDocument } from '../products/schemas/product.schema';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     @InjectModel(Category.name)
     private categoryModel: Model<CategoryDocument>,
+    
+    @InjectModel(Product.name)
+    private productModel: Model<ProductDocument>,
 
     private redisService: RedisService,
 
@@ -197,6 +201,66 @@ async updateSortOrders(
     success: true,
     message: 'Category order updated successfully',
   };
+}
+//
+  async getAllChildCategoryIds(
+  parentId: string,
+): Promise<string[]> {
+  const ids: string[] = [parentId];
+
+  const children = await this.categoryModel.find({
+    parentCategory: parentId,
+    isActive: true,
+  });
+
+  for (const child of children) {
+    const nestedIds =
+      await this.getAllChildCategoryIds(
+        child._id.toString(),
+      );
+
+    ids.push(...nestedIds);
+  }
+
+  return ids;
+}
+
+  async getProductsByCategoryTree(
+  categoryId: string,
+  location?: string,
+) {
+  const categoryIds =
+    await this.getAllChildCategoryIds(
+      categoryId,
+    );
+
+  const query: any = {
+    category: {
+      $in: categoryIds.map(
+        (id) => new Types.ObjectId(id),
+      ),
+    },
+    isActive: true,
+  };
+
+  if (location) {
+    query.locations = {
+      $in: [
+        new Types.ObjectId(location),
+      ],
+    };
+  }
+
+  return this.productModel
+    .find(query)
+    .populate('category')
+    .populate('country')
+    .populate('locations')
+    .sort({
+      isFeatured: -1,
+      homePriority: -1,
+      createdAt: -1,
+    });
 }
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////
