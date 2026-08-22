@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { Category, CategorySchema } from './schemas/category.schema';
-import { Product, ProductSchema } from '../products/schemas/product.schema';
 
 import { CategoriesController } from './categories.controller';
 import { CategoriesService } from './categories.service';
@@ -17,10 +16,6 @@ import { SocketModule } from 'src/socket/socket.module';
       {
         name: Category.name,
         schema: CategorySchema,
-      },
-      {
-        name: Product.name,
-        schema: ProductSchema,
       },
     ]),
     RedisModule,
