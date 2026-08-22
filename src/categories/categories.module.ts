@@ -20,6 +20,10 @@ import { SocketModule } from 'src/socket/socket.module';
         name: Category.name,
         schema: CategorySchema,
       },
+      {
+        name: Product.name,
+        schema: ProductSchema,
+      },
     ]),
     // ✅ IMPORTANT FIX
     RedisModule,
