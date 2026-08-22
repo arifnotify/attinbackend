@@ -226,6 +226,40 @@ async updateSortOrders(
 }
 
 // =========================
+// GET UNLIMITED CATEGORY TREE
+// =========================
+async getCategoryTree() {
+  const cacheKey = 'category_tree';
+  const cached = await this.redisService.get(cacheKey);
+
+  if (cached) {
+    return typeof cached === 'string' ? JSON.parse(cached) : cached;
+  }
+
+  // সব ক্যাটাগরি একসাথে নিয়ে আসা
+  const categories = await this.categoryModel
+    .find({ isActive: true })
+    .sort({ sortOrder: 1 })
+    .lean();
+
+  // ট্রি ফরম্যাটে রূপান্তর করার ফাংশন
+  const createTree = (items, parentId = null) => {
+    return items
+      .filter(cat => String(cat.parentCategory) === String(parentId))
+      .map(cat => ({
+        ...cat,
+        children: createTree(items, cat._id),
+      }));
+  };
+
+  const categoryTree = createTree(categories, null);
+
+  await this.redisService.set(cacheKey, JSON.stringify(categoryTree), 300);
+
+  return categoryTree;
+}
+
+// =========================
 // HOME CATEGORIES
 // =========================
 async getHomeCategories() {

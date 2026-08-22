@@ -88,6 +88,11 @@ getHomeCategories(){
   ) {
     return this.categoriesService.update(id, updateCategoryDto);
   }
+
+  @Get('tree')
+async getTree() {
+  return this.categoriesService.getCategoryTree();
+}
   /////////////////////////////////////////////
   //////////////////////////////////
   @UseGuards(JwtAuthGuard)
