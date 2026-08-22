@@ -1,15 +1,13 @@
 import { Module } from '@nestjs/common';
-
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { Category, CategorySchema } from './schemas/category.schema';
+import { Product, ProductSchema } from '../products/schemas/product.schema';
 
 import { CategoriesController } from './categories.controller';
-
 import { CategoriesService } from './categories.service';
 
 import { ProductsModule } from '../products/products.module';
-// 🔥 ADD THIS
 import { RedisModule } from '../redis/redis.module';
 import { SocketModule } from 'src/socket/socket.module';
 
@@ -25,18 +23,12 @@ import { SocketModule } from 'src/socket/socket.module';
         schema: ProductSchema,
       },
     ]),
-    // ✅ IMPORTANT FIX
     RedisModule,
-
     SocketModule,
-
     ProductsModule,
   ],
-
   controllers: [CategoriesController],
-
   providers: [CategoriesService],
-
   exports: [CategoriesService],
 })
 export class CategoriesModule {}
