@@ -122,11 +122,10 @@ toggleStatus(@Param('id') id: string) {
 )
 {
 
-return this.categoriesService
-  .getProductsByCategoryTree(
-    category,
-    location,
-  );
+return this.productsService.findByCategory(
+  category,
+  location,
+);
 
 }
 
