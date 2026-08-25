@@ -4,40 +4,86 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class SmsService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+  ) {}
 
-  async sendOtp(phone: string, otp: string) {
-    const apiKey = process.env.SMS_BD_API_KEY;
+  async sendOtp(
+    phone: string,
+    otp: string,
+  ) {
+    const apiKey =
+      process.env.SMS_BD_API_KEY;
 
-    const senderId = process.env.SMS_BD_SENDER_ID;
+    const senderId =
+      process.env.SMS_BD_SENDER_ID;
 
-    const message = `Your Sooqxy OTP Code is ${otp}`;
+    console.log(
+      'SMS_BD_API_KEY =',
+      apiKey,
+    );
+
+    console.log(
+      'SMS_BD_SENDER_ID =',
+      senderId,
+    );
+
+    const message =
+      `Your Sooqxy OTP Code is ${otp}`;
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.post('https://api.sms.net.bd/sendsms', null, {
-          params: {
-            api_key: apiKey,
-            msg: message,
-            to: phone,
-            sender_id: senderId,
-          },
-        }),
+      const params: any = {
+        api_key: apiKey,
+        msg: message,
+        to: phone,
+      };
+
+      // sender_id শুধু থাকলে পাঠাবে
+      if (
+        senderId &&
+        senderId.trim() !== ''
+      ) {
+        params.sender_id =
+          senderId;
+      }
+
+      const response =
+        await firstValueFrom(
+          this.httpService.post(
+            'https://api.sms.net.bd/sendsms',
+            null,
+            {
+              params,
+            },
+          ),
+        );
+
+      const data =
+        response.data;
+
+      console.log(
+        'SMS Response:',
+        data,
       );
 
-      const data = response.data;
-
-      console.log('SMS Response:', data);
-
       if (data.error !== 0) {
-        throw new BadRequestException(data.msg || 'SMS sending failed');
+        throw new BadRequestException(
+          data.msg ||
+            'SMS sending failed',
+        );
       }
 
       return data;
     } catch (error) {
-      console.error('SMS Error:', error?.response?.data || error);
+      console.error(
+        'SMS Error:',
+        error?.response?.data ||
+          error,
+      );
 
-      throw new BadRequestException('Failed to send OTP');
+      throw new BadRequestException(
+        'Failed to send OTP',
+      );
     }
   }
 }
