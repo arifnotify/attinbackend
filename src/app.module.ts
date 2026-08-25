@@ -27,6 +27,7 @@ import { RewardSettingsModule } from './reward-settings/reward-settings.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PaymentSettingsModule } from './payment-settings/payment-settings.module';
 import { CountryModule } from './country/country.module';
+import { SmsModule } from './sms/sms.module';
 
 @Module({
   imports: [
@@ -88,7 +89,9 @@ import { CountryModule } from './country/country.module';
 
     PaymentSettingsModule,
 
-    CountryModule, // 👈 এটা MUST
+    CountryModule,
+
+    SmsModule, // 👈 এটা MUST
   ],
   controllers: [HealthController],
 })
