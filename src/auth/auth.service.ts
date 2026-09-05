@@ -34,8 +34,9 @@ export class AuthService {
       );
     }
 
+    // 6 digit OTP
     const otp = Math.floor(
-      1000 + Math.random() * 9000,
+      100000 + Math.random() * 900000,
     ).toString();
 
     console.log(
@@ -46,7 +47,7 @@ export class AuthService {
     await this.redisService.set(
       `otp:${phone}`,
       otp,
-      300,
+      300, // 5 minutes
     );
 
     await this.smsService.sendOtp(
