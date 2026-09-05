@@ -15,38 +15,35 @@ export class SmsService {
     phone: string,
     otp: string,
   ) {
-    const apiKey = process.env.SMS_BD_API_KEY;
-    const senderId = process.env.SMS_BD_SENDER_ID;
+    const apiToken =
+      process.env.RHSMS_API_TOKEN;
 
-    if (!apiKey) {
+    if (!apiToken) {
       throw new BadRequestException(
-        'SMS_BD_API_KEY is missing',
+        'RHSMS_API_TOKEN is missing',
       );
     }
 
-    if (!senderId) {
-      throw new BadRequestException(
-        'SMS_BD_SENDER_ID is missing',
-      );
-    }
-
+    // Convert 8801XXXXXXXXX -> 01XXXXXXXXX
     const formattedPhone = phone.startsWith('880')
-      ? phone
-      : `880${phone.replace(/^0/, '')}`;
+      ? `0${phone.substring(3)}`
+      : phone;
 
-    const message = `Your Sooqxy OTP is ${otp}`;
+    const message = `Your Sooqxy OTP Code is ${otp}`;
 
     try {
       const response = await firstValueFrom(
-        this.httpService.get(
-          'http://bulksmsbd.net/api/smsapi',
+        this.httpService.post(
+          'https://rhsmsbd.top/api/v1/send',
+          new URLSearchParams({
+            api_token: apiToken,
+            phone: formattedPhone,
+            message,
+          }).toString(),
           {
-            params: {
-              api_key: apiKey,
-              type: 'text',
-              number: formattedPhone,
-              senderid: senderId,
-              message,
+            headers: {
+              'Content-Type':
+                'application/x-www-form-urlencoded',
             },
           },
         ),
@@ -56,6 +53,16 @@ export class SmsService {
         'SMS Response:',
         response.data,
       );
+
+      if (
+        response.data?.status !==
+        'success'
+      ) {
+        throw new Error(
+          response.data?.message ||
+            'SMS sending failed',
+        );
+      }
 
       return response.data;
     } catch (error) {
@@ -67,7 +74,8 @@ export class SmsService {
       );
 
       throw new BadRequestException(
-        'Failed to send OTP',
+        error?.response?.data?.message ||
+          'Failed to send OTP',
       );
     }
   }
