@@ -115,7 +115,7 @@ export class SmsService {
     // SMS MESSAGE
     // -------------------------------------------------------
     const message =
-      `Sooqxy OTP: ${cleanOtp}. Valid for 5 minutes.`;
+      `MATIGR OTP: ${cleanOtp}. Valid for 5 minutes.`;
 
     // -------------------------------------------------------
     // DEBUG
