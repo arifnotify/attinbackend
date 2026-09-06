@@ -1,3 +1,4 @@
+
 import {
   Injectable,
   NotFoundException,
@@ -20,17 +21,57 @@ export class AuthService {
   ) {}
 
   // =========================
+  // NORMALIZE PHONE NUMBER
+  // =========================
+
+  private normalizePhone(phone: string): string {
+    let formattedPhone = phone.trim();
+
+    // Remove spaces
+    formattedPhone =
+      formattedPhone.replace(/\s+/g, '');
+
+    // Remove +
+    if (formattedPhone.startsWith('+')) {
+      formattedPhone =
+        formattedPhone.substring(1);
+    }
+
+    // 01XXXXXXXXX
+    // ↓
+    // 8801XXXXXXXXX
+    if (formattedPhone.startsWith('01')) {
+      formattedPhone =
+        `88${formattedPhone}`;
+    }
+
+    // 8801XXXXXXXXX
+    // Already correct
+    if (
+      formattedPhone.startsWith('8801')
+    ) {
+      return formattedPhone;
+    }
+
+    return formattedPhone;
+  }
+
+  // =========================
   // SEND OTP
   // =========================
 
   async sendOtp(phone: string) {
+    // Normalize phone
+    const formattedPhone =
+      this.normalizePhone(phone);
+
     // =========================
     // CHECK USER
     // =========================
 
     const user =
       await this.usersService.findByPhone(
-        phone,
+        formattedPhone,
       );
 
     // =========================
@@ -54,14 +95,18 @@ export class AuthService {
       ).toString();
 
     // =========================
+    // OTP KEY
+    // =========================
+
+    const otpKey =
+      `otp:${formattedPhone}`;
+
+    // =========================
     // SEND SMS
     // =========================
-    //
-    // SmsService → MiMSMS API v2.1
-    //
 
     await this.smsService.sendOtp(
-      phone,
+      formattedPhone,
       otp,
     );
 
@@ -73,9 +118,35 @@ export class AuthService {
     //
 
     await this.redisService.set(
-      `otp:${phone}`,
+      otpKey,
       otp,
       300,
+    );
+
+    // =========================
+    // LOG
+    // =========================
+
+    console.log(
+      '================ OTP SENT ================',
+    );
+
+    console.log(
+      'Phone:',
+      formattedPhone,
+    );
+
+    console.log(
+      'OTP Key:',
+      otpKey,
+    );
+
+    console.log(
+      'OTP saved to Redis successfully',
+    );
+
+    console.log(
+      '===========================================',
     );
 
     // =========================
@@ -98,16 +169,69 @@ export class AuthService {
     otp: string,
   ) {
     // =========================
+    // NORMALIZE PHONE
+    // =========================
+
+    const formattedPhone =
+      this.normalizePhone(phone);
+
+    // =========================
+    // CLEAN OTP
+    // =========================
+
+    const submittedOtp =
+      String(otp).trim();
+
+    // =========================
+    // OTP KEY
+    // =========================
+
+    const otpKey =
+      `otp:${formattedPhone}`;
+
+    // =========================
     // GET OTP FROM REDIS
     // =========================
 
     const storedOtp =
       await this.redisService.get(
-        `otp:${phone}`,
+        otpKey,
       );
 
     // =========================
-    // OTP EXPIRED / NOT FOUND
+    // DEBUG LOG
+    // =========================
+
+    console.log(
+      '================ OTP VERIFY ================',
+    );
+
+    console.log(
+      'Phone:',
+      formattedPhone,
+    );
+
+    console.log(
+      'OTP Key:',
+      otpKey,
+    );
+
+    console.log(
+      'User OTP:',
+      submittedOtp,
+    );
+
+    console.log(
+      'Stored OTP:',
+      storedOtp,
+    );
+
+    console.log(
+      '============================================',
+    );
+
+    // =========================
+    // OTP NOT FOUND / EXPIRED
     // =========================
 
     if (!storedOtp) {
@@ -121,8 +245,8 @@ export class AuthService {
     // =========================
 
     if (
-      String(storedOtp) !==
-      String(otp)
+      String(storedOtp).trim() !==
+      submittedOtp
     ) {
       throw new UnauthorizedException(
         'Invalid OTP',
@@ -135,7 +259,7 @@ export class AuthService {
 
     let user =
       await this.usersService.findByPhone(
-        phone,
+        formattedPhone,
       );
 
     // =========================
@@ -149,18 +273,18 @@ export class AuthService {
     }
 
     // =========================
-    // CREATE USER IF NOT EXISTS
+    // CREATE USER
     // =========================
 
     if (!user) {
       user =
         await this.usersService.create(
-          phone,
+          formattedPhone,
         );
     }
 
     // =========================
-    // CREATE JWT TOKEN
+    // CREATE JWT
     // =========================
 
     const token =
@@ -173,9 +297,21 @@ export class AuthService {
     // =========================
     // DELETE OTP
     // =========================
+    //
+    // OTP can only be used once.
+    //
 
     await this.redisService.del(
-      `otp:${phone}`,
+      otpKey,
+    );
+
+    // =========================
+    // SUCCESS LOG
+    // =========================
+
+    console.log(
+      'OTP verified successfully:',
+      formattedPhone,
     );
 
     // =========================
