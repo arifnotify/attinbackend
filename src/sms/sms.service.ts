@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
 } from '@nestjs/common';
+
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 
@@ -11,19 +12,10 @@ export class SmsService {
     private readonly httpService: HttpService,
   ) {}
 
-  // =========================
-  // SEND OTP
-  // MiMSMS API v2.1
-  // =========================
-
   async sendOtp(
     phone: string,
     otp: string,
   ) {
-    // =========================
-    // ENV VARIABLES
-    // =========================
-
     const apiKey =
       process.env.MIMSMS_API_KEY;
 
@@ -32,10 +24,6 @@ export class SmsService {
 
     const senderName =
       process.env.MIMSMS_SENDER_NAME;
-
-    // =========================
-    // CHECK CONFIG
-    // =========================
 
     if (!apiKey) {
       throw new BadRequestException(
@@ -55,39 +43,40 @@ export class SmsService {
       );
     }
 
-    // =========================
-    // FORMAT PHONE NUMBER
-    // =========================
+    // =========================================================
+    // Convert Bangladesh 11 digit number to MiMSMS format
+    //
+    // 01894691666
+    //       ↓
+    // 8801894691666
+    // =========================================================
 
     let formattedPhone =
-      phone.trim();
+      String(phone)
+        .trim()
+        .replace(/\s+/g, '');
 
-    // Remove +
-    if (
-      formattedPhone.startsWith('+')
-    ) {
+    if (formattedPhone.startsWith('+')) {
       formattedPhone =
         formattedPhone.substring(1);
     }
 
-    // 017XXXXXXXX -> 88017XXXXXXXX
-    if (
-      formattedPhone.startsWith('01')
-    ) {
+    if (formattedPhone.startsWith('01')) {
       formattedPhone =
         `88${formattedPhone}`;
     }
 
-    // =========================
-    // OTP MESSAGE
-    // =========================
+    // Final validation
+    if (!/^8801[3-9]\d{8}$/.test(
+      formattedPhone,
+    )) {
+      throw new BadRequestException(
+        'Invalid Bangladesh mobile number',
+      );
+    }
 
     const message =
       `Sooqxy OTP: ${otp}. Valid for 5 minutes.`;
-
-    // =========================
-    // MiMSMS API REQUEST
-    // =========================
 
     try {
       const response =
@@ -95,13 +84,13 @@ export class SmsService {
           this.httpService.post(
             'https://api.mimsms.com/api/V2/SMS',
             {
-              apiKey: apiKey,
-              userName: userName,
-              senderName: senderName,
+              apiKey,
+              userName,
+              senderName,
               transactionType: 'T',
               mobileNumber:
                 formattedPhone,
-              message: message,
+              message,
             },
             {
               headers: {
@@ -118,10 +107,9 @@ export class SmsService {
         response.data,
       );
 
-      // =========================
-      // CHECK RESPONSE
-      // =========================
-
+      // =======================================================
+      // Check MiMSMS response
+      // =======================================================
       if (
         response.data?.statusCode !==
           '200' ||
@@ -129,14 +117,11 @@ export class SmsService {
           'Success'
       ) {
         throw new Error(
-          response.data?.responseResult ||
+          response.data
+            ?.responseResult ||
             'SMS sending failed',
         );
       }
-
-      // =========================
-      // SUCCESS
-      // =========================
 
       return {
         success: true,
@@ -157,7 +142,8 @@ export class SmsService {
       throw new BadRequestException(
         error?.response?.data
           ?.responseResult ||
-          error?.response?.data?.message ||
+          error?.response?.data
+            ?.message ||
           error?.message ||
           'Failed to send OTP',
       );
