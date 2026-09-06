@@ -11,70 +11,154 @@ export class SmsService {
     private readonly httpService: HttpService,
   ) {}
 
+  // =========================
+  // SEND OTP
+  // MiMSMS API v2.1
+  // =========================
+
   async sendOtp(
     phone: string,
     otp: string,
   ) {
-    const apiToken =
-      process.env.RHSMS_API_TOKEN;
+    // =========================
+    // ENV VARIABLES
+    // =========================
 
-    if (!apiToken) {
+    const apiKey =
+      process.env.MIMSMS_API_KEY;
+
+    const userName =
+      process.env.MIMSMS_USERNAME;
+
+    const senderName =
+      process.env.MIMSMS_SENDER_NAME;
+
+    // =========================
+    // CHECK CONFIG
+    // =========================
+
+    if (!apiKey) {
       throw new BadRequestException(
-        'RHSMS_API_TOKEN is missing',
+        'MIMSMS_API_KEY is missing',
       );
     }
 
-    // Convert 8801XXXXXXXXX -> 01XXXXXXXXX
-    const formattedPhone = phone.startsWith('880')
-      ? `0${phone.substring(3)}`
-      : phone;
+    if (!userName) {
+      throw new BadRequestException(
+        'MIMSMS_USERNAME is missing',
+      );
+    }
 
-    const message = `Your Sooqxy OTP Code is ${otp}`;
+    if (!senderName) {
+      throw new BadRequestException(
+        'MIMSMS_SENDER_NAME is missing',
+      );
+    }
+
+    // =========================
+    // FORMAT PHONE NUMBER
+    // =========================
+
+    let formattedPhone =
+      phone.trim();
+
+    // Remove +
+    if (
+      formattedPhone.startsWith('+')
+    ) {
+      formattedPhone =
+        formattedPhone.substring(1);
+    }
+
+    // 017XXXXXXXX -> 88017XXXXXXXX
+    if (
+      formattedPhone.startsWith('01')
+    ) {
+      formattedPhone =
+        `88${formattedPhone}`;
+    }
+
+    // =========================
+    // OTP MESSAGE
+    // =========================
+
+    const message =
+      `Sooqxy OTP: ${otp}. Valid for 5 minutes.`;
+
+    // =========================
+    // MiMSMS API REQUEST
+    // =========================
 
     try {
-      const response = await firstValueFrom(
-        this.httpService.post(
-          'https://rhsmsbd.top/api/v1/send',
-          new URLSearchParams({
-            api_token: apiToken,
-            phone: formattedPhone,
-            message,
-          }).toString(),
-          {
-            headers: {
-              'Content-Type':
-                'application/x-www-form-urlencoded',
+      const response =
+        await firstValueFrom(
+          this.httpService.post(
+            'https://api.mimsms.com/api/V2/SMS',
+            {
+              apiKey: apiKey,
+              userName: userName,
+              senderName: senderName,
+              transactionType: 'T',
+              mobileNumber:
+                formattedPhone,
+              message: message,
             },
-          },
-        ),
-      );
+            {
+              headers: {
+                'Content-Type':
+                  'application/json',
+              },
+              timeout: 15000,
+            },
+          ),
+        );
 
       console.log(
-        'SMS Response:',
+        'MiMSMS Response:',
         response.data,
       );
 
+      // =========================
+      // CHECK RESPONSE
+      // =========================
+
       if (
+        response.data?.statusCode !==
+          '200' ||
         response.data?.status !==
-        'success'
+          'Success'
       ) {
         throw new Error(
-          response.data?.message ||
+          response.data?.responseResult ||
             'SMS sending failed',
         );
       }
 
-      return response.data;
+      // =========================
+      // SUCCESS
+      // =========================
+
+      return {
+        success: true,
+        message:
+          'OTP sent successfully',
+        transactionId:
+          response.data?.trxnId,
+        data: response.data,
+      };
     } catch (error) {
       console.error(
-        'SMS Error:',
+        'MiMSMS SMS Error:',
         error?.response?.data ||
           error?.message ||
           error,
       );
 
       throw new BadRequestException(
-        error?.response?.data?.message ||
+        error?.response?.data
+          ?.responseResult ||
+          error?.response?.data?.message ||
+          error?.message ||
           'Failed to send OTP',
       );
     }
