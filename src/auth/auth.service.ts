@@ -20,58 +20,53 @@ export class AuthService {
     private readonly smsService: SmsService,
   ) {}
 
-  // ============================================
-  // Normalize Bangladesh phone number
-  // ============================================
-  private normalizePhone(
-    phone: string,
-  ): string {
+  // =========================================================
+  // NORMALIZE BANGLADESH PHONE NUMBER
+  // =========================================================
+  private normalizePhone(phone: string): string {
     let value = String(phone || '')
       .trim()
       .replace(/\s+/g, '');
 
     // +8801894691666
     if (value.startsWith('+880')) {
-      value =
-        `0${value.substring(4)}`;
+      value = `0${value.substring(4)}`;
     }
 
     // 8801894691666
-    else if (
-      value.startsWith('880')
-    ) {
-      value =
-        `0${value.substring(3)}`;
+    else if (value.startsWith('880')) {
+      value = `0${value.substring(3)}`;
     }
 
     // Must be 01XXXXXXXXX
-    if (
-      !/^01[3-9]\d{8}$/.test(value)
-    ) {
+    if (!/^01[3-9]\d{8}$/.test(value)) {
       throw new BadRequestException(
-        'Invalid Bangladesh phone number',
+        'Invalid Bangladesh mobile number',
       );
     }
 
     return value;
   }
 
-  // ============================================
+  // =========================================================
   // SEND OTP
-  // ============================================
-  async sendOtp(
-    phone: string,
-  ) {
+  // POST /auth/send-otp
+  // =========================================================
+  async sendOtp(phone: string) {
     const formattedPhone =
       this.normalizePhone(phone);
 
-    // Check existing user
+    // -------------------------------------------------------
+    // CHECK USER
+    // -------------------------------------------------------
     const user =
       await this.usersService.findByPhone(
         formattedPhone,
       );
 
-    // Blocked user cannot request OTP
+    // -------------------------------------------------------
+    // CHECK BLOCKED USER
+    // -------------------------------------------------------
     if (user?.isBlocked) {
       throw new UnauthorizedException(
         `This number is blocked. Reason: ${
@@ -81,57 +76,66 @@ export class AuthService {
       );
     }
 
-    // Generate 6 digit OTP
-    const otp =
-      Math.floor(
-        100000 +
-          Math.random() * 900000,
-      ).toString();
+    // -------------------------------------------------------
+    // GENERATE 6 DIGIT OTP
+    // -------------------------------------------------------
+    const otp = Math.floor(
+      100000 + Math.random() * 900000,
+    ).toString();
 
-    // Redis key
+    // -------------------------------------------------------
+    // REDIS KEY
+    // -------------------------------------------------------
     const otpKey =
       `otp:${formattedPhone}`;
 
+    // -------------------------------------------------------
+    // DEBUG LOG
+    // -------------------------------------------------------
+    console.log('');
     console.log(
       '===========================================',
     );
-
     console.log(
       'GENERATED OTP',
     );
-
     console.log(
       'Phone:',
       formattedPhone,
     );
-
     console.log(
       'OTP Key:',
       otpKey,
     );
-
     console.log(
       'OTP:',
       otp,
     );
-
     console.log(
       '===========================================',
     );
 
-    // Send SMS first
+    // -------------------------------------------------------
+    // SEND SMS
+    // -------------------------------------------------------
     await this.smsService.sendOtp(
       formattedPhone,
       otp,
     );
 
-    // Save OTP in Redis for 5 minutes
+    // -------------------------------------------------------
+    // SAVE OTP IN REDIS
+    // 300 seconds = 5 minutes
+    // -------------------------------------------------------
     await this.redisService.set(
       otpKey,
       otp,
       300,
     );
 
+    // -------------------------------------------------------
+    // SUCCESS LOG
+    // -------------------------------------------------------
     console.log(
       '================ OTP SENT ================',
     );
@@ -156,14 +160,14 @@ export class AuthService {
 
     return {
       success: true,
-      message:
-        'OTP sent successfully',
+      message: 'OTP sent successfully',
     };
   }
 
-  // ============================================
+  // =========================================================
   // VERIFY OTP
-  // ============================================
+  // POST /auth/verify-otp
+  // =========================================================
   async verifyOtp(
     phone: string,
     otp: string,
@@ -174,34 +178,39 @@ export class AuthService {
     const enteredOtp =
       String(otp || '').trim();
 
-    // Check OTP
+    // -------------------------------------------------------
+    // VALIDATE OTP
+    // -------------------------------------------------------
     if (!enteredOtp) {
       throw new BadRequestException(
         'OTP is required',
       );
     }
 
-    // OTP must be exactly 6 digits
-    if (
-      !/^\d{6}$/.test(
-        enteredOtp,
-      )
-    ) {
+    if (!/^\d{6}$/.test(enteredOtp)) {
       throw new BadRequestException(
         'OTP must be exactly 6 digits',
       );
     }
 
-    // Redis key
+    // -------------------------------------------------------
+    // REDIS KEY
+    // -------------------------------------------------------
     const otpKey =
       `otp:${formattedPhone}`;
 
-    // Get OTP from Redis
+    // -------------------------------------------------------
+    // GET OTP FROM REDIS
+    // -------------------------------------------------------
     const storedOtp =
       await this.redisService.get(
         otpKey,
       );
 
+    // -------------------------------------------------------
+    // DEBUG LOG
+    // -------------------------------------------------------
+    console.log('');
     console.log(
       '=============== OTP VERIFY ===============',
     );
@@ -217,7 +226,7 @@ export class AuthService {
     );
 
     console.log(
-      'User OTP:',
+      'Entered OTP:',
       enteredOtp,
     );
 
@@ -236,14 +245,18 @@ export class AuthService {
       '============================================',
     );
 
-    // OTP not found / expired
+    // -------------------------------------------------------
+    // OTP EXPIRED / NOT FOUND
+    // -------------------------------------------------------
     if (!storedOtp) {
       throw new UnauthorizedException(
         'OTP expired or not found. Please request a new OTP.',
       );
     }
 
-    // Wrong OTP
+    // -------------------------------------------------------
+    // OTP DOES NOT MATCH
+    // -------------------------------------------------------
     if (
       String(storedOtp).trim() !==
       enteredOtp
@@ -253,13 +266,17 @@ export class AuthService {
       );
     }
 
-    // Find user
+    // -------------------------------------------------------
+    // FIND USER
+    // -------------------------------------------------------
     let user =
       await this.usersService.findByPhone(
         formattedPhone,
       );
 
-    // Check blocked user
+    // -------------------------------------------------------
+    // CHECK BLOCKED USER
+    // -------------------------------------------------------
     if (user?.isBlocked) {
       throw new UnauthorizedException(
         `This number is blocked. Reason: ${
@@ -269,7 +286,9 @@ export class AuthService {
       );
     }
 
-    // Create new user if not exists
+    // -------------------------------------------------------
+    // CREATE USER IF NOT EXISTS
+    // -------------------------------------------------------
     if (!user) {
       user =
         await this.usersService.create(
@@ -277,29 +296,32 @@ export class AuthService {
         );
     }
 
-    // Delete OTP after successful verification
+    // -------------------------------------------------------
+    // DELETE OTP AFTER SUCCESSFUL VERIFICATION
+    // -------------------------------------------------------
     await this.redisService.del(
       otpKey,
     );
 
-    // JWT payload
+    // -------------------------------------------------------
+    // JWT PAYLOAD
+    // -------------------------------------------------------
     const payload = {
-      userId:
-        user._id.toString(),
-
-      phone:
-        user.phone,
-
-      role:
-        'user',
+      userId: user._id.toString(),
+      phone: user.phone,
+      role: 'user',
     };
 
-    // Generate JWT
+    // -------------------------------------------------------
+    // GENERATE JWT TOKEN
+    // -------------------------------------------------------
     const accessToken =
-      this.jwtService.sign(
-        payload,
-      );
+      this.jwtService.sign(payload);
 
+    // -------------------------------------------------------
+    // SUCCESS LOG
+    // -------------------------------------------------------
+    console.log('');
     console.log(
       '===========================================',
     );
@@ -315,18 +337,20 @@ export class AuthService {
 
     console.log(
       'User ID:',
-      user._id,
+      user._id.toString(),
     );
 
     console.log(
       '===========================================',
     );
 
+    // -------------------------------------------------------
+    // RESPONSE
+    // -------------------------------------------------------
     return {
       success: true,
-
       message:
-        'OTP verified successfully',
+        'User login successful',
 
       access_token:
         accessToken,
@@ -335,9 +359,10 @@ export class AuthService {
     };
   }
 
-  // ============================================
+  // =========================================================
   // GET PROFILE
-  // ============================================
+  // GET /auth/profile
+  // =========================================================
   async getProfile(
     userId: string,
   ) {
