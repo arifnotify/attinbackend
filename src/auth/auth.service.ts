@@ -3,6 +3,7 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+
 import { JwtService } from '@nestjs/jwt';
 
 import { UsersService } from '../users/users.service';
@@ -23,10 +24,18 @@ export class AuthService {
   // =========================
 
   async sendOtp(phone: string) {
+    // =========================
+    // CHECK USER
+    // =========================
+
     const user =
       await this.usersService.findByPhone(
         phone,
       );
+
+    // =========================
+    // CHECK BLOCKED USER
+    // =========================
 
     if (user?.isBlocked) {
       throw new UnauthorizedException(
@@ -34,26 +43,44 @@ export class AuthService {
       );
     }
 
-    // 6 digit OTP
-    const otp = Math.floor(
-      100000 + Math.random() * 900000,
-    ).toString();
+    // =========================
+    // GENERATE 6 DIGIT OTP
+    // =========================
 
-    console.log(
-      'Generated OTP:',
-      otp,
-    );
+    const otp =
+      Math.floor(
+        100000 +
+          Math.random() * 900000,
+      ).toString();
 
-    await this.redisService.set(
-      `otp:${phone}`,
-      otp,
-      300, // 5 minutes
-    );
+    // =========================
+    // SEND SMS
+    // =========================
+    //
+    // SmsService → MiMSMS API v2.1
+    //
 
     await this.smsService.sendOtp(
       phone,
       otp,
     );
+
+    // =========================
+    // SAVE OTP TO REDIS
+    // =========================
+    //
+    // 300 seconds = 5 minutes
+    //
+
+    await this.redisService.set(
+      `otp:${phone}`,
+      otp,
+      300,
+    );
+
+    // =========================
+    // RESPONSE
+    // =========================
 
     return {
       success: true,
@@ -70,16 +97,28 @@ export class AuthService {
     phone: string,
     otp: string,
   ) {
+    // =========================
+    // GET OTP FROM REDIS
+    // =========================
+
     const storedOtp =
       await this.redisService.get(
         `otp:${phone}`,
       );
+
+    // =========================
+    // OTP EXPIRED / NOT FOUND
+    // =========================
 
     if (!storedOtp) {
       throw new UnauthorizedException(
         'OTP expired',
       );
     }
+
+    // =========================
+    // CHECK OTP
+    // =========================
 
     if (
       String(storedOtp) !==
@@ -90,16 +129,28 @@ export class AuthService {
       );
     }
 
+    // =========================
+    // FIND USER
+    // =========================
+
     let user =
       await this.usersService.findByPhone(
         phone,
       );
+
+    // =========================
+    // CHECK BLOCKED USER
+    // =========================
 
     if (user?.isBlocked) {
       throw new UnauthorizedException(
         `This number is blocked. Reason: ${user.blockReason}`,
       );
     }
+
+    // =========================
+    // CREATE USER IF NOT EXISTS
+    // =========================
 
     if (!user) {
       user =
@@ -108,6 +159,10 @@ export class AuthService {
         );
     }
 
+    // =========================
+    // CREATE JWT TOKEN
+    // =========================
+
     const token =
       this.jwtService.sign({
         userId: user._id,
@@ -115,9 +170,17 @@ export class AuthService {
         role: 'user',
       });
 
+    // =========================
+    // DELETE OTP
+    // =========================
+
     await this.redisService.del(
       `otp:${phone}`,
     );
+
+    // =========================
+    // RESPONSE
+    // =========================
 
     return {
       success: true,
@@ -129,22 +192,34 @@ export class AuthService {
   }
 
   // =========================
-  // PROFILE
+  // GET PROFILE
   // =========================
 
   async getProfile(
     userId: string,
   ) {
+    // =========================
+    // FIND USER
+    // =========================
+
     const user =
       await this.usersService.findById(
         userId,
       );
+
+    // =========================
+    // USER NOT FOUND
+    // =========================
 
     if (!user) {
       throw new NotFoundException(
         'User not found',
       );
     }
+
+    // =========================
+    // RETURN USER
+    // =========================
 
     return user;
   }
