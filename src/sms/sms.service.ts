@@ -43,33 +43,28 @@ export class SmsService {
       );
     }
 
-    // =========================================================
-    // Convert Bangladesh 11 digit number to MiMSMS format
-    //
-    // 01894691666
-    //       ↓
-    // 8801894691666
-    // =========================================================
-
     let formattedPhone =
       String(phone)
         .trim()
         .replace(/\s+/g, '');
 
+    // +8801894691666
     if (formattedPhone.startsWith('+')) {
       formattedPhone =
         formattedPhone.substring(1);
     }
 
+    // 01894691666 -> 8801894691666
     if (formattedPhone.startsWith('01')) {
       formattedPhone =
         `88${formattedPhone}`;
     }
 
-    // Final validation
-    if (!/^8801[3-9]\d{8}$/.test(
-      formattedPhone,
-    )) {
+    if (
+      !/^8801[3-9]\d{8}$/.test(
+        formattedPhone,
+      )
+    ) {
       throw new BadRequestException(
         'Invalid Bangladesh mobile number',
       );
@@ -107,9 +102,6 @@ export class SmsService {
         response.data,
       );
 
-      // =======================================================
-      // Check MiMSMS response
-      // =======================================================
       if (
         response.data?.statusCode !==
           '200' ||
