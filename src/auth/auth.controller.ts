@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Post,
   Request,
@@ -38,18 +39,17 @@ export class AuthController {
   // ==========================================
   // 👤 GET USER PROFILE & CHECK BLOCK STATUS
   // ==========================================
-  @UseGuards(JwtAuthGuard)
-  @Get('profile')
-  async getProfile(@Request() req) {
-    // 💡 JWT স্ট্র্যাটেজি থেকে আসা user id দিয়ে ডাটাবেজ থেকে ফ্রেশ ইউজারের তথ্য রিটার্ন করুন
-    const userId = req.user._id || req.user.id;
-    return this.authService.getProfile(userId);
-  }
+@UseGuards(JwtAuthGuard)
+@Get('profile')
+async getProfile(@Request() req) {
+  const userId = req.user.userId;
+  return this.authService.getProfile(userId);
+}
 
-  @UseGuards(JwtAuthGuard)
-  @Delete('delete-account')
-  async deleteAccount(@Request() req) {
-    const userId = req.user._id || req.user.id;
-    return this.authService.deleteAccount(userId);
-  }
+@UseGuards(JwtAuthGuard)
+@Delete('delete-account')
+async deleteAccount(@Request() req) {
+  const userId = req.user.userId;
+  return this.authService.deleteAccount(userId);
+}
 }
