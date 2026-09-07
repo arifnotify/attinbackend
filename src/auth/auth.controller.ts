@@ -45,4 +45,11 @@ export class AuthController {
     const userId = req.user._id || req.user.id;
     return this.authService.getProfile(userId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('delete-account')
+  async deleteAccount(@Request() req) {
+    const userId = req.user._id || req.user.id;
+    return this.authService.deleteAccount(userId);
+  }
 }

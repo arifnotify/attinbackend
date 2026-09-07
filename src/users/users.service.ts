@@ -247,4 +247,8 @@ export class UsersService {
       vipLimit: vipAmount,
     };
   }
+
+  async deleteUser(userId: string) {
+    return this.userModel.findByIdAndDelete(userId);
+}
 }

@@ -14,7 +14,7 @@ import { UsersModule } from '../users/users.module';
 
 // 🔥 ADD THIS
 import { RedisModule } from '../redis/redis.module';
-import { SmsModule } from 'src/sms/sms.module';
+//import { SmsModule } from 'src/sms/sms.module';
 
 @Module({
   imports: [
@@ -32,7 +32,7 @@ import { SmsModule } from 'src/sms/sms.module';
 
     // ✅ IMPORTANT FIX
     RedisModule,
-    SmsModule,
+    //SmsModule,
   ],
 
   controllers: [AuthController],

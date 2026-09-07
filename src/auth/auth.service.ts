@@ -379,4 +379,22 @@ export class AuthService {
 
     return user;
   }
+
+  // GET deleteAccount
+  // GET /auth/deleteAccount
+  // =========================================================
+  async deleteAccount(userId: string) {
+  const user = await this.usersService.findById(userId);
+
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  await this.usersService.deleteUser(userId);
+
+  return {
+    success: true,
+    message: 'Account deleted successfully',
+  };
+}
 }
